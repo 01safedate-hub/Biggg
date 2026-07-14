@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --orange: #FF6A00;
+  --orange-dark: #E85D00;
+  --ink: #201C1A;
+  --gray: #8C8681;
+  --white: #FFFDFB;
+  --peach: #FFF1E6;
+  --line: #F0E1D2;
+  --green: #1E9E5A;
+  --teal: #2F6B66;
+  --red: #C1453A;
+  --radius: 14px;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background: var(--white);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .phone-container {
+    @apply w-full max-w-[380px] mx-auto px-4 py-8 pb-16;
+  }
+
+  .brand {
+    @apply flex items-center justify-between mb-5;
+  }
+
+  .brand-mark {
+    @apply flex items-center gap-2;
+  }
+
+  .brand-dot {
+    @apply w-5 h-5 rounded-md bg-orange flex-shrink-0;
+  }
+
+  .brand-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-tag {
+    @apply text-xxs text-gray;
+  }
+}

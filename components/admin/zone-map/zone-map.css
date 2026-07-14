@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+/* Map container tweaks */
+.leaflet-container {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: #fff;
+}
+
+/* Rider icon wrapper (divIcon) should not inherit leaflet defaults */
+.rider-icon {
+  background: transparent;
+  border: none;
+}
+
+/* Popup content tweaks */
+.leaflet-popup-content {
+  font-size: 13px;
+  color: #333;
+}
+
+/* Small responsive map height for narrow screens */
+@media (max-width: 640px) {
+  .admin-zone-map { height: 320px !important; }
+}
