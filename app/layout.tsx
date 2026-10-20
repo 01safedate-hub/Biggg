@@ -1,10 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://laundrypoint.app";
+const DEFAULT_SITE = "https://laundrypoint.app";
+
+/** Accepts "laundrypoint.app", "https://laundrypoint.app/" or a quoted value, and never throws. */
+function siteUrl(): URL {
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim().replace(/^["']|["']$/g, "");
+  if (!raw) return new URL(DEFAULT_SITE);
+  try {
+    return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return new URL(DEFAULT_SITE);
+  }
+}
 
 export const metadata: Metadata = {
-  metadataBase: new URL(site),
+  metadataBase: siteUrl(),
   title: { default: "LaundryPoint | Laundry pickup and delivery", template: "%s | LaundryPoint" },
   description:
     "Request a laundry pickup, pay the transport fare, and have your clothes counted, cleaned and returned with a secure three-code handover. Monthly plans available.",
