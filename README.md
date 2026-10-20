@@ -1,3 +1,25 @@
-# Bigfoods
+# LaundryPoint
 
-[![Open in Bolt](https://bolt.new/static/open-in-bolt.svg)](https://bolt.new/~/sb1-6uypaxjt)
+Laundry pickup, delivery, monthly plans, staff, finance and payroll. Next.js 15, React 19, Tailwind 3.4, Supabase.
+
+## Stack
+- `app/`, `components/`: web app. The landing page reads plans, settings and live zones from Supabase.
+- `lib/supabase/`: `client.ts` (browser), `server.ts` (cookies), `public.ts` (cookie-free, cacheable public reads).
+- `types/database.ts`: generated from the database. Regenerate after every migration.
+- `supabase/functions/`: edge function source (`waitlist` is deployed).
+- Database: project `laundrypoint` (`aqxitpnektmkjpfbbfhz`, eu-west-2). All business values (fares, plans, hours, fees) live in tables, never in code.
+
+## Develop
+```bash
+cp .env.example .env.local   # add the publishable key from the Supabase dashboard
+npm install
+npm run typecheck
+npm run build
+npm run dev
+```
+
+## Secrets
+Web variables live in Netlify. Edge function secrets live in Supabase. The service-role key is only used inside edge functions. Nothing secret is committed.
+
+## Content rules
+Never hard-code a town in public headings, never describe delivery as free, say "Request pickup", and keep "transport paid before the agent leaves" visible.

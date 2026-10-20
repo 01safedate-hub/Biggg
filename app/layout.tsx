@@ -1,37 +1,26 @@
-import './globals.css';
-import type {Metadata} from 'next';
-import {Inter, Space_Grotesk} from 'next/font/google';
-import {CartProvider} from '@/hooks/useCart';
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
 
-const inter = Inter({subsets: ['latin'], variable: '--font-inter'});
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-});
+const site = process.env.NEXT_PUBLIC_SITE_URL ?? "https://laundrypoint.app";
 
 export const metadata: Metadata = {
-  title: 'BigFoods — Order Food in Anambra',
-  description: 'Order delicious food from local restaurants across Anambra State. Free dispatch, fast delivery.',
-  openGraph: {
-    title: 'BigFoods — Order Food in Anambra',
-    description: 'Order delicious food from local restaurants across Anambra State.',
-    images: ['/og.png'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/og.png'],
-  },
+  metadataBase: new URL(site),
+  title: { default: "LaundryPoint | Laundry pickup and delivery", template: "%s | LaundryPoint" },
+  description:
+    "Request a laundry pickup, pay the transport fare, and have your clothes counted, cleaned and returned with a secure three-code handover. Monthly plans available.",
+  openGraph: { title: "LaundryPoint", description: "Laundry pickup and delivery with a secure handover.", type: "website" },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width", initialScale: 1 };
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} ${inter.className}`}>
-        <CartProvider>{children}</CartProvider>
+      <body>
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2">
+          Skip to content
+        </a>
+        {children}
       </body>
     </html>
   );

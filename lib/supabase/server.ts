@@ -1,19 +1,24 @@
-import {createServerClient, type CookieOptions} from '@supabase/ssr';
-import type {SupabaseClient} from '@supabase/supabase-js';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import type { Database } from "@/types/database";
 
-type CookieAccessor = {
-  getAll: () => Array<{name: string; value: string}>;
-  setAll: (cookies: Array<{name: string; value: string; options?: CookieOptions}>) => void;
-};
-
-export function createServerSupabase(opts: {cookies: CookieAccessor}): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  return createServerClient(url, anon, {
-    cookies: {
-      getAll: opts.cookies.getAll,
-      setAll: opts.cookies.setAll,
+/** Cookie-aware client for signed-in server work (account, staff areas). */
+export async function createClient() {
+  const store = await cookies();
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => store.getAll(),
+        setAll: (list) => {
+          try {
+            list.forEach(({ name, value, options }) => store.set(name, value, options));
+          } catch {
+            /* called from a Server Component; middleware refreshes sessions */
+          }
+        },
+      },
     },
-  });
+  );
 }
