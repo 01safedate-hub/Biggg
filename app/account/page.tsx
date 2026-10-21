@@ -18,6 +18,9 @@ export default async function AccountPage() {
     supabase.from("user_roles").select("role").eq("user_id", user.id),
   ]);
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
+  const keys = (roles ?? []).map((r) => r.role as string);
+  const isSuper = keys.includes("super_admin");
+  const isMoneyStaff = isSuper || keys.some((k) => ["admin", "accountant", "cashier"].includes(k));
 
   return (
     <main id="main" className="container-page max-w-3xl py-12">
@@ -41,6 +44,12 @@ export default async function AccountPage() {
           </div>
         ))}
       </div>
+      {(isSuper || isMoneyStaff) && (
+        <div className="mt-8 flex flex-wrap gap-3">
+          {isSuper && <Link href="/admin" className="btn-primary">Open super admin</Link>}
+          {isMoneyStaff && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
+        </div>
+      )}
     </main>
   );
 }

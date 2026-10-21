@@ -24,7 +24,7 @@ export default async function Home() {
         <Coverage areas={zones} />
         <Faq />
       </main>
-      <Footer name={b.name} mapsUrl={settings.hub.maps_url} whatsapp={settings.whatsapp.number} />
+      <Footer name={b.name} mapsUrl={settings.hub.maps_url} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />
     </>
   );
 }

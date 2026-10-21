@@ -9,6 +9,7 @@ export type PublicSettings = {
   agent: { eta_minutes: number };
   hub: { maps_url: string | null; address: string | null };
   whatsapp: { number: string | null };
+  contact: { phone: string | null };
   subscription: { pickups_per_month: number; yearly_discount_pct: number };
 };
 
@@ -17,6 +18,7 @@ const FALLBACK: PublicSettings = {
   agent: { eta_minutes: 30 },
   hub: { maps_url: null, address: null },
   whatsapp: { number: null },
+  contact: { phone: null },
   subscription: { pickups_per_month: 4, yearly_discount_pct: 10 },
 };
 

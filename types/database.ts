@@ -170,6 +170,10 @@ export type Database = {
           id: string
           kind: string
           label: string
+          status: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount_kobo: number
@@ -179,6 +183,10 @@ export type Database = {
           id?: string
           kind: string
           label: string
+          status?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount_kobo?: number
@@ -188,6 +196,10 @@ export type Database = {
           id?: string
           kind?: string
           label?: string
+          status?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -195,6 +207,56 @@ export type Database = {
             columns: ["entered_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_counts: {
+        Row: {
+          basis: string
+          counted_by: string
+          counted_kobo: number
+          created_at: string
+          day: string
+          difference_kobo: number | null
+          expected_balance_kobo: number
+          expected_day_kobo: number
+          id: string
+          money_point_id: string
+          note: string | null
+        }
+        Insert: {
+          basis: string
+          counted_by: string
+          counted_kobo: number
+          created_at?: string
+          day: string
+          difference_kobo?: number | null
+          expected_balance_kobo: number
+          expected_day_kobo: number
+          id?: string
+          money_point_id: string
+          note?: string | null
+        }
+        Update: {
+          basis?: string
+          counted_by?: string
+          counted_kobo?: number
+          created_at?: string
+          day?: string
+          difference_kobo?: number | null
+          expected_balance_kobo?: number
+          expected_day_kobo?: number
+          id?: string
+          money_point_id?: string
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_counts_money_point_id_fkey"
+            columns: ["money_point_id"]
+            isOneToOne: false
+            referencedRelation: "money_points"
             referencedColumns: ["id"]
           },
         ]
@@ -420,6 +482,51 @@ export type Database = {
           },
         ]
       }
+      evidence: {
+        Row: {
+          capital_id: string | null
+          created_at: string
+          expense_id: string | null
+          id: string
+          kind: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          capital_id?: string | null
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          kind: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          capital_id?: string | null
+          created_at?: string
+          expense_id?: string | null
+          id?: string
+          kind?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_capital_id_fkey"
+            columns: ["capital_id"]
+            isOneToOne: false
+            referencedRelation: "capital_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expense_categories: {
         Row: {
           id: string
@@ -440,34 +547,58 @@ export type Database = {
           amount_kobo: number
           category_id: string | null
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
           entered_by: string | null
           id: string
           label: string
           money_point_id: string | null
           order_id: string | null
           spent_on: string
+          status: string
+          vendor: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
         }
         Insert: {
           amount_kobo: number
           category_id?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           entered_by?: string | null
           id?: string
           label: string
           money_point_id?: string | null
           order_id?: string | null
           spent_on?: string
+          status?: string
+          vendor?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Update: {
           amount_kobo?: number
           category_id?: string | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
           entered_by?: string | null
           id?: string
           label?: string
           money_point_id?: string | null
           order_id?: string | null
           spent_on?: string
+          status?: string
+          vendor?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
         }
         Relationships: [
           {
@@ -1967,6 +2098,16 @@ export type Database = {
     }
     Functions: {
       accrue_demurrage: { Args: never; Returns: Json }
+      add_capital_entry: {
+        Args: {
+          _amount_kobo: number
+          _entered_on: string
+          _evidence: Json
+          _kind: string
+          _label: string
+        }
+        Returns: string
+      }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
       check_out: { Args: { _lat: number; _lng: number }; Returns: Json }
@@ -1995,6 +2136,11 @@ export type Database = {
         }
       }
       compute_payroll: { Args: { _month: string }; Returns: string }
+      daily_money_view: { Args: { _day: string }; Returns: Json }
+      decide_expense: {
+        Args: { _approve: boolean; _id: string; _note: string }
+        Returns: undefined
+      }
       finance_overview: { Args: { _from: string; _to: string }; Returns: Json }
       finish_email: {
         Args: {
@@ -2028,14 +2174,46 @@ export type Database = {
       }
       mark_absences: { Args: never; Returns: number }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
+      record_cash_count: {
+        Args: {
+          _basis: string
+          _counted_kobo: number
+          _day: string
+          _money_point_id: string
+          _note: string
+        }
+        Returns: undefined
+      }
+      recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
       set_user_status: {
         Args: { _reason?: string; _status: string; _user: string }
         Returns: undefined
       }
+      submit_expense: {
+        Args: {
+          _amount_kobo: number
+          _category_id: string
+          _evidence: Json
+          _label: string
+          _money_point_id: string
+          _spent_on: string
+          _vendor: string
+        }
+        Returns: string
+      }
       verify_order_code: {
         Args: { _code: string; _order: string; _step: string }
         Returns: Json
+      }
+      verify_worker_secret: { Args: { _s: string }; Returns: boolean }
+      void_capital_entry: {
+        Args: { _id: string; _reason: string }
+        Returns: undefined
+      }
+      void_expense: {
+        Args: { _id: string; _reason: string }
+        Returns: undefined
       }
       waive_demurrage: {
         Args: { _order: string; _reason: string }
