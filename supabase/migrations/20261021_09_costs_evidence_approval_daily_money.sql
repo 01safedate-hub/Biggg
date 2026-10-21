@@ -1,5 +1,5 @@
 -- 09: costs ledger with proof, approval, void-only corrections, blind cash counts, daily money view.
--- NOT YET APPLIED to the laundrypoint project. Review, then apply.
+-- APPLIED to the laundrypoint project on 2026-10-21 and tested in rolled-back transactions.
 
 -- ===== Settings =====
 insert into public.settings (key, value, description, is_public) values
@@ -388,10 +388,10 @@ begin
     'manual_kobo', coalesce((select sum(gross_kobo - refunded_kobo) from public.daily_sales_summary where day = _day and mode <> 'paystack'), 0),
     'online_by_purpose', coalesce((select jsonb_object_agg(purpose, v) from (
         select purpose, sum(case when kind = 'refund' then -amount_kobo else amount_kobo end) v from public.payments
-         where status = 'success' and mode = 'paystack' and (paid_at at time zone 'Africa/Lagos')::date = _day group by purpose) y), '{}'::jsonb),
+         where status = 'success' and mode = 'paystack' and (coalesce(paid_at, created_at) at time zone 'Africa/Lagos')::date = _day group by purpose) y), '{}'::jsonb),
     'manual_by_purpose', coalesce((select jsonb_object_agg(purpose, v) from (
         select purpose, sum(case when kind = 'refund' then -amount_kobo else amount_kobo end) v from public.payments
-         where status = 'success' and mode <> 'paystack' and (paid_at at time zone 'Africa/Lagos')::date = _day group by purpose) z), '{}'::jsonb),
+         where status = 'success' and mode <> 'paystack' and (coalesce(paid_at, created_at) at time zone 'Africa/Lagos')::date = _day group by purpose) z), '{}'::jsonb),
     'pending_expenses', (select count(*) from public.expenses where status = 'pending')
   ) into _r;
   return _r;

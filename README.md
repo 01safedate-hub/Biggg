@@ -23,3 +23,8 @@ Web variables live in Netlify. Edge function secrets live in Supabase. The servi
 
 ## Content rules
 Never hard-code a town in public headings, never describe delivery as free, say "Request pickup", and keep "transport paid before the agent leaves" visible.
+
+## Email
+All email goes through Resend. Sign-up and password-reset emails use a Supabase "Send Email" auth hook that calls the
+`auth-email` edge function (sent instantly). Order, waitlist and demurrage emails are queued in `email_outbox` and sent by
+`email-worker` every 5 minutes. Edge function secrets: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET`, optional `EMAIL_REPLY_TO`.
