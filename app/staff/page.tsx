@@ -6,7 +6,7 @@ export const metadata = { title: "Staff home" };
 type Progress = { capital_pct: number; capital_recovered: boolean };
 
 export default async function StaffHome() {
-  const { supabase, roles } = await requireRole(["super_admin", "admin", "accountant", "cashier"]);
+  const { supabase, roles } = await requireRole(["super_admin", "admin", "accountant", "cashier", "delivery_agent"]);
   const { data } = await supabase.rpc("recovery_progress");
   const p = data as unknown as Progress | null;
   const canExpense = roles.includes("accountant") || roles.includes("super_admin");
@@ -25,7 +25,8 @@ export default async function StaffHome() {
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         {canExpense && <Link href="/staff/expenses" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Record an expense</h2><p className="mt-1 text-sm text-ink-soft">Fuel, supplies, repairs. Proof is required.</p></Link>}
-        <Link href="/staff/count" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Count money</h2><p className="mt-1 text-sm text-ink-soft">Enter what is in a drawer, POS or account at the end of the day.</p></Link>
+        <Link href="/staff/spending" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Spending</h2><p className="mt-1 text-sm text-ink-soft">See what the business spent, with the proof.</p></Link>
+        {roles.some((r) => r !== "delivery_agent") && <Link href="/staff/count" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Count money</h2><p className="mt-1 text-sm text-ink-soft">Enter what is in a drawer, POS or account at the end of the day.</p></Link>}
       </div>
     </div>
   );
