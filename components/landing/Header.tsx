@@ -22,6 +22,7 @@ export function Header({ name }: { name: string }) {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:inline">Sign in</Link>
           <Link href="/request" className="btn-primary">Request pickup</Link>
         </div>
       </div>
