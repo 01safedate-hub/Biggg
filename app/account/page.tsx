@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { FormMessage } from "@/components/auth/AuthShell";
+import { ProfileForm } from "@/components/account/ProfileForm";
 
 export const metadata = { title: "My account" };
 export const dynamic = "force-dynamic";
@@ -8,7 +10,13 @@ const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super admin", admin: "Admin", accountant: "Accountant", cashier: "Cashier", delivery_agent: "Delivery agent",
 };
 
-export default async function AccountPage() {
+const NOTICE: Record<string, string> = {
+  confirmed: "Your email is confirmed. Welcome to LaundryPoint.",
+  password_changed: "Your password was changed.",
+};
+
+export default async function AccountPage({ searchParams }: { searchParams: Promise<{ notice?: string }> }) {
+  const { notice } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null; // middleware redirects signed-out visitors
@@ -29,6 +37,7 @@ export default async function AccountPage() {
         <form action="/auth/signout" method="post"><button className="btn-secondary">Sign out</button></form>
       </div>
       <h1 className="mt-6 text-3xl font-bold tracking-tight">My account</h1>
+      {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
       <div className="card mt-8 divide-y divide-line">
         {[
           ["Name", profile?.full_name || "Not set"],
@@ -44,10 +53,15 @@ export default async function AccountPage() {
           </div>
         ))}
       </div>
-      {(isSuper || isMoneyStaff) && (
+      <section className="card mt-8 p-6">
+        <h2 className="mb-4 text-lg font-semibold">Your details</h2>
+        <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
+        <p className="mt-4 text-sm"><Link href="/account/security" className="font-medium text-brand-dark hover:underline">Change password or email</Link></p>
+      </section>
+      {(isSuper || isMoneyStaff || keys.includes("delivery_agent")) && (
         <div className="mt-8 flex flex-wrap gap-3">
           {isSuper && <Link href="/admin" className="btn-primary">Open super admin</Link>}
-          {isMoneyStaff && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
+          {(isMoneyStaff || keys.includes("delivery_agent")) && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
         </div>
       )}
     </main>

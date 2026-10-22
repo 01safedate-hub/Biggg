@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { cleanPhone, MIN_PASSWORD } from "@/lib/auth";
+import { cleanPhone, isPwnedPassword, MIN_PASSWORD, passwordProblem, PWNED_MESSAGE } from "@/lib/auth";
 import { Field, FormMessage } from "./AuthShell";
 
 export function SignupForm() {
@@ -21,14 +21,16 @@ export function SignupForm() {
 
     if (fullName.length < 2) return setError("Please enter your full name.");
     if (!phone) return setError("Please enter a valid phone number, for example 08012345678.");
-    if (password.length < MIN_PASSWORD) return setError(`Your password must be at least ${MIN_PASSWORD} characters.`);
+    const problem = passwordProblem(password, email);
+    if (problem) return setError(problem);
     if (password !== String(f.get("confirm") ?? "")) return setError("The two passwords do not match.");
 
     setBusy(true);
+    if (await isPwnedPassword(password)) { setBusy(false); return setError(PWNED_MESSAGE); }
     const { data, error: err } = await createClient().auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone }, emailRedirectTo: `${window.location.origin}/auth/callback?next=/account` },
+      options: { data: { full_name: fullName, phone } },
     });
     setBusy(false);
     if (err) return setError(err.message.toLowerCase().includes("rate") ? "Too many attempts. Please wait a few minutes and try again." : err.message);

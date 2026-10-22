@@ -23,7 +23,11 @@ export function LoginForm({ next }: { next: string }) {
     });
     setBusy(false);
     if (err) {
-      return setError(err.message.toLowerCase().includes("confirm") ? "Please confirm your email first. Check your inbox for the link." : "Incorrect email or password.");
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "email_not_confirmed" || err.message.toLowerCase().includes("confirm")) return setError("Please confirm your email first. Check your inbox for the link.");
+      if (code === "user_banned" || err.message.toLowerCase().includes("banned")) return setError("This account has been suspended. Please contact us.");
+      if (err.status === 429 || code.includes("rate_limit")) return setError("Too many attempts. Please wait a few minutes and try again.");
+      return setError("Incorrect email or password.");
     }
     router.replace(safeNext(next));
     router.refresh();
