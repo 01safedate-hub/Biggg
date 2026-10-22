@@ -43,9 +43,7 @@ export async function changeStatus(userId: string, status: string, reason: strin
 
 export async function changeRoles(userId: string, roles: string[]): Promise<ActionResult> {
   const { supabase } = await requireRole(["super_admin"]);
-  // set_staff_roles is not in the generated types until its migration has been applied; remove this cast after regenerating types.
-  const rpc = supabase.rpc as unknown as (fn: string, args: object) => Promise<{ error: { message: string } | null }>;
-  const { error } = await rpc.call(supabase, "set_staff_roles", { _user: userId, _roles: roles });
+  const { error } = await supabase.rpc("set_staff_roles", { _user: userId, _roles: roles });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/admin/staff");
   return { ok: true, message: roles.length ? "Roles saved." : "All staff access removed. They are now a customer." };
