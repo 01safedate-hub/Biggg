@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
-const PROTECTED = ["/account", "/staff", "/admin"];
+const PROTECTED = ["/account", "/staff", "/admin", "/welcome"];
 
 /** Refreshes the session cookie on every request and guards signed-in-only areas. */
 export async function updateSession(request: NextRequest) {

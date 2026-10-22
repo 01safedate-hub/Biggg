@@ -6,14 +6,17 @@ import { Webhook } from "npm:standardwebhooks@1.0.0";
 const FROM = Deno.env.get("EMAIL_FROM") ?? "LaundryPoint <onboarding@resend.dev>";
 const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") ?? undefined;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const HOOK_SECRET = (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace("v1,whsec_", "");
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
 
 type Payload = {
   user: { email: string; new_email?: string };
-  email_data: { token: string; token_hash: string; redirect_to: string; email_action_type: string; site_url: string };
+  email_data: {
+    token: string; token_hash: string; token_new?: string; token_hash_new?: string; old_email?: string;
+    redirect_to: string; email_action_type: string; site_url: string;
+  };
 };
+type Mail = { to: string; subject: string; html: string; text: string };
 
 const esc = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -35,32 +38,72 @@ function layout(heading: string, intro: string, button?: { label: string; href: 
 </table></td></tr></table></body></html>`;
 }
 
-function build(p: Payload): { to: string; subject: string; html: string; text: string } | null {
+// Links go to our own confirm page (never straight to the Supabase verify URL). That page needs a click before it uses
+// the one-time token, so mail scanners that open links in advance cannot burn the token.
+function build(p: Payload): Mail[] | null {
   const { user, email_data: d } = p;
-  const link = `${SUPABASE_URL}/auth/v1/verify?token=${encodeURIComponent(d.token_hash)}&type=${encodeURIComponent(d.email_action_type)}&redirect_to=${encodeURIComponent(d.redirect_to)}`;
+  const link = (hash: string, type: string) => `${SITE}/auth/confirm?token_hash=${encodeURIComponent(hash)}&type=${encodeURIComponent(type)}`;
+  const one = (to: string, subject: string, html: string, text: string): Mail[] => [{ to, subject, html, text }];
   switch (d.email_action_type) {
-    case "signup":
-      return { to: user.email, subject: "Confirm your LaundryPoint account",
-        html: layout("Confirm your email", "Thank you for creating a LaundryPoint account. Please confirm your email address to activate it.", { label: "Confirm email", href: link }),
-        text: `Confirm your LaundryPoint account: ${link}` };
-    case "recovery":
-      return { to: user.email, subject: "Reset your LaundryPoint password",
-        html: layout("Reset your password", "We received a request to reset your password. This link works once and expires soon.", { label: "Choose a new password", href: link }),
-        text: `Reset your LaundryPoint password: ${link}` };
-    case "magiclink":
-      return { to: user.email, subject: "Your LaundryPoint sign-in link",
-        html: layout("Sign in", "Use the button below to sign in. This link works once.", { label: "Sign in", href: link }),
-        text: `Sign in to LaundryPoint: ${link}` };
-    case "invite":
-      return { to: user.email, subject: "You have been invited to LaundryPoint",
-        html: layout("You are invited", "You have been invited to join LaundryPoint. Accept the invitation to set up your account.", { label: "Accept invitation", href: link }),
-        text: `Accept your LaundryPoint invitation: ${link}` };
+    case "signup": {
+      const l = link(d.token_hash, "signup");
+      return one(user.email, "Confirm your LaundryPoint account",
+        layout("Confirm your email", "Thank you for creating a LaundryPoint account. Please confirm your email address to activate it.", { label: "Confirm email", href: l }),
+        `Confirm your LaundryPoint account: ${l}`);
+    }
+    case "recovery": {
+      const l = link(d.token_hash, "recovery");
+      return one(user.email, "Reset your LaundryPoint password",
+        layout("Reset your password", "We received a request to reset your password. This link works once and expires soon.", { label: "Choose a new password", href: l }),
+        `Reset your LaundryPoint password: ${l}`);
+    }
+    case "magiclink": {
+      const l = link(d.token_hash, "magiclink");
+      return one(user.email, "Your LaundryPoint sign-in link",
+        layout("Sign in", "Use the button below to sign in. This link works once.", { label: "Sign in", href: l }),
+        `Sign in to LaundryPoint: ${l}`);
+    }
+    case "invite": {
+      const l = link(d.token_hash, "invite");
+      return one(user.email, "You have been invited to LaundryPoint",
+        layout("You are invited", "You have been invited to join the LaundryPoint team. Accept the invitation to choose your password and set up your account.", { label: "Accept invitation", href: l }),
+        `Accept your LaundryPoint invitation: ${l}`);
+    }
     case "reauthentication":
-      return { to: user.email, subject: "Your LaundryPoint confirmation code",
-        html: layout("Confirm it is you", "Enter this code to continue. It expires shortly.", undefined, d.token),
-        text: `Your LaundryPoint confirmation code: ${d.token}` };
+      return one(user.email, "Your LaundryPoint confirmation code",
+        layout("Confirm it is you", "Enter this code to continue. It expires shortly.", undefined, d.token),
+        `Your LaundryPoint confirmation code: ${d.token}`);
+    case "email_change": {
+      // Token fields are reversed by Supabase for backward compatibility:
+      // token_hash_new goes to the CURRENT address, token_hash goes to the NEW address.
+      const target = user.new_email;
+      if (!target) return null;
+      const out: Mail[] = [];
+      const lNew = link(d.token_hash, "email_change");
+      out.push({ to: target, subject: "Confirm your new LaundryPoint email",
+        html: layout("Confirm your new email", `Please confirm that ${target} should be your new LaundryPoint sign-in email.`, { label: "Confirm new email", href: lNew }),
+        text: `Confirm your new LaundryPoint email: ${lNew}` });
+      if (d.token_hash_new) {
+        const lCur = link(d.token_hash_new, "email_change");
+        out.push({ to: user.email, subject: "Approve the change of your LaundryPoint email",
+          html: layout("Approve the email change", `A request was made to change your sign-in email to ${target}. If this was you, approve it below. If not, do not click, and change your password.`, { label: "Approve change", href: lCur }),
+          text: `Approve the change of your LaundryPoint email to ${target}: ${lCur}` });
+      }
+      return out;
+    }
+    case "password_changed_notification":
+      return one(user.email, "Your LaundryPoint password was changed",
+        layout("Your password was changed", "The password for your LaundryPoint account was just changed. If this was not you, reset your password straight away and contact us."),
+        "Your LaundryPoint password was changed. If this was not you, reset your password straight away.");
+    case "email_changed_notification": {
+      const to = d.old_email || user.email;
+      return one(to, "Your LaundryPoint email was changed",
+        layout("Your email was changed", `The sign-in email for your LaundryPoint account was changed to ${user.email}. If this was not you, contact us immediately.`),
+        `The sign-in email for your LaundryPoint account was changed to ${user.email}. If this was not you, contact us immediately.`);
+    }
     default:
-      return null; // email_change is not used yet
+      // Other optional security notices (identity, MFA, phone) are not used here. Accept them quietly so they never block a sign-in or change.
+      return d.email_action_type.endsWith("_notification") ? [] : null;
   }
 }
 
@@ -79,18 +122,20 @@ Deno.serve(async (req) => {
     return fail(401, "invalid_signature");
   }
 
-  const mail = build(payload);
-  if (!mail) return fail(400, `unsupported_email_type:${payload.email_data.email_action_type}`);
+  const mails = build(payload);
+  if (!mails) return fail(400, `unsupported_email_type:${payload.email_data.email_action_type}`);
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text, reply_to: REPLY_TO }),
-  });
-  if (!res.ok) {
-    const e = await res.json().catch(() => ({}));
-    console.error("resend_failed", res.status, e?.message ?? e?.name);
-    return fail(502, "email_send_failed");
+  for (const mail of mails) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: FROM, to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text, reply_to: REPLY_TO }),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      console.error("resend_failed", res.status, e?.message ?? e?.name);
+      return fail(502, "email_send_failed");
+    }
   }
   return new Response(JSON.stringify({}), { status: 200, headers: { "Content-Type": "application/json" } });
 });

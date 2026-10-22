@@ -2141,7 +2141,12 @@ export type Database = {
         Args: { _approve: boolean; _id: string; _note: string }
         Returns: undefined
       }
+      expense_feed: {
+        Args: { _before?: string; _limit?: number }
+        Returns: Json
+      }
       finance_overview: { Args: { _from: string; _to: string }; Returns: Json }
+      find_user_by_email: { Args: { _email: string }; Returns: Json }
       finish_email: {
         Args: {
           _err?: string
@@ -2186,10 +2191,15 @@ export type Database = {
       }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
+      set_staff_status: {
+        Args: { _reason?: string; _status: string; _user: string }
+        Returns: undefined
+      }
       set_user_status: {
         Args: { _reason?: string; _status: string; _user: string }
         Returns: undefined
       }
+      staff_list: { Args: never; Returns: Json }
       submit_expense: {
         Args: {
           _amount_kobo: number
@@ -2201,6 +2211,10 @@ export type Database = {
           _vendor: string
         }
         Returns: string
+      }
+      update_my_profile: {
+        Args: { _full_name: string; _phone: string }
+        Returns: undefined
       }
       verify_order_code: {
         Args: { _code: string; _order: string; _step: string }

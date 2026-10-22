@@ -12,7 +12,7 @@ export function ForgotForm() {
     e.preventDefault();
     const email = String(new FormData(e.currentTarget).get("email") ?? "").trim().toLowerCase();
     setBusy(true);
-    await createClient().auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/callback?next=/reset-password` });
+    await createClient().auth.resetPasswordForEmail(email);
     setBusy(false);
     setDone(true); // same message whether or not the address exists
   }
