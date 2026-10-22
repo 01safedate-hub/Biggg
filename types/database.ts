@@ -2191,6 +2191,10 @@ export type Database = {
       }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
+      set_staff_roles: {
+        Args: { _roles: string[]; _user: string }
+        Returns: undefined
+      }
       set_staff_status: {
         Args: { _reason?: string; _status: string; _user: string }
         Returns: undefined
