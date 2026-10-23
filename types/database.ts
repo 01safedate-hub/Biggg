@@ -2108,6 +2108,7 @@ export type Database = {
         }
         Returns: string
       }
+      admin_dashboard: { Args: { _from: string; _to: string }; Returns: Json }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
       check_out: { Args: { _lat: number; _lng: number }; Returns: Json }
@@ -2191,6 +2192,7 @@ export type Database = {
       }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
+      save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       set_staff_roles: {
         Args: { _roles: string[]; _user: string }
         Returns: undefined
