@@ -22,8 +22,10 @@ export default async function Attention() {
   const { supabase } = await requireRole(["super_admin"]);
   const { data } = await supabase.rpc("attention_overview");
   const o = data as unknown as Ov | null;
+  const { data: integ } = await supabase.rpc("integrity_check");
+  const flags = (Array.isArray(integ) ? integ : []) as unknown as { code: string; severity: string; order_id: string; order_no: number; detail: string }[];
   if (!o) return <p className="card p-5 text-sm">Could not load this page. Please refresh.</p>;
-  const total = o.reviews.length + o.storage.length + o.stuck.length + o.issues.length + (o.refunds.count > 0 ? 1 : 0);
+  const total = flags.length + o.reviews.length + o.storage.length + o.stuck.length + o.issues.length + (o.refunds.count > 0 ? 1 : 0);
   const Section = ({ title, hint, n, children }: { title: string; hint: string; n: number; children: React.ReactNode }) => (
     <section className="space-y-2"><div><h2 className="text-lg font-semibold">{title} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-soft">{n}</span></h2><p className="text-sm text-ink-soft">{hint}</p></div>{n > 0 ? <div className="card divide-y divide-line">{children}</div> : <p className="card p-4 text-sm text-ink-soft">Nothing here. Good.</p>}</section>
   );
@@ -55,6 +57,10 @@ export default async function Attention() {
 
       <Section title="Orders that look stuck" hint="Waiting longer than expected. Open the order to see who has it." n={o.stuck.length}>
         {o.stuck.map((s) => <Link key={s.order_id} href={`/staff/orders/${s.order_id}`} className="flex justify-between gap-2 p-4 text-sm hover:bg-canvas"><span className="font-medium">#{s.order_no} · {STATUS_LABEL[s.status] ?? s.status}</span><span className="text-red-700">waiting {dur(s.minutes)}</span></Link>)}
+      </Section>
+
+      <Section title="Books that do not add up" hint="An automatic check of money against orders. Each line is a real mismatch to look into." n={flags.length}>
+        {flags.map((f, i) => <Link key={`${f.order_id}-${f.code}-${i}`} href={`/staff/orders/${f.order_id}`} className="block p-4 text-sm hover:bg-canvas"><span className="font-medium">#{f.order_no}</span> <span className={`ml-1 rounded-full px-2 py-0.5 text-xs ${f.severity === "1" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}`}>{f.severity === "1" ? "Money" : "Check"}</span><span className="block text-ink-soft">{f.detail}</span></Link>)}
       </Section>
 
       {o.refunds.count > 0 && <p className="card p-4 text-sm"><strong>{o.refunds.count}</strong> refund{o.refunds.count === 1 ? "" : "s"} to send, {naira(o.refunds.kobo)} in all. <Link className="text-brand-dark underline" href="/admin/payments">Go to Online payments</Link>.</p>}

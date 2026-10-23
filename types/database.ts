@@ -2689,6 +2689,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      integrity_check: { Args: never; Returns: Json }
       issue_order_code: {
         Args: { _order: string; _step: string }
         Returns: string

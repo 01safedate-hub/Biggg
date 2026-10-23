@@ -1,0 +1,1 @@
+-- Applied via apply_migration "integrity_check": public.integrity_check() (super admin) flags unpaid transport, underpaid clothes, unrefunded cancellations, stale pending payments, total mismatches, unavailable agents.
