@@ -1,0 +1,3 @@
+-- Applied via apply_migration: refund_instant_fee
+-- orders.instant_refunded_at; public.refund_instant_fee(_order,_note) (super admin, delivered instant orders, once only, queues a pending refund of the fee);
+-- public.turnaround_late_refunded(_ids) so the analytics list can show which fees were already refunded.

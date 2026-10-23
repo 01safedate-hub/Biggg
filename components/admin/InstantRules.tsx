@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { saveInstantRules } from "@/app/admin/ops-actions";
+import { refundInstantFee, saveInstantRules } from "@/app/admin/ops-actions";
 
 type V = { enabled: boolean; feeNaira: number; targetHours: number; largeItems: number; largeHours: number; pickupMinutes: number };
 
@@ -28,5 +28,21 @@ export function InstantRules({ initial }: { initial: V }) {
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.text}</p>}
       <button className="btn-primary" disabled={busy}>{busy ? "Saving" : "Save"}</button>
     </form>
+  );
+}
+
+export function RefundFeeButton({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("Missed the instant delivery target");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!open) return <button type="button" className="text-sm font-medium text-brand-dark underline" onClick={() => setOpen(true)}>Refund fee</button>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <input aria-label="Reason" value={note} onChange={(e) => setNote(e.target.value)} maxLength={150} className="w-56 rounded-md border border-line px-2 py-1 text-sm" />
+      <button type="button" className="btn-primary" disabled={busy || note.trim().length < 3} onClick={async () => { setBusy(true); setErr(null); const r = await refundInstantFee(orderId, note); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>{busy ? "Saving" : "Refund"}</button>
+      {err && <span role="alert" className="text-sm text-red-700">{err}</span>}
+    </span>
   );
 }

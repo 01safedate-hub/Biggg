@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/roles";
-import { InstantRules } from "@/components/admin/InstantRules";
+import { InstantRules, RefundFeeButton } from "@/components/admin/InstantRules";
 import { naira } from "@/lib/format";
 
 export const metadata = { title: "Speed analytics" };
@@ -35,6 +35,8 @@ export default async function Speed({ searchParams }: { searchParams: Promise<{ 
   const p = pd as unknown as P | null; const t = td as unknown as T | null;
   if (!p || !t) return <p className="card p-5 text-sm">Could not load this page. Please refresh.</p>;
   const cfg = (cfgRow?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number; target_hours?: number; large_load_items?: number; large_load_hours?: number };
+  const { data: doneIds } = t.late.length ? await supabase.rpc("turnaround_late_refunded", { _ids: t.late.map((l) => l.order_id) }) : { data: [] };
+  const refunded = new Set((doneIds ?? []) as string[]);
   const pt = (pk?.value ?? {}) as { minutes?: number };
   const chip = (d: number) => <Link key={d} href={`/staff/speed?days=${d}`} className={`rounded-full border px-3 py-1 text-sm ${n === d ? "border-brand bg-brand-tint text-brand-dark" : "border-line"}`}>Last {d} days</Link>;
   const row = (label: string, s: S) => <tr key={label}><td className="py-2 font-medium">{label}</td><td className="py-2 text-right">{s.n}</td><td className="py-2 text-right">{s.n ? `${s.avg} min` : "-"}</td><td className="py-2 text-right">{s.n ? `${s.median} min` : "-"}</td><td className="py-2 text-right">{s.n ? `${s.p90} min` : "-"}</td><td className="py-2 text-right">{s.n ? `${s.within_pct}%` : "-"}</td></tr>;
@@ -103,9 +105,9 @@ export default async function Speed({ searchParams }: { searchParams: Promise<{ 
           </div>
         )}
         {t.late.length > 0 && (
-          <div className="card overflow-x-auto p-4"><h3 className="font-semibold">Instant orders that were late</h3><p className="mt-1 text-sm text-ink-soft">The customer paid extra for speed. Consider refunding the instant fee through Customer problems.</p>
-            <table className="mt-2 w-full text-sm"><thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Order</th><th className="py-1 text-right">Items</th><th className="py-1 text-right">Took</th><th className="py-1 text-right">Over by</th><th className="py-1 text-right">Fee paid</th><th className="py-1 text-right">Delivered</th></tr></thead>
-              <tbody className="divide-y divide-line">{t.late.map((l) => <tr key={l.order_id}><td className="py-2">#{l.order_no}</td><td className="py-2 text-right">{l.items}</td><td className="py-2 text-right">{l.hours} h</td><td className="py-2 text-right text-red-700">{l.over_min} min</td><td className="py-2 text-right">{naira(l.fee_kobo)}</td><td className="py-2 text-right text-ink-soft">{dt(l.delivered_at)}</td></tr>)}</tbody></table>
+          <div className="card overflow-x-auto p-4"><h3 className="font-semibold">Instant orders that were late</h3><p className="mt-1 text-sm text-ink-soft">The customer paid extra for speed. The super admin can refund the instant fee here.</p>
+            <table className="mt-2 w-full text-sm"><thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Order</th><th className="py-1 text-right">Items</th><th className="py-1 text-right">Took</th><th className="py-1 text-right">Over by</th><th className="py-1 text-right">Fee paid</th><th className="py-1 text-right">Delivered</th>{roles.includes("super_admin") && <th className="py-1 text-right">Fee</th>}</tr></thead>
+              <tbody className="divide-y divide-line">{t.late.map((l) => <tr key={l.order_id}><td className="py-2">#{l.order_no}</td><td className="py-2 text-right">{l.items}</td><td className="py-2 text-right">{l.hours} h</td><td className="py-2 text-right text-red-700">{l.over_min} min</td><td className="py-2 text-right">{naira(l.fee_kobo)}</td><td className="py-2 text-right text-ink-soft">{dt(l.delivered_at)}</td>{roles.includes("super_admin") && <td className="py-2 text-right">{refunded.has(l.order_id) ? <span className="text-ink-soft">Refunded</span> : <RefundFeeButton orderId={l.order_id} />}</td>}</tr>)}</tbody></table>
           </div>
         )}
       </section>

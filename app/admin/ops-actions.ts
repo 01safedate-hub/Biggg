@@ -125,3 +125,11 @@ export async function saveInstantRules(v: { enabled: boolean; feeNaira: number; 
   revalidatePath("/staff/speed");
   return { ok: true, message: "Saved." };
 }
+
+export async function refundInstantFee(orderId: string, note: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("refund_instant_fee", { _order: orderId, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/speed");
+  return { ok: true, message: "Refund queued. Pay it from Online payments, then mark it paid." };
+}

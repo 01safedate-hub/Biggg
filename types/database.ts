@@ -1371,6 +1371,7 @@ export type Database = {
           instant_items: number | null
           instant_late_at: string | null
           instant_promise_at: string | null
+          instant_refunded_at: string | null
           instant_started_at: string | null
           instant_target_at: string | null
           instant_warned_at: string | null
@@ -1410,6 +1411,7 @@ export type Database = {
           instant_items?: number | null
           instant_late_at?: string | null
           instant_promise_at?: string | null
+          instant_refunded_at?: string | null
           instant_started_at?: string | null
           instant_target_at?: string | null
           instant_warned_at?: string | null
@@ -1449,6 +1451,7 @@ export type Database = {
           instant_items?: number | null
           instant_late_at?: string | null
           instant_promise_at?: string | null
+          instant_refunded_at?: string | null
           instant_started_at?: string | null
           instant_target_at?: string | null
           instant_warned_at?: string | null
@@ -3042,6 +3045,10 @@ export type Database = {
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
       redispatch_delivery: { Args: { _order: string }; Returns: undefined }
+      refund_instant_fee: {
+        Args: { _note: string; _order: string }
+        Returns: undefined
+      }
       remove_promo: { Args: { _order: string }; Returns: undefined }
       report_failed_delivery: {
         Args: { _note: string; _order: string; _outcome: string }
@@ -3200,6 +3207,7 @@ export type Database = {
         Args: { _from: string; _to: string }
         Returns: Json
       }
+      turnaround_late_refunded: { Args: { _ids: string[] }; Returns: string[] }
       unsubscribe_marketing: { Args: { _token: string }; Returns: boolean }
       update_my_profile: {
         Args: { _full_name: string; _phone: string }
