@@ -24,6 +24,9 @@ export default async function DispatchPage() {
   const late = (iso: string | null, mins: number) => (Date.now() - new Date(iso ?? Date.now()).getTime()) / 60000 > mins;
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap gap-2 text-sm" aria-label="Summary">
+        {[[ "Pickups need an agent", (orders ?? []).filter((o) => o.status === "awaiting_dispatch").length ], [ "Pickups on the way", (orders ?? []).filter((o) => o.status === "agent_assigned").length ], [ "Deliveries need an agent", (back ?? []).filter((o) => o.status === "out_for_delivery" && !o.delivery_agent_id).length ], [ "Failed deliveries", (back ?? []).filter((o) => o.status === "failed_delivery").length ]].map(([l, n]) => <span key={String(l)} className={`rounded-full border px-3 py-1 ${Number(n) > 0 && (String(l).includes("need") || String(l).includes("Failed")) ? "border-brand bg-brand-tint text-brand-dark" : "border-line text-ink-soft"}`}><strong>{n}</strong> {l}</span>)}
+      </div>
       <div><h1 className="text-2xl font-bold tracking-tight">Dispatch</h1><p className="mt-1 text-sm text-ink-soft">Paid pickups waiting for an agent, and those on the way. You can change the agent until they reach the customer.</p></div>
       <section className="space-y-3">
         {(orders ?? []).map((o) => {

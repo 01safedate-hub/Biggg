@@ -8,12 +8,14 @@ export const metadata = { title: "Online payments" };
 const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 const PURPOSE: Record<string, string> = { pickup_fare: "Transport (pickup + delivery)", delivery_fare: "Delivery fare", items: "Clothes bill", subscription: "Subscription", demurrage: "Demurrage", other: "Other" };
 
-export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ status?: string; mode?: string }> }) {
-  const { status, mode } = await searchParams;
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ status?: string; mode?: string; ref?: string }> }) {
+  const { status, mode, ref } = await searchParams;
   const { supabase } = await requireRole(["super_admin"]);
   let q = supabase.from("payments").select("id,order_id,customer_id,purpose,kind,mode,amount_kobo,reference,status,created_at,paid_at").in("mode", ["paystack", "flutterwave"]).order("created_at", { ascending: false }).limit(200);
   if (status && ["pending", "success", "failed"].includes(status)) q = q.eq("status", status);
   if (mode && ["paystack", "flutterwave"].includes(mode)) q = q.eq("mode", mode);
+  const term = (ref ?? "").trim().replace(/[^A-Za-z0-9-]/g, "").slice(0, 40);
+  if (term) q = q.ilike("reference", `%${term}%`);
   const [{ data }, { data: refunds }] = await Promise.all([q, supabase.from("payments").select("id,order_id,customer_id,amount_kobo,reference,created_at").eq("kind", "refund").eq("status", "pending").order("created_at")]);
   const rows = data ?? [];
   const orderIds = Array.from(new Set([...rows, ...(refunds ?? [])].map((r) => r.order_id).filter(Boolean) as string[]));
@@ -47,8 +49,9 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
         <div className="card p-4"><p className="text-xs font-semibold uppercase tracking-wide text-ink-mute">Flutterwave received</p><p className="mt-1 text-2xl font-bold">{naira(sum("flutterwave"))}</p></div>
         <div className="card p-4"><p className="text-xs font-semibold uppercase tracking-wide text-ink-mute">Pending over 30 min</p><p className={`mt-1 text-2xl font-bold ${stuck ? "text-red-700" : ""}`}>{stuck}</p><p className="text-xs text-ink-mute">{stuck ? "Check these in the provider dashboard" : "Nothing stuck"}</p></div>
       </div>
+      <form role="search" className="flex gap-2"><input name="ref" defaultValue={term} aria-label="Search by reference" placeholder="Search by payment reference, e.g. LP-1042" className="w-full max-w-sm rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none" /><button className="btn-secondary">Search</button>{term && <Link href="/admin/payments" className="self-center text-sm underline">Clear</Link>}</form>
       <div className="flex flex-wrap gap-2">
-        {chip("/admin/payments", "All", !status && !mode)}
+        {chip("/admin/payments", "All", !status && !mode && !term)}
         {["success", "pending", "failed"].map((s) => chip(`/admin/payments?status=${s}`, s, status === s))}
         {["paystack", "flutterwave"].map((m) => chip(`/admin/payments?mode=${m}`, m, mode === m))}
       </div>

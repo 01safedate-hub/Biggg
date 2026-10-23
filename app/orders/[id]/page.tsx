@@ -9,6 +9,7 @@ import { ArrivalCodeForm } from "@/components/orders/ArrivalCodeForm";
 import { CancelButton } from "@/components/orders/CancelButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { RatingForm } from "@/components/orders/RatingForm";
+import { SupportCard } from "@/components/orders/SupportCard";
 import { PromoForm } from "@/components/orders/PromoForm";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
@@ -22,6 +23,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { returning } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase, user } = await requireUser(`/orders/${id}`);
+  const { data: st } = await supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]);
+  const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
@@ -153,8 +156,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
+      {(lines ?? []).length > 0 && ["counted","count_confirmed","received","in_house","ready","out_for_delivery","delivered","closed"].includes(o.status) && <p className="text-sm"><Link className="font-medium text-brand-dark underline" href={`/orders/${id}/receipt`}>View receipt</Link></p>}
       {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>(map)</a>}</p>}
       {timeline && timeline.steps.length > 0 && <OrderTimeline t={timeline} />}
+      <SupportCard whatsapp={sv.whatsapp?.number} phone={sv.contact?.phone} orderNo={o.order_no} />
     </main>
   );
 }
