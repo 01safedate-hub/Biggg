@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { InstallApp } from "@/components/brand/InstallApp";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
   Receipt, Settings, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
@@ -59,7 +61,7 @@ export function Sidebar({ title, name, groups }: { title: string; name: string; 
 
   const brand = (
     <Link href="/" className="flex items-center gap-2 px-3 font-bold tracking-tight">
-      <span aria-hidden className="grid h-8 w-8 place-items-center rounded-md bg-brand text-sm text-white">L</span>
+      <Logo size={32} />
       <span>LaundryPoint</span>
     </Link>
   );
@@ -69,6 +71,7 @@ export function Sidebar({ title, name, groups }: { title: string; name: string; 
       <p className="px-3 text-xs text-ink-mute">{title}</p>
       <div className="mt-2 flex gap-1 text-sm">
         <Link href="/account" className="rounded-md px-3 py-1.5 font-medium text-ink-soft hover:bg-canvas hover:text-ink">Account</Link>
+        <InstallApp />
         <form action="/auth/signout" method="post"><button className="rounded-md px-3 py-1.5 font-medium text-ink-soft hover:bg-canvas hover:text-ink">Sign out</button></form>
       </div>
     </div>

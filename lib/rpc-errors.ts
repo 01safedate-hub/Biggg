@@ -70,6 +70,9 @@ const MESSAGES: Record<string, string> = {
   too_many_attempts: "Too many wrong attempts. Ask the agent to contact the office.",
   already_verified: "This code was already used.",
   account_restricted: "Your account is restricted. Please contact us.",
+  invalid_fare: "Fares must be whole kobo amounts. The rounding step must be at least 1, and the agent time between 5 and 600 minutes.",
+  invalid_hours: "Use times like 08:00. Closing time must be after opening time.",
+  invalid_zone: "Check the zone: radius 200 m to 50 km, and a valid centre point.",
   basis_invalid: "Choose what you counted against.",
 };
 

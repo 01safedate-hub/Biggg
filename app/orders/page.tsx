@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { InstallApp } from "@/components/brand/InstallApp";
 import { requireUser } from "@/lib/roles";
 import { STATUS_LABEL } from "@/lib/orders";
 import { naira } from "@/lib/format";
@@ -13,7 +14,7 @@ export default async function OrdersPage() {
   return (
     <main id="main" className="container-page max-w-2xl space-y-6 py-10">
       <div className="flex items-center justify-between"><Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link><Link href="/request" className="btn-primary">Book a pickup</Link></div>
-      <h1 className="text-3xl font-bold tracking-tight">My orders</h1>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-bold tracking-tight">My orders</h1><InstallApp label="Install the app" /></div>
       <section className="card divide-y divide-line">
         {(data ?? []).map((o) => (
           <Link key={o.id} href={`/orders/${o.id}`} className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-canvas">

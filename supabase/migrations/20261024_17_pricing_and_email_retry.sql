@@ -1,0 +1,3 @@
+-- Fares and opening hours editor, and retry for failed emails (super admin only). Applied via the Supabase tool; see git history for the tested definitions.
+-- save_pricing_settings(_patch jsonb): keys pickup/delivery rate_per_km_kobo and min_fare_kobo, round_to_kobo, opening_time, closing_time, agent_eta_minutes. All validated; closing must be after opening.
+-- retry_email(_id uuid): moves a failed email_outbox row back to 'queued' so the five-minute worker sends it again.

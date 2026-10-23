@@ -1,3 +1,4 @@
+import { Logo } from "@/components/brand/Logo";
 import { MapPin, MessageCircle, Phone } from "lucide-react";
 
 export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsUrl: string | null; whatsapp: string | null; phone: string | null }) {
@@ -6,7 +7,7 @@ export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsU
     <footer className="border-t border-line bg-ink text-slate-300">
       <div className="container-page flex flex-col gap-6 py-10 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-lg font-bold text-white">{name}</p>
+          <p className="flex items-center gap-2 text-lg font-bold text-white"><span className="inline-grid rounded-md bg-white p-1"><Logo size={28} /></span>{name}</p>
           <p className="mt-1 text-sm">Laundry pickup, cleaning and delivery.</p>
         </div>
         <div className="flex flex-wrap gap-5 text-sm">

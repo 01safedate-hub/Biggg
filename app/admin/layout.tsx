@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { Shell, type NavGroup } from "@/components/admin/Shell";
 import { requireRole } from "@/lib/roles";
 import { enforceStaffGate } from "@/lib/staff-gate";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { manifest: "/manifest/admin", appleWebApp: { capable: true, title: "LaundryPoint Admin", statusBarStyle: "default" } };
 
 const GROUPS: NavGroup[] = [
   { label: "Business", items: [
@@ -30,7 +33,13 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/audit", label: "Audit log", icon: "audit" },
     { href: "/admin/waitlist", label: "Waitlist", icon: "waitlist" },
   ] },
-  { label: "System", items: [{ href: "/admin/settings", label: "Settings", icon: "settings" }] },
+  { label: "System", items: [
+    { href: "/admin/pricing", label: "Fares and hours", icon: "prices" },
+    { href: "/admin/zones", label: "Coverage zones", icon: "points" },
+    { href: "/admin/payments", label: "Online payments", icon: "money" },
+    { href: "/admin/emails", label: "Email delivery", icon: "waitlist" },
+    { href: "/admin/settings", label: "Settings", icon: "settings" },
+  ] },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

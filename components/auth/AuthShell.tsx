@@ -1,3 +1,4 @@
+import { Logo } from "@/components/brand/Logo";
 import Link from "next/link";
 
 export function AuthShell({ title, subtitle, children, footer }: {
@@ -7,7 +8,7 @@ export function AuthShell({ title, subtitle, children, footer }: {
     <main id="main" className="grid min-h-screen place-items-center bg-canvas px-4 py-12">
       <div className="w-full max-w-md">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-lg font-bold tracking-tight">
-          <span aria-hidden className="grid h-8 w-8 place-items-center rounded-md bg-brand text-sm font-bold text-white">L</span>
+          <Logo size={32} />
           LaundryPoint
         </Link>
         <div className="card p-6 sm:p-8">

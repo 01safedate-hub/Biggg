@@ -2428,8 +2428,10 @@ export type Database = {
       }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
+      retry_email: { Args: { _id: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
+      save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }
       set_staff_pay: {
         Args: {
           _active: boolean

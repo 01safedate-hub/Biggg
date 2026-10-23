@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { PwaRegister } from "@/components/brand/PwaRegister";
 
 const DEFAULT_SITE = "https://laundrypoint.app";
 
@@ -19,10 +20,13 @@ export const metadata: Metadata = {
   title: { default: "LaundryPoint | Laundry pickup and delivery", template: "%s | LaundryPoint" },
   description:
     "Request a laundry pickup, pay the transport fare, and have your clothes counted, cleaned and returned with a secure three-code handover. Monthly plans available.",
-  openGraph: { title: "LaundryPoint", description: "Laundry pickup and delivery with a secure handover.", type: "website" },
+  openGraph: { title: "LaundryPoint", description: "Laundry pickup and delivery with a secure handover.", type: "website", images: [{ url: "/brand/icon/512.png", width: 512, height: 512 }] },
+  manifest: "/manifest/customer",
+  icons: { icon: [{ url: "/brand/icon/32.png", sizes: "32x32", type: "image/png" }, { url: "/brand/icon/192.png", sizes: "192x192", type: "image/png" }], apple: [{ url: "/brand/icon/180.png", sizes: "180x180" }] },
+  appleWebApp: { capable: true, title: "LaundryPoint", statusBarStyle: "default" },
 };
 
-export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#ea580c", width: "device-width", initialScale: 1 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -32,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        <PwaRegister />
       </body>
     </html>
   );
