@@ -1,0 +1,12 @@
+-- 19: customer analytics, promo codes, email campaigns, unsubscribe, and one upfront transport payment.
+-- Applied to the database through the Supabase tool in three steps:
+--   customer_analytics        : profiles.unsub_token, private.customer_stats view, private.cust_series,
+--                               public.customer_analytics / customer_list / customer_detail / customer_map
+--   promos_and_campaigns      : consent at signup (handle_new_user), set_marketing_opt_in, unsubscribe_marketing,
+--                               promo_codes + promo_redemptions + orders.promo_code_id, create_promo, set_promo_active,
+--                               apply_promo, campaigns table, campaign_audience, save_campaign, send_campaign
+--   prepaid_transport_fares   : quote_pickup returns delivery_fare_kobo and total_fare_kobo, book_pickup stores both,
+--                               create_payment_intent charges pickup + delivery together, mark_ready sends online orders
+--                               straight to dispatch, order status messages updated
+--   in_segment_bigint         : private.in_segment(text, text, bigint)
+-- Edge function email-worker v3 renders the branded 'campaign' template (see Supabase dashboard).

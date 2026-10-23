@@ -30,7 +30,7 @@ export function SignupForm() {
     const { data, error: err } = await createClient().auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone } },
+      options: { data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false" } },
     });
     setBusy(false);
     if (err) return setError(err.message.toLowerCase().includes("rate") ? "Too many attempts. Please wait a few minutes and try again." : err.message);
@@ -53,6 +53,7 @@ export function SignupForm() {
       <Field id="phone" label="Phone number" type="tel" autoComplete="tel" required hint="Agents use this to reach you for pickup and delivery." />
       <Field id="password" label="Password" type="password" autoComplete="new-password" required minLength={MIN_PASSWORD} hint={`At least ${MIN_PASSWORD} characters.`} />
       <Field id="confirm" label="Confirm password" type="password" autoComplete="new-password" required />
+      <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="offers" className="mt-1" /><span className="text-ink-soft">Send me offers and reminders by email. I can unsubscribe at any time. Order updates are sent either way.</span></label>
       <button className="btn-primary w-full" disabled={busy}>{busy ? "Creating account" : "Create account"}</button>
     </form>
   );

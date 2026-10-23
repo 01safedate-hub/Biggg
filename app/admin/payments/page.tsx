@@ -6,7 +6,7 @@ import { RefundButton } from "@/components/admin/OpsForms";
 export const metadata = { title: "Online payments" };
 
 const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
-const PURPOSE: Record<string, string> = { pickup_fare: "Pickup fare", delivery_fare: "Delivery fare", items: "Clothes bill", subscription: "Subscription", demurrage: "Demurrage", other: "Other" };
+const PURPOSE: Record<string, string> = { pickup_fare: "Transport (pickup + delivery)", delivery_fare: "Delivery fare", items: "Clothes bill", subscription: "Subscription", demurrage: "Demurrage", other: "Other" };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<{ status?: string; mode?: string }> }) {
   const { status, mode } = await searchParams;

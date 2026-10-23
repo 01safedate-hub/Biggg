@@ -43,3 +43,21 @@ export async function startPayment(orderId: string, purpose: "pickup_fare" | "it
   const url = (data as { url?: string } | null)?.url;
   return url ? { ok: true, message: "Opening payment", url } : { ok: false, message: friendlyError("provider_failed") };
 }
+
+export async function applyPromoCode(orderId: string, code: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const clean = code.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,20}$/.test(clean)) return { ok: false, message: friendlyError("promo_invalid") };
+  const { data, error } = await supabase.rpc("apply_promo", { _order: orderId, _code: clean });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: `${(data as { percent?: number } | null)?.percent ?? ""}% off applied.` };
+}
+
+export async function setOffers(on: boolean): Promise<R> {
+  const { supabase } = await requireUser("/account");
+  const { error } = await supabase.rpc("set_marketing_opt_in", { _on: on });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/account");
+  return { ok: true, message: on ? "You will get our offers by email." : "You will not get offers. Order updates still reach you." };
+}

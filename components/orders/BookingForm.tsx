@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { naira } from "@/lib/format";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
-type Quote = { served: boolean; fare_kobo?: number | null; zone_name?: string; distance_km?: number; after_hours?: boolean; scheduled_for?: string | null; reason?: string };
+type Quote = { served: boolean; fare_kobo?: number | null; delivery_fare_kobo?: number | null; total_fare_kobo?: number | null; zone_name?: string; distance_km?: number; after_hours?: boolean; scheduled_for?: string | null; reason?: string };
 
 export function BookingForm() {
   const router = useRouter();
@@ -54,7 +54,12 @@ export function BookingForm() {
         {ready && (
           <div className="rounded-md border border-line bg-canvas p-4 text-sm">
             <p>Area: <strong>{quote!.zone_name}</strong> · about {quote!.distance_km} km away</p>
-            <p className="mt-1">Pickup fare (return trip): <strong>{naira(quote!.fare_kobo!)}</strong></p>
+            <dl className="mt-2 space-y-1">
+              <div className="flex justify-between gap-4"><dt className="text-ink-soft">Pickup (there and back)</dt><dd>{naira(quote!.fare_kobo!)}</dd></div>
+              <div className="flex justify-between gap-4"><dt className="text-ink-soft">Delivery of your clean clothes</dt><dd>{naira(quote!.delivery_fare_kobo ?? 0)}</dd></div>
+              <div className="flex justify-between gap-4 border-t border-line pt-1 font-semibold"><dt>Pay once, now</dt><dd>{naira(quote!.total_fare_kobo ?? quote!.fare_kobo!)}</dd></div>
+            </dl>
+            <p className="mt-2 text-xs text-ink-mute">Transport for both trips is paid together, so you will not be asked for a delivery fee later. The clothes bill is separate and comes after the agent counts.</p>
             {quote!.after_hours && <p className="mt-1 text-ink-soft">We are closed now, so your pickup is scheduled for the next opening time.</p>}
           </div>
         )}
@@ -67,7 +72,7 @@ export function BookingForm() {
             <div><label htmlFor="address" className={labelCls}>House number, street and landmark</label><input id="address" name="address" required minLength={5} maxLength={300} className={inputCls} /></div>
             <div><label htmlFor="notes" className={labelCls}>Anything the agent should know? (optional)</label><textarea id="notes" name="notes" maxLength={500} rows={2} className={inputCls} /></div>
           </div>
-          <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Booking" : `Book and pay ${naira(quote!.fare_kobo!)} fare`}</button>
+          <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Booking" : `Book and pay ${naira(quote!.total_fare_kobo ?? quote!.fare_kobo!)} transport`}</button>
         </>
       )}
     </form>

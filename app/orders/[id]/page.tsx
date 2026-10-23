@@ -8,6 +8,7 @@ import { PayButtons } from "@/components/orders/PayButtons";
 import { ArrivalCodeForm } from "@/components/orders/ArrivalCodeForm";
 import { CancelButton } from "@/components/orders/CancelButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
+import { PromoForm } from "@/components/orders/PromoForm";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
 export const metadata = { title: "Your order" };
@@ -52,15 +53,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {o.status === "awaiting_fare_payment" && (
         <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Pay the pickup fare to confirm</h2>
+          <h2 className="text-lg font-semibold">Pay transport to confirm your booking</h2>
           {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
-          <p className="text-sm text-ink-soft">Fare for the return trip: <strong>{naira(o.pickup_fare_kobo)}</strong>{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
-          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo)}`} />
+          <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
+          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} />
           <CancelButton orderId={id} />
         </section>
       )}
 
-      {o.status === "awaiting_dispatch" && <section className="card p-5 text-sm text-ink-soft">Your fare is paid. We are assigning an agent and will tell you the moment one is on the way.</section>}
+      {o.status === "awaiting_dispatch" && <section className="card p-5 text-sm text-ink-soft">Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</section>}
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
@@ -81,11 +82,14 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             <tbody className="divide-y divide-line">
               {(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.name}<span className="block text-xs text-ink-mute">{l.category_name}</span></td><td className="py-2 text-right">{l.qty}</td><td className="py-2 text-right">{naira(l.unit_price_kobo)}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></tr>)}
             </tbody>
-            <tfoot><tr className="font-semibold"><td className="pt-3" colSpan={3}>Total</td><td className="pt-3 text-right">{naira(due)}</td></tr></tfoot>
+            <tfoot>
+              {o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3" colSpan={3}>Discount code</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}
+              <tr className="font-semibold"><td className="pt-3" colSpan={3}>Total</td><td className="pt-3 text-right">{naira(due)}</td></tr></tfoot>
           </table>
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>
+              {!o.promo_code_id && <PromoForm orderId={id} />}
               <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
             </div>
           )}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { FormMessage } from "@/components/auth/AuthShell";
 import { ProfileForm } from "@/components/account/ProfileForm";
+import { OffersToggle } from "@/components/account/OffersToggle";
 
 export const metadata = { title: "My account" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   if (!user) return null; // middleware redirects signed-out visitors
 
   const [{ data: profile }, { data: roles }] = await Promise.all([
-    supabase.from("profiles").select("full_name,phone,email,customer_code,status").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name,phone,email,customer_code,status,marketing_opt_in").eq("id", user.id).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", user.id),
   ]);
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
@@ -56,6 +57,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <section className="card mt-8 p-6">
         <h2 className="mb-4 text-lg font-semibold">Your details</h2>
         <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
+        <div className="mt-5 border-t border-line pt-5"><OffersToggle initial={profile?.marketing_opt_in ?? false} /></div>
         <p className="mt-4 text-sm"><Link href="/account/security" className="font-medium text-brand-dark hover:underline">Change password or email</Link></p>
       </section>
       {(isSuper || isMoneyStaff || keys.includes("delivery_agent")) && (

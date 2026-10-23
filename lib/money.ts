@@ -16,7 +16,7 @@ export function longDate(iso: string): string {
 }
 
 export const PURPOSE_LABEL: Record<string, string> = {
-  pickup_fare: "Pickup transport", delivery_fare: "Delivery transport", items: "Clothes", subscription: "Subscription", demurrage: "Demurrage", other: "Other",
+  pickup_fare: "Transport (pickup + delivery)", delivery_fare: "Delivery transport", items: "Clothes", subscription: "Subscription", demurrage: "Demurrage", other: "Other",
 };
 export const MODE_LABEL: Record<string, string> = { paystack: "Paystack (online)", cash: "Cash", pos: "POS", transfer: "Bank transfer" };
 export const EVIDENCE_LABEL: Record<string, string> = { receipt: "Receipt", bank_debit: "Bank debit", transfer_alert: "Transfer alert", invoice: "Invoice", other: "Other proof" };

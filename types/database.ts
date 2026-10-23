@@ -161,6 +161,65 @@ export type Database = {
         }
         Relationships: []
       }
+      campaigns: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          cta_label: string | null
+          cta_url: string | null
+          heading: string
+          id: string
+          name: string
+          promo_code_id: string | null
+          recipients: number
+          segment: string
+          sent_at: string | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          heading: string
+          id?: string
+          name: string
+          promo_code_id?: string | null
+          recipients?: number
+          segment: string
+          sent_at?: string | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          heading?: string
+          id?: string
+          name?: string
+          promo_code_id?: string | null
+          recipients?: number
+          segment?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capital_entries: {
         Row: {
           amount_kobo: number
@@ -1121,6 +1180,7 @@ export type Database = {
           pickup_fare_kobo: number
           pickup_lat: number | null
           pickup_lng: number | null
+          promo_code_id: string | null
           ready_at: string | null
           scheduled_for: string | null
           source: string
@@ -1151,6 +1211,7 @@ export type Database = {
           pickup_fare_kobo?: number
           pickup_lat?: number | null
           pickup_lng?: number | null
+          promo_code_id?: string | null
           ready_at?: string | null
           scheduled_for?: string | null
           source: string
@@ -1181,6 +1242,7 @@ export type Database = {
           pickup_fare_kobo?: number
           pickup_lat?: number | null
           pickup_lng?: number | null
+          promo_code_id?: string | null
           ready_at?: string | null
           scheduled_for?: string | null
           source?: string
@@ -1223,6 +1285,13 @@ export type Database = {
             columns: ["pickup_agent_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_promo_code_id_fkey"
+            columns: ["promo_code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
             referencedColumns: ["id"]
           },
           {
@@ -1505,6 +1574,7 @@ export type Database = {
           phone: string | null
           status: string
           status_reason: string | null
+          unsub_token: string
           updated_at: string
         }
         Insert: {
@@ -1517,6 +1587,7 @@ export type Database = {
           phone?: string | null
           status?: string
           status_reason?: string | null
+          unsub_token?: string
           updated_at?: string
         }
         Update: {
@@ -1529,9 +1600,95 @@ export type Database = {
           phone?: string | null
           status?: string
           status_reason?: string | null
+          unsub_token?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          note: string | null
+          percent: number
+          uses: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          note?: string | null
+          percent: number
+          uses?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          note?: string | null
+          percent?: number
+          uses?: number
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          code_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          code_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          code_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_code_id_fkey"
+            columns: ["code_id"]
+            isOneToOne: false
+            referencedRelation: "promo_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "promo_redemptions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
       }
       settings: {
         Row: {
@@ -2316,6 +2473,7 @@ export type Database = {
         Returns: undefined
       }
       agent_submit_count: { Args: { _order: string }; Returns: undefined }
+      apply_promo: { Args: { _code: string; _order: string }; Returns: Json }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
       assign_delivery_agent: {
         Args: { _agent: string; _order: string }
@@ -2329,6 +2487,7 @@ export type Database = {
         Args: { _address: string; _lat: number; _lng: number; _notes: string }
         Returns: string
       }
+      campaign_audience: { Args: { _segment: string }; Returns: Json }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
       check_order_item: {
@@ -2370,6 +2529,33 @@ export type Database = {
         Args: { _order: string; _provider: string; _purpose: string }
         Returns: Json
       }
+      create_promo: {
+        Args: {
+          _code: string
+          _expires: string
+          _max_uses: number
+          _note: string
+          _percent: number
+        }
+        Returns: string
+      }
+      customer_analytics: { Args: never; Returns: Json }
+      customer_detail: { Args: { _id: string }; Returns: Json }
+      customer_list: {
+        Args: {
+          _limit?: number
+          _max?: number
+          _min?: number
+          _month?: string
+          _offset?: number
+          _opted?: boolean
+          _q?: string
+          _sort?: string
+          _stage?: string
+        }
+        Returns: Json
+      }
+      customer_map: { Args: never; Returns: Json }
       daily_money_view: { Args: { _day: string }; Returns: Json }
       decide_expense: {
         Args: { _approve: boolean; _id: string; _note: string }
@@ -2449,8 +2635,28 @@ export type Database = {
       }
       retry_email: { Args: { _id: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
+      save_campaign: {
+        Args: {
+          _body: string
+          _cta_label: string
+          _cta_url: string
+          _heading: string
+          _id: string
+          _name: string
+          _promo: string
+          _segment: string
+          _subject: string
+        }
+        Returns: string
+      }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
       save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }
+      send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
+      set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
+      set_promo_active: {
+        Args: { _active: boolean; _id: string }
+        Returns: undefined
+      }
       set_staff_pay: {
         Args: {
           _active: boolean
@@ -2499,6 +2705,7 @@ export type Database = {
         Returns: string
       }
       submit_onboarding: { Args: never; Returns: undefined }
+      unsubscribe_marketing: { Args: { _token: string }; Returns: boolean }
       update_my_profile: {
         Args: { _full_name: string; _phone: string }
         Returns: undefined
