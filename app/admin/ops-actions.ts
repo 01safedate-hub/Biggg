@@ -69,3 +69,11 @@ export async function resolveIssueAction(id: string, status: "resolved" | "rejec
   revalidatePath("/admin/attention");
   return { ok: true, message: "Saved. The customer has been told." };
 }
+
+export async function saveDispatchRules(v: { auto: boolean; maxJobs: number; reassignMin: number; needCheckin: boolean }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("save_dispatch_settings", { _auto: v.auto, _max_jobs: Math.round(v.maxJobs), _reassign_min: Math.round(v.reassignMin), _need_checkin: v.needCheckin });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/agents");
+  return { ok: true, message: "Saved." };
+}

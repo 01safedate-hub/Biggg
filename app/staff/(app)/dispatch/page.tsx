@@ -12,7 +12,7 @@ export default async function DispatchPage() {
     supabase.rpc("list_agents"),
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at").in("status", ["out_for_delivery", "failed_delivery"]).order("updated_at"),
   ]);
-  const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number }[];
+  const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean }[];
   const ids = Array.from(new Set([...(orders ?? []), ...(back ?? [])].map((o) => o.customer_id)));
   const { data: people } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((people ?? []).map((p) => [p.id, p]));

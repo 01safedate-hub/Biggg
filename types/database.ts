@@ -2769,6 +2769,7 @@ export type Database = {
             Returns: undefined
           }
       retry_email: { Args: { _id: string }; Returns: undefined }
+      run_dispatch: { Args: never; Returns: Json }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_campaign: {
         Args: {
@@ -2783,6 +2784,15 @@ export type Database = {
           _subject: string
         }
         Returns: string
+      }
+      save_dispatch_settings: {
+        Args: {
+          _auto: boolean
+          _max_jobs: number
+          _need_checkin: boolean
+          _reassign_min: number
+        }
+        Returns: undefined
       }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
       save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }

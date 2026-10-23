@@ -1,0 +1,3 @@
+-- Applied via apply_migration "smart_dispatch": settings 'dispatch'; private.dispatch_cfg, private.pick_agent,
+-- public.run_dispatch() (pg_cron every minute: assigns waiting pickups/deliveries, moves stale ones, max 3 moves),
+-- public.save_dispatch_settings(), list_agents() with on_shift.

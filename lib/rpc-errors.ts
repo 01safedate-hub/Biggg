@@ -87,6 +87,7 @@ const MESSAGES: Record<string, string> = {
   too_many_issues: "You already have 3 open reports on this order. We are looking into them.",
   issue_window_closed: "Problems can be reported within 7 days of delivery. Please contact us directly.",
   compensation_too_high: "The refund cannot be more than the customer paid for clothes.",
+  invalid_dispatch: "Jobs per agent must be 1 to 20, and the wait before moving a job must be 10 to 480 minutes.",
   basis_invalid: "Choose what you counted against.",
 };
 

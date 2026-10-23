@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/roles";
+import { DispatchRules } from "@/components/admin/DispatchRules";
 
 export const metadata = { title: "Agent performance" };
 export const dynamic = "force-dynamic";
@@ -13,11 +14,14 @@ export default async function Agents({ searchParams }: { searchParams: Promise<{
   const { supabase } = await requireRole(["super_admin"]);
   const to = new Date(); const from = new Date(Date.now() - n * 86400000);
   const { data } = await supabase.rpc("agent_performance", { _from: ymd(from), _to: ymd(to) });
+  const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "dispatch").maybeSingle();
+  const cfg = (cfgRow?.value ?? {}) as { auto_assign?: boolean; max_open_jobs?: number; reassign_after_minutes?: number; require_checked_in?: boolean };
   const rows = (Array.isArray(data) ? data : []) as unknown as A[];
   const chip = (d: number) => <Link key={d} href={`/admin/agents?days=${d}`} className={`rounded-full border px-3 py-1 text-sm ${n === d ? "border-brand bg-brand-tint text-brand-dark" : "border-line"}`}>Last {d} days</Link>;
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Agent performance</h1><p className="mt-1 text-sm text-ink-soft">Jobs done, failures, how fast they reach customers, and what customers rate their deliveries.</p></div>
+      <DispatchRules initial={{ auto: cfg.auto_assign === true, maxJobs: cfg.max_open_jobs ?? 4, reassignMin: cfg.reassign_after_minutes ?? 45, needCheckin: cfg.require_checked_in !== false }} />
       <div className="flex gap-2">{[7, 30, 90].map(chip)}</div>
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">

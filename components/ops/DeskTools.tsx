@@ -5,7 +5,7 @@ import { useState } from "react";
 import { cancelPaidOrder, assignAgent, assignDelivery, checkLine, correctLine, hubStep, receiveOrder, redispatch } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
-export function AssignForm({ orderId, agents, current, kind = "pickup" }: { orderId: string; agents: { id: string; name: string; open_jobs: number }[]; current: string | null; kind?: "pickup" | "delivery" }) {
+export function AssignForm({ orderId, agents, current, kind = "pickup" }: { orderId: string; agents: { id: string; name: string; open_jobs: number; on_shift?: boolean }[]; current: string | null; kind?: "pickup" | "delivery" }) {
   const router = useRouter();
   const [agent, setAgent] = useState(current ?? "");
   const [busy, setBusy] = useState(false);
@@ -15,7 +15,7 @@ export function AssignForm({ orderId, agents, current, kind = "pickup" }: { orde
       <div className="flex gap-2">
         <select aria-label="Agent" value={agent} onChange={(e) => setAgent(e.target.value)} className="rounded-md border border-line px-3 py-2 text-sm">
           <option value="">Choose an agent</option>
-          {agents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.open_jobs} open)</option>)}
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.open_jobs} open{a.on_shift === false ? ", not on shift" : ""})</option>)}
         </select>
         <button className="btn-primary !px-4 !py-2" disabled={busy || !agent || agent === current} onClick={async () => { setBusy(true); setMsg(null); const r = await (kind === "delivery" ? assignDelivery : assignAgent)(orderId, agent); setBusy(false); setMsg({ ok: r.ok, text: r.message }); if (r.ok) router.refresh(); }}>{current ? "Reassign" : "Assign"}</button>
       </div>
