@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
 import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
-import { ArrivalCode, FailedDeliveryForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
+import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 
 export const metadata = { title: "Pickup job" };
@@ -53,8 +53,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here.</p>
 
-      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><ArrivalCode orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} /></section>}
+      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><ArrivalCode orderId={id} /><FailedPickupForm orderId={id} /></section>}
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">3. Waiting for the customer to pay</h2>

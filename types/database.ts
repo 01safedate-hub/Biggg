@@ -1157,6 +1157,45 @@ export type Database = {
           },
         ]
       }
+      order_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          customer_id: string
+          order_id: string
+          stars: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          customer_id: string
+          order_id: string
+          stars: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          customer_id?: string
+          order_id?: string
+          stars?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_ratings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           address_id: string | null
@@ -2489,6 +2528,10 @@ export type Database = {
       }
       campaign_audience: { Args: { _segment: string }; Returns: Json }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
+      cancel_paid_order: {
+        Args: { _note: string; _order: string; _refund_pickup: boolean }
+        Returns: Json
+      }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
       check_order_item: {
         Args: { _item: string; _note: string; _ok: boolean }
@@ -2561,10 +2604,12 @@ export type Database = {
         Args: { _approve: boolean; _id: string; _note: string }
         Returns: undefined
       }
+      demurrage_status: { Args: { _order: string }; Returns: Json }
       expense_feed: {
         Args: { _before?: string; _limit?: number }
         Returns: Json
       }
+      expire_unpaid_bookings: { Args: never; Returns: number }
       finance_overview: { Args: { _from: string; _to: string }; Returns: Json }
       find_user_by_email: { Args: { _email: string }; Returns: Json }
       finish_email: {
@@ -2616,6 +2661,10 @@ export type Database = {
       my_staff_state: { Args: never; Returns: Json }
       order_timeline: { Args: { _order: string }; Returns: Json }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
+      rate_order: {
+        Args: { _comment: string; _order: string; _stars: number }
+        Returns: undefined
+      }
       record_cash_count: {
         Args: {
           _basis: string
@@ -2631,6 +2680,10 @@ export type Database = {
       redispatch_delivery: { Args: { _order: string }; Returns: undefined }
       report_failed_delivery: {
         Args: { _note: string; _order: string; _outcome: string }
+        Returns: undefined
+      }
+      report_failed_pickup: {
+        Args: { _note: string; _order: string; _reason: string }
         Returns: undefined
       }
       retry_email: { Args: { _id: string }; Returns: undefined }

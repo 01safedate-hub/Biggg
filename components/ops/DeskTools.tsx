@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { assignAgent, assignDelivery, checkLine, correctLine, hubStep, receiveOrder, redispatch } from "@/app/staff/(app)/ops-actions";
+import { cancelPaidOrder, assignAgent, assignDelivery, checkLine, correctLine, hubStep, receiveOrder, redispatch } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
 export function AssignForm({ orderId, agents, current, kind = "pickup" }: { orderId: string; agents: { id: string; name: string; open_jobs: number }[]; current: string | null; kind?: "pickup" | "delivery" }) {
@@ -112,6 +112,28 @@ export function RedispatchButton({ orderId }: { orderId: string }) {
     <div>
       <button className="btn-secondary !px-4 !py-2" disabled={busy} onClick={async () => { if (!window.confirm("Put this delivery back in the queue? Do this only once the customer has agreed a new time.")) return; setBusy(true); const r = await redispatch(orderId); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>Try delivery again</button>
       {err && <p role="alert" className="mt-1 text-xs text-red-700">{err}</p>}
+    </div>
+  );
+}
+
+export function CancelPaidForm({ orderId, fareKobo }: { orderId: string; fareKobo: number }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [keep, setKeep] = useState(true);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!open) return <button className="text-sm font-medium text-red-700 hover:underline" onClick={() => setOpen(true)}>Cancel this booking</button>;
+  return (
+    <div className="space-y-3 rounded-md border border-red-200 bg-red-50 p-4">
+      {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
+      <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={keep} onChange={(e) => setKeep(e.target.checked)} /><span>Keep the pickup fare ({naira(fareKobo)}) because an agent was already sent. Only the delivery part is refunded.</span></label>
+      <input aria-label="Reason" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason, for example: customer asked to cancel" className="w-full rounded-md border border-line px-3 py-2 text-sm" />
+      <div className="flex gap-2">
+        <button className="btn-primary" disabled={busy || note.trim().length < 3} onClick={async () => { setBusy(true); const r = await cancelPaidOrder(orderId, !keep, note); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>Cancel and refund</button>
+        <button className="btn-secondary" onClick={() => setOpen(false)}>Back</button>
+      </div>
+      <p className="text-xs text-ink-soft">The refund is listed under Payments, Refunds to send. The customer is told.</p>
     </div>
   );
 }

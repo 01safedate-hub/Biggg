@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { startPayment } from "@/app/orders/actions";
 
-export function PayButtons({ orderId, purpose, label }: { orderId: string; purpose: "pickup_fare" | "items" | "delivery_fare"; label: string }) {
+export function PayButtons({ orderId, purpose, label }: { orderId: string; purpose: "pickup_fare" | "items" | "delivery_fare" | "demurrage"; label: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   async function go(p: "paystack" | "flutterwave") {

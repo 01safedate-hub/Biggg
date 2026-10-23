@@ -4,12 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cancelOrder } from "@/app/orders/actions";
 
-export function CancelButton({ orderId }: { orderId: string }) {
+export function CancelButton({ orderId, refund }: { orderId: string; refund?: boolean }) {
   const router = useRouter();
   const [err, setErr] = useState<string | null>(null);
   return (
     <span>
-      <button className="text-sm font-medium text-red-700 hover:underline" onClick={async () => { if (!window.confirm("Cancel this booking?")) return; const r = await cancelOrder(orderId); if (r.ok) router.refresh(); else setErr(r.message); }}>Cancel booking</button>
+      <button className="text-sm font-medium text-red-700 hover:underline" onClick={async () => { if (!window.confirm(refund ? "Cancel this booking? Your full transport payment will be refunded." : "Cancel this booking?")) return; const r = await cancelOrder(orderId); if (r.ok) router.refresh(); else setErr(r.message); }}>Cancel booking</button>
       {err && <span role="alert" className="ml-2 text-xs text-red-700">{err}</span>}
     </span>
   );

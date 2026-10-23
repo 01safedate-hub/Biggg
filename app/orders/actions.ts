@@ -31,7 +31,7 @@ export async function enterOrderCode(id: string, step: "arrival" | "delivery", c
   return r.ok ? { ok: true, message: "Thank you. Confirmed." } : { ok: false, message: `That code is not right. ${r.attempts_left ?? 0} tries left.` };
 }
 
-export async function startPayment(orderId: string, purpose: "pickup_fare" | "items" | "delivery_fare", provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
+export async function startPayment(orderId: string, purpose: "pickup_fare" | "items" | "delivery_fare" | "demurrage", provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
   const { supabase } = await requireUser(`/orders/${orderId}`);
   const { data, error } = await supabase.functions.invoke("pay-init", { body: { order_id: orderId, purpose, provider } });
   if (error) {
@@ -60,4 +60,12 @@ export async function setOffers(on: boolean): Promise<R> {
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/account");
   return { ok: true, message: on ? "You will get our offers by email." : "You will not get offers. Order updates still reach you." };
+}
+
+export async function rateOrder(id: string, stars: number, comment: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${id}`);
+  const { error } = await supabase.rpc("rate_order", { _order: id, _stars: stars, _comment: comment.trim().slice(0, 500) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${id}`);
+  return { ok: true, message: "Thank you for rating us." };
 }

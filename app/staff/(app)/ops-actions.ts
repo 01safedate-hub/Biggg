@@ -98,3 +98,19 @@ export async function correctLine(orderId: string, lineId: string, newItem: stri
   revalidatePath(`/staff/receiving/${orderId}`);
   return { ok: true, message: "Corrected.", due: Number((data as { due_kobo?: number } | null)?.due_kobo ?? 0) };
 }
+
+export async function cancelPaidOrder(orderId: string, refundPickup: boolean, note: string): Promise<R & { refund?: number }> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.rpc("cancel_paid_order", { _order: orderId, _refund_pickup: refundPickup, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/dispatch");
+  return { ok: true, message: "Cancelled.", refund: Number((data as { refund_kobo?: number } | null)?.refund_kobo ?? 0) };
+}
+
+export async function failedPickup(orderId: string, reason: string, note: string): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent"]);
+  const { error } = await supabase.rpc("report_failed_pickup", { _order: orderId, _reason: reason, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/jobs");
+  return { ok: true, message: "Logged. The office will call the customer and send another agent." };
+}

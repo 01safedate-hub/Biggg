@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { failedDelivery, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
+import { failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
 export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; step?: "arrival" | "delivery"; label?: string }) {
@@ -113,6 +113,30 @@ export function FailedDeliveryForm({ orderId }: { orderId: string }) {
       <div className="flex gap-2">
         <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); const r = await failedDelivery(orderId, why, note); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>Log it</button>
         <button className="btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+const PFAIL: [string, string][] = [["unreachable", "Customer is not picking up calls"], ["not_home", "Customer is not at the address"], ["address_issue", "Cannot find the address"], ["refused", "Customer no longer wants the pickup"]];
+
+export function FailedPickupForm({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [why, setWhy] = useState("unreachable");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!open) return <button className="btn-secondary" onClick={() => setOpen(true)}>I could not do this pickup</button>;
+  return (
+    <div className="space-y-3 rounded-md border border-line p-4">
+      {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
+      <p className="text-sm text-ink-soft">Call the customer and wait a few minutes first. Only log this after you have tried. The customer keeps their paid transport and the office sends another agent.</p>
+      <select aria-label="What happened" value={why} onChange={(e) => setWhy(e.target.value)} className="w-full rounded-md border border-line px-3 py-2 text-sm">{PFAIL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      <input aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Short note, for example: called three times" className="w-full rounded-md border border-line px-3 py-2 text-sm" />
+      <div className="flex gap-2">
+        <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); const r = await failedPickup(orderId, why, note); setBusy(false); if (r.ok) router.push("/staff/jobs"); else setErr(r.message); }}>Log it</button>
+        <button className="btn-secondary" onClick={() => setOpen(false)}>Back</button>
       </div>
     </div>
   );

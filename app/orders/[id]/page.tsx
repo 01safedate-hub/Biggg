@@ -8,6 +8,7 @@ import { PayButtons } from "@/components/orders/PayButtons";
 import { ArrivalCodeForm } from "@/components/orders/ArrivalCodeForm";
 import { CancelButton } from "@/components/orders/CancelButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
+import { RatingForm } from "@/components/orders/RatingForm";
 import { PromoForm } from "@/components/orders/PromoForm";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
@@ -24,12 +25,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
-  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }] = await Promise.all([
+  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: dem }] = await Promise.all([
     supabase.from("order_items").select("id,name,category_name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null).order("created_at"),
     supabase.rpc("order_timeline", { _order: id }),
     agentId ? supabase.from("profiles").select("full_name,phone").eq("id", agentId).maybeSingle() : Promise.resolve({ data: null }),
     o.status === "count_confirmed" ? supabase.rpc("items_balance", { _order: id }) : Promise.resolve({ data: 0 }),
+    supabase.from("order_ratings").select("stars").eq("order_id", id).maybeSingle(),
+    o.status === "failed_delivery" ? supabase.rpc("demurrage_status", { _order: id }) : Promise.resolve({ data: null }),
   ]);
+  const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo);
@@ -61,7 +65,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "awaiting_dispatch" && <section className="card p-5 text-sm text-ink-soft">Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</section>}
+      {o.status === "awaiting_dispatch" && <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><CancelButton orderId={id} refund /></section>}
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
@@ -124,8 +128,30 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           ) : <p className="text-sm text-ink-soft">Delivery fare received. We are assigning your delivery agent and will tell you when they set off.</p>}
         </section>
       )}
-      {o.status === "delivered" && <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900"><h2 className="text-lg font-semibold">Delivered. Thank you</h2><p className="mt-1 text-sm">We hope you love your fresh clothes. <Link href="/request" className="underline">Book your next pickup</Link>.</p></section>}
-      {o.status === "failed_delivery" && <section className="rounded-xl border border-red-300 bg-red-50 p-5 text-red-900"><h2 className="text-lg font-semibold">We could not deliver your clothes</h2><p className="mt-1 text-sm">We will call you to arrange another delivery. Storage charges may apply if the clothes stay with us longer than our grace period.</p></section>}
+      {o.status === "delivered" && (
+        <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-900">
+          <h2 className="text-lg font-semibold">Delivered. Thank you</h2>
+          <p className="mt-1 text-sm">We hope you love your fresh clothes.</p>
+          {rating ? <p className="mt-3 text-sm" aria-label={`You rated ${rating.stars} out of 5`}><span className="text-amber-500">{"★".repeat(rating.stars)}</span><span className="text-slate-300">{"★".repeat(5 - rating.stars)}</span> Thank you for rating us.</p> : <RatingForm orderId={id} />}
+          <Link href="/request" className="btn-primary mt-4 inline-block">Book again</Link>
+        </section>
+      )}
+      {o.status === "cancelled" && <section className="card p-5 text-sm text-ink-soft">This booking was cancelled. If you had paid, your refund is being sent to your account. We will email you when it is done.</section>}
+      {o.status === "failed_delivery" && (
+        <section className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-5 text-red-900">
+          <h2 className="text-lg font-semibold">We could not deliver your clothes</h2>
+          <p className="text-sm">We will call you to arrange another delivery.</p>
+          {dm?.has_case && dm.status === "grace" && <p className="text-sm">Your clothes are safe with us. Storage is free until <strong>{new Date(dm.grace_ends_at ?? "").toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}</strong>. After that a storage fee of {naira(dm.fee_kobo ?? 0)}{dm.basis === "per_day" ? " per day" : ""} applies.</p>}
+          {dm?.has_case && dm.status === "accruing" && (Number(dm.due_kobo) > 0 ? (
+            <div className="space-y-3 rounded-md border border-red-200 bg-white p-4 text-ink">
+              <p className="text-sm">Your clothes have been with us past the free period. Storage fee due: <strong>{naira(Number(dm.due_kobo))}</strong>. Pay it here and we will arrange your delivery.</p>
+              <PayButtons orderId={id} purpose="demurrage" label={`Pay ${naira(Number(dm.due_kobo))}`} />
+            </div>
+          ) : <p className="text-sm">Storage fee paid up to today. Thank you.</p>)}
+          {dm?.has_case && dm.status === "paid" && <p className="text-sm">Storage fee paid. Thank you.</p>}
+          {dm?.has_case && dm.status === "waived" && <p className="text-sm">We have waived the storage fee.</p>}
+        </section>
+      )}
 
       {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>(map)</a>}</p>}
       {timeline && timeline.steps.length > 0 && <OrderTimeline t={timeline} />}

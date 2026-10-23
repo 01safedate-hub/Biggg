@@ -81,6 +81,9 @@ const MESSAGES: Record<string, string> = {
   invalid_fare: "Fares must be whole kobo amounts. The rounding step must be at least 1, and the agent time between 5 and 600 minutes.",
   invalid_hours: "Use times like 08:00. Closing time must be after opening time.",
   invalid_zone: "Check the zone: radius 200 m to 50 km, and a valid centre point.",
+  demurrage_due: "The storage fee must be paid or waived before this delivery can be tried again.",
+  invalid_rating: "Choose 1 to 5 stars.",
+  already_rated: "You already rated this order. Thank you.",
   basis_invalid: "Choose what you counted against.",
 };
 

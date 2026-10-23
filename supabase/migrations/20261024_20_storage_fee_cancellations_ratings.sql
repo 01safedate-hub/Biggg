@@ -1,0 +1,6 @@
+-- Applied via apply_migration "storage_fee_cancellations_ratings":
+-- order_ratings + rate_order; private.refund_transport, cancel_my_order (refunds when paid),
+-- cancel_paid_order (staff), report_failed_pickup; private.demurrage_due, demurrage_status;
+-- redispatch_delivery gated on storage fee; create_payment_intent/settle_online_payment handle purpose 'demurrage';
+-- order_status_event title for 'cancelled'; expire_unpaid_bookings();
+-- pg_cron: accrue-demurrage-hourly, expire-unpaid-bookings (every 15 min).
