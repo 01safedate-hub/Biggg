@@ -1000,6 +1000,63 @@ export type Database = {
           },
         ]
       }
+      order_issues: {
+        Row: {
+          compensation_kobo: number
+          created_at: string
+          customer_id: string
+          description: string
+          id: string
+          kind: string
+          order_id: string
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          compensation_kobo?: number
+          created_at?: string
+          customer_id: string
+          description: string
+          id?: string
+          kind: string
+          order_id: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          compensation_kobo?: number
+          created_at?: string
+          customer_id?: string
+          description?: string
+          id?: string
+          kind?: string
+          order_id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_issues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_issues_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           category_name: string | null
@@ -2506,6 +2563,7 @@ export type Database = {
         Returns: undefined
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
+      agent_performance: { Args: { _from: string; _to: string }; Returns: Json }
       agent_reopen_count: { Args: { _order: string }; Returns: undefined }
       agent_set_item: {
         Args: { _item: string; _order: string; _qty: number }
@@ -2522,6 +2580,7 @@ export type Database = {
         Args: { _agent: string; _order: string }
         Returns: undefined
       }
+      attention_overview: { Args: never; Returns: Json }
       book_pickup: {
         Args: { _address: string; _lat: number; _lng: number; _notes: string }
         Returns: string
@@ -2687,6 +2746,28 @@ export type Database = {
         Args: { _note: string; _order: string; _reason: string }
         Returns: undefined
       }
+      report_issue: {
+        Args: { _description: string; _kind: string; _order: string }
+        Returns: undefined
+      }
+      resolve_issue: {
+        Args: {
+          _compensation_kobo: number
+          _id: string
+          _resolution: string
+          _status: string
+        }
+        Returns: undefined
+      }
+      resolve_payment_review:
+        | {
+            Args: { _action: string; _event: number; _note: string }
+            Returns: undefined
+          }
+        | {
+            Args: { _action: string; _event: string; _note: string }
+            Returns: undefined
+          }
       retry_email: { Args: { _id: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_campaign: {
@@ -2706,6 +2787,7 @@ export type Database = {
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
       save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }
       send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
+      send_daily_digest: { Args: never; Returns: number }
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
       set_promo_active: {
         Args: { _active: boolean; _id: string }

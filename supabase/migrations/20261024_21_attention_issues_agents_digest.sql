@@ -1,0 +1,4 @@
+-- Applied via apply_migration: attention_issues_agent_stats_digest, resolve_payment_review_bigint
+-- order_issues + report_issue/resolve_issue (compensation as pending refund), resolve_payment_review(bigint,text,text),
+-- attention_overview(), agent_performance(date,date), send_daily_digest() with pg_cron 'daily-digest' (06:00 UTC = 07:00 Lagos).
+-- Edge function pay-verify (supabase/functions/pay-verify) deployed separately.

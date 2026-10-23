@@ -15,7 +15,9 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/costs", label: "Start-up costs", icon: "costs" },
   ] },
   { label: "Operations", items: [
+    { href: "/admin/attention", label: "Needs attention", icon: "admin" },
     { href: "/admin/orders", label: "Orders and timelines", icon: "orders" },
+    { href: "/admin/agents", label: "Agent performance", icon: "jobs" },
     { href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" },
     { href: "/staff/receiving", label: "Receiving", icon: "receiving" },
     { href: "/staff/hub", label: "Wash queue", icon: "hub" },

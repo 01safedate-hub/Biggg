@@ -10,6 +10,8 @@ import { CancelButton } from "@/components/orders/CancelButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { RatingForm } from "@/components/orders/RatingForm";
 import { SupportCard } from "@/components/orders/SupportCard";
+import { VerifyPayment } from "@/components/orders/VerifyPayment";
+import { IssueForm } from "@/components/orders/IssueForm";
 import { PromoForm } from "@/components/orders/PromoForm";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
@@ -28,12 +30,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
-  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: dem }] = await Promise.all([
+  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }] = await Promise.all([
     supabase.from("order_items").select("id,name,category_name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null).order("created_at"),
     supabase.rpc("order_timeline", { _order: id }),
     agentId ? supabase.from("profiles").select("full_name,phone").eq("id", agentId).maybeSingle() : Promise.resolve({ data: null }),
     o.status === "count_confirmed" ? supabase.rpc("items_balance", { _order: id }) : Promise.resolve({ data: 0 }),
     supabase.from("order_ratings").select("stars").eq("order_id", id).maybeSingle(),
+    supabase.from("order_issues").select("id,kind,status,resolution,compensation_kobo").eq("order_id", id).order("created_at"),
     o.status === "failed_delivery" ? supabase.rpc("demurrage_status", { _order: id }) : Promise.resolve({ data: null }),
   ]);
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
@@ -64,6 +67,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
           <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
           <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} />
+          <VerifyPayment orderId={id} auto={confirming} />
           <CancelButton orderId={id} />
         </section>
       )}
@@ -98,6 +102,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>
               {!o.promo_code_id && <PromoForm orderId={id} />}
               <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
+              <VerifyPayment orderId={id} />
             </div>
           )}
           {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Paid. Your agent is taking your clothes to our hub, where they are checked again.</p>}
@@ -136,6 +141,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="text-lg font-semibold">Delivered. Thank you</h2>
           <p className="mt-1 text-sm">We hope you love your fresh clothes.</p>
           {rating ? <p className="mt-3 text-sm" aria-label={`You rated ${rating.stars} out of 5`}><span className="text-amber-500">{"★".repeat(rating.stars)}</span><span className="text-slate-300">{"★".repeat(5 - rating.stars)}</span> Thank you for rating us.</p> : <RatingForm orderId={id} />}
+          {(issues ?? []).length > 0 && (
+            <ul className="mt-4 space-y-2 text-sm">{(issues ?? []).map((i) => <li key={i.id} className="rounded-md border border-emerald-200 bg-white p-3 text-ink"><strong>{i.kind.replace("_", " ")}</strong> · {i.status === "open" ? "We are looking into it" : i.status === "resolved" ? "Resolved" : "Closed"}{i.resolution ? `: ${i.resolution}` : ""}{i.compensation_kobo > 0 ? ` (refund ${naira(i.compensation_kobo)})` : ""}</li>)}</ul>
+          )}
+          {(issues ?? []).filter((i) => i.status === "open").length < 3 && <div className="mt-4"><IssueForm orderId={id} /></div>}
           <Link href="/request" className="btn-primary mt-4 inline-block">Book again</Link>
         </section>
       )}

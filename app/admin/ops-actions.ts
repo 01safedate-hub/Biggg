@@ -44,3 +44,28 @@ export async function markRefundPaid(id: string, note: string): Promise<R> {
   revalidatePath("/admin/payments");
   return { ok: true, message: "Marked as refunded." };
 }
+
+export async function waiveStorageFee(orderId: string, reason: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("waive_demurrage", { _order: orderId, _reason: reason });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/attention");
+  return { ok: true, message: "Storage fee waived." };
+}
+
+export async function resolveReview(eventId: number, action: "refund" | "keep", note: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("resolve_payment_review", { _event: eventId, _action: action, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/attention");
+  return { ok: true, message: action === "refund" ? "Refund queued under Payments." : "Marked as handled." };
+}
+
+export async function resolveIssueAction(id: string, status: "resolved" | "rejected", resolution: string, compensationNaira: number): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const kobo = Math.round((Number.isFinite(compensationNaira) ? compensationNaira : 0) * 100);
+  const { error } = await supabase.rpc("resolve_issue", { _id: id, _status: status, _resolution: resolution, _compensation_kobo: kobo });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/attention");
+  return { ok: true, message: "Saved. The customer has been told." };
+}

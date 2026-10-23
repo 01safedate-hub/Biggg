@@ -84,6 +84,9 @@ const MESSAGES: Record<string, string> = {
   demurrage_due: "The storage fee must be paid or waived before this delivery can be tried again.",
   invalid_rating: "Choose 1 to 5 stars.",
   already_rated: "You already rated this order. Thank you.",
+  too_many_issues: "You already have 3 open reports on this order. We are looking into them.",
+  issue_window_closed: "Problems can be reported within 7 days of delivery. Please contact us directly.",
+  compensation_too_high: "The refund cannot be more than the customer paid for clothes.",
   basis_invalid: "Choose what you counted against.",
 };
 

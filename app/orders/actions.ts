@@ -69,3 +69,20 @@ export async function rateOrder(id: string, stars: number, comment: string): Pro
   revalidatePath(`/orders/${id}`);
   return { ok: true, message: "Thank you for rating us." };
 }
+
+export async function verifyPayments(orderId: string): Promise<R & { settled?: number }> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { data, error } = await supabase.functions.invoke("pay-verify", { body: { order_id: orderId } });
+  if (error) return { ok: false, message: "We could not check just now. This page updates by itself." };
+  revalidatePath(`/orders/${orderId}`);
+  const s = Number((data as { settled?: number } | null)?.settled ?? 0);
+  return { ok: true, message: s > 0 ? "Payment confirmed." : "Not confirmed yet. Please wait a moment.", settled: s };
+}
+
+export async function reportIssue(orderId: string, kind: string, description: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("report_issue", { _order: orderId, _kind: kind, _description: description });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Reported. We will look into it and tell you what we find." };
+}
