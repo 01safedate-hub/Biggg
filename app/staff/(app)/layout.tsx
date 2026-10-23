@@ -10,6 +10,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   if (roles.includes("delivery_agent")) work.push({ href: "/staff/jobs", label: "Pickup jobs", icon: "jobs" });
   if (roles.some((r) => ["secretary", "admin", "super_admin"].includes(r))) {
     work.push({ href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" });
+    work.push({ href: "/staff/walkin", label: "Walk-in orders", icon: "customers" });
     work.push({ href: "/staff/receiving", label: "Receiving", icon: "receiving" });
     work.push({ href: "/staff/hub", label: "Wash queue", icon: "hub" });
     work.push({ href: "/staff/issues", label: "Customer problems", icon: "reports" });

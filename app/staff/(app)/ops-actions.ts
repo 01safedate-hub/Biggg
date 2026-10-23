@@ -169,3 +169,87 @@ export async function cancelShift(id: string): Promise<R> {
   revalidatePath("/staff/roster");
   return { ok: true, message: "Shift removed." };
 }
+
+export async function pingLocation(orderId: string, lat: number, lng: number, accuracy: number): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent"]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { ok: false, message: friendlyError("invalid_location") };
+  const { error } = await supabase.rpc("agent_ping", { _order: orderId, _lat: lat, _lng: lng, _accuracy: Number.isFinite(accuracy) ? accuracy : 0 });
+  return error ? { ok: false, message: friendlyError(error.message) } : { ok: true, message: "" };
+}
+
+// ---------- walk-in orders made at the desk ----------
+export async function findDeskCustomers(q: string): Promise<{ ok: boolean; message: string; rows: { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number }[] }> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.rpc("desk_find_customer", { _q: q.slice(0, 60) });
+  if (error) return { ok: false, message: friendlyError(error.message), rows: [] };
+  return { ok: true, message: "", rows: (data ?? []) as never };
+}
+
+export async function addWalkinCustomer(name: string, phone: string): Promise<R & { id?: string }> {
+  const { supabase } = await requireRole([...DESK]);
+  const n = name.trim(); const digits = phone.replace(/\D/g, "");
+  if (n.length < 2 || n.length > 80) return { ok: false, message: "Enter the customer's name." };
+  if (digits.length < 10 || digits.length > 15) return { ok: false, message: "Enter a phone number with 10 to 15 digits." };
+  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { full_name: n, phone: phone.trim() } });
+  if (error) {
+    let code = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") { try { code = (await ctx.json())?.error ?? code; } catch { /* keep */ } }
+    return { ok: false, message: friendlyError(String(code)) };
+  }
+  const id = (data as { id?: string } | null)?.id;
+  return id ? { ok: true, message: "", id } : { ok: false, message: "Something went wrong. Please try again." };
+}
+
+export async function startWalkin(customerId: string, notes: string): Promise<R & { id?: string }> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.rpc("desk_create_walkin_order", { _customer: customerId, _notes: notes.trim().slice(0, 300) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/walkin");
+  return { ok: true, message: "", id: String(data) };
+}
+
+export async function deskSendCount(orderId: string, lines: { item: string; qty: number }[]): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  for (const l of lines) {
+    const { error } = await supabase.rpc("desk_set_item", { _order: orderId, _item: l.item, _qty: l.qty });
+    if (error) return { ok: false, message: friendlyError(error.message) };
+  }
+  const { error } = await supabase.rpc("desk_submit_count", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Bill ready." };
+}
+
+export async function deskReopenCount(orderId: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("desk_reopen_count", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Reopened." };
+}
+
+export async function deskTakePayment(orderId: string, mode: "cash" | "transfer" | "pos", moneyPoint: string, note: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  if (!["cash", "transfer", "pos"].includes(mode)) return { ok: false, message: "Choose how the customer paid." };
+  const { error } = await supabase.rpc("desk_record_payment", { _order: orderId, _mode: mode, _money_point: moneyPoint, _note: note.trim().slice(0, 200) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Payment recorded." };
+}
+
+export async function deskHandover(orderId: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("desk_handover", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Handed over." };
+}
+
+export async function deskCancelWalkin(orderId: string, note: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("desk_cancel_walkin", { _order: orderId, _note: note.trim().slice(0, 200) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/walkin");
+  return { ok: true, message: "Cancelled." };
+}

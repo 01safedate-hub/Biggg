@@ -21,8 +21,16 @@ Deno.serve(async (req) => {
   const raw = await req.text();
   const sig = req.headers.get("x-paystack-signature") ?? "";
   if (!same(await hmacHex(SECRET, raw), sig)) return new Response("bad signature", { status: 401 });
-  let ev: { event?: string; data?: { reference?: string } };
+  // deno-lint-ignore no-explicit-any
+  let ev: { event?: string; data?: any };
   try { ev = JSON.parse(raw); } catch { return new Response("bad json", { status: 400 }); }
+
+  // A customer queried the charge with their bank. The signature proves it came from Paystack; the clothes go on hold.
+  if (ev.event === "charge.dispute.create" && ev.data?.transaction?.reference) {
+    const due = typeof ev.data.due_at === "string" && !Number.isNaN(Date.parse(ev.data.due_at)) ? new Date(ev.data.due_at).toISOString() : null;
+    const { error } = await db.rpc("record_dispute_from_provider", { _reference: String(ev.data.transaction.reference), _provider: "paystack", _external: String(ev.data.id ?? ""), _reason: String(ev.data.category ?? ev.data.reason ?? ""), _due: due as string });
+    return error ? new Response(error.message, { status: 400 }) : new Response("ok", { status: 200 });
+  }
   if (ev.event !== "charge.success" || !ev.data?.reference) return new Response("ignored", { status: 200 });
 
   const v = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(ev.data.reference)}`, { headers: { Authorization: `Bearer ${SECRET}` } });

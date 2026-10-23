@@ -95,6 +95,14 @@ const MESSAGES: Record<string, string> = {
   invalid_shift: "Check the shift: it must start and end at different times, last at most 14 hours, and not be in the past.",
   shift_exists: "This person already has a shift that day.",
   range_too_large: "Choose a shorter range.",
+  invalid_step: "That choice is not allowed here.",
+  slot_unavailable: "That time is no longer available. Please choose another.",
+  slots_off: "Choosing a pickup time is not switched on.",
+  dispute_open: "The customer's bank has queried a payment on this order, so it is on hold until the super admin settles it.",
+  too_many_open: "This customer already has 3 open walk-in orders. Finish one first.",
+  walkin_only: "This only works for orders made at the desk.",
+  invalid_slots: "Check the slot settings: a window of 15 to 240 minutes, 1 to 30 days ahead, and a capacity of at least 1.",
+  invalid_location: "That location looks wrong. Please try again.",
   basis_invalid: "Choose what you counted against.",
 };
 

@@ -6,9 +6,9 @@ import { friendlyError } from "@/lib/rpc-errors";
 
 type R = { ok: boolean; message: string };
 
-export async function bookPickup(v: { lat: number; lng: number; address: string; notes: string }): Promise<R & { id?: string }> {
+export async function bookPickup(v: { lat: number; lng: number; address: string; notes: string; slot?: string | null }): Promise<R & { id?: string }> {
   const { supabase } = await requireUser("/request");
-  const { data, error } = await supabase.rpc("book_pickup", { _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes });
+  const { data, error } = await supabase.rpc("book_pickup_scheduled", { _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes, _slot: (v.slot || null) as string });
   if (error) return { ok: false, message: friendlyError(error.message) };
   return { ok: true, message: "Booked.", id: String(data) };
 }
@@ -85,4 +85,20 @@ export async function reportIssue(orderId: string, kind: string, description: st
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: "Reported. We will look into it and tell you what we find." };
+}
+
+export async function removePromoCode(orderId: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("remove_promo", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Discount code removed." };
+}
+
+export async function reschedulePickup(orderId: string, slot: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("reschedule_pickup", { _order: orderId, _slot: slot });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Pickup time changed." };
 }

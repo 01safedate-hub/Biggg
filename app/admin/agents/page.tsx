@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/roles";
+import { SlotRules } from "@/components/admin/SlotRules";
 import { DispatchRules } from "@/components/admin/DispatchRules";
 
 export const metadata = { title: "Agent performance" };
@@ -16,12 +17,15 @@ export default async function Agents({ searchParams }: { searchParams: Promise<{
   const { data } = await supabase.rpc("agent_performance", { _from: ymd(from), _to: ymd(to) });
   const { data: cfgRow } = await supabase.from("settings").select("value").eq("key", "dispatch").maybeSingle();
   const cfg = (cfgRow?.value ?? {}) as { auto_assign?: boolean; max_open_jobs?: number; reassign_after_minutes?: number; require_checked_in?: boolean };
+  const { data: slotRow } = await supabase.from("settings").select("value").eq("key", "slots").maybeSingle();
+  const sl = (slotRow?.value ?? {}) as { enabled?: boolean; window_minutes?: number; max_days_ahead?: number; min_lead_minutes?: number; per_slot_capacity?: number };
   const rows = (Array.isArray(data) ? data : []) as unknown as A[];
   const chip = (d: number) => <Link key={d} href={`/admin/agents?days=${d}`} className={`rounded-full border px-3 py-1 text-sm ${n === d ? "border-brand bg-brand-tint text-brand-dark" : "border-line"}`}>Last {d} days</Link>;
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Agent performance</h1><p className="mt-1 text-sm text-ink-soft">Jobs done, failures, how fast they reach customers, and what customers rate their deliveries.</p></div>
       <DispatchRules initial={{ auto: cfg.auto_assign === true, maxJobs: cfg.max_open_jobs ?? 4, reassignMin: cfg.reassign_after_minutes ?? 45, needCheckin: cfg.require_checked_in !== false }} />
+      <SlotRules initial={{ enabled: sl.enabled !== false, window: sl.window_minutes ?? 60, days: sl.max_days_ahead ?? 7, lead: sl.min_lead_minutes ?? 120, capacity: sl.per_slot_capacity ?? 4 }} />
       <div className="flex gap-2">{[7, 30, 90].map(chip)}</div>
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">

@@ -1,0 +1,3 @@
+-- Applied via apply_migration: live_agent_location
+-- table agent_locations (RLS on, no direct grants); agent_ping(_order,_lat,_lng,_accuracy) (assigned agent, en route only, 4 s rate limit);
+-- order_agent_location(_order) (owner only, live within 3 minutes); clear_agent_locations() + pg_cron every 10 minutes.

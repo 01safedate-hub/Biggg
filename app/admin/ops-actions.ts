@@ -77,3 +77,43 @@ export async function saveDispatchRules(v: { auto: boolean; maxJobs: number; rea
   revalidatePath("/admin/agents");
   return { ok: true, message: "Saved." };
 }
+
+export async function saveSlotRules(v: { enabled: boolean; window: number; days: number; lead: number; capacity: number }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("save_slot_settings", { _enabled: v.enabled, _window: Math.round(v.window), _days: Math.round(v.days), _lead: Math.round(v.lead), _capacity: Math.round(v.capacity) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/agents");
+  return { ok: true, message: "Saved." };
+}
+
+// ---------- bank disputes (chargebacks) ----------
+export async function openDisputeAction(orderNo: number, purpose: string, reason: string, due: string): Promise<R & { id?: string }> {
+  const { supabase } = await requireRole(["super_admin"]);
+  if (!Number.isInteger(orderNo) || orderNo < 1) return { ok: false, message: "Enter the order number." };
+  if (!["items", "pickup_fare", "delivery_fare", "demurrage"].includes(purpose)) return { ok: false, message: "Choose which payment was queried." };
+  const { data: o } = await supabase.from("orders").select("id").eq("order_no", orderNo).maybeSingle();
+  if (!o) return { ok: false, message: "That order could not be found." };
+  const { data: p } = await supabase.from("payments").select("id").eq("order_id", o.id).eq("purpose", purpose as "items").eq("kind", "payment").eq("status", "success").in("mode", ["paystack", "flutterwave"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!p) return { ok: false, message: "No successful online payment of that kind was found on this order." };
+  const { data, error } = await supabase.rpc("open_dispute", { _payment: p.id, _reason: reason.trim(), _due: (/^\d{4}-\d{2}-\d{2}$/.test(due) ? due : null) as string });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/disputes");
+  return { ok: true, message: "Dispute recorded. The clothes are on hold.", id: String(data) };
+}
+
+export async function markEvidenceSent(id: string, note: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("mark_dispute_evidence_sent", { _id: id, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/admin/disputes/${id}`);
+  return { ok: true, message: "Saved." };
+}
+
+export async function resolveDisputeAction(id: string, outcome: "won" | "lost", note: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("resolve_dispute", { _id: id, _outcome: outcome, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/admin/disputes/${id}`);
+  revalidatePath("/admin/disputes");
+  return { ok: true, message: outcome === "won" ? "Marked as won. The order is released." : "Marked as lost. The refund is in the books." };
+}

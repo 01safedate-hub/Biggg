@@ -28,3 +28,9 @@ Never hard-code a town in public headings, never describe delivery as free, say 
 All email goes through Resend. Sign-up and password-reset emails use a Supabase "Send Email" auth hook that calls the
 `auth-email` edge function (sent instantly). Order, waitlist and demurrage emails are queued in `email_outbox` and sent by
 `email-worker` every 5 minutes. Edge function secrets: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET`, optional `EMAIL_REPLY_TO`.
+
+
+## Database copies and tests
+
+- `scripts/export-schema.sh` saves an exact copy of the live database structure to `supabase/schema.sql` (needs `DB_URL`). Run it after every migration and commit the result. The numbered files in `supabase/migrations` are the history; some are notes only.
+- `supabase/tests/access_matrix.sql` checks what each role (customer, agent, secretary, admin, super admin) can and cannot do. Paste it into the Supabase SQL editor. It saves nothing and always ends with a message starting `RESULT`: `ALL PASS` or the list of failures. Run it after every migration.

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { bookPickup } from "@/app/orders/actions";
 import { createClient } from "@/lib/supabase/client";
 import { naira } from "@/lib/format";
+import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
 type Quote = { served: boolean; fare_kobo?: number | null; delivery_fare_kobo?: number | null; total_fare_kobo?: number | null; zone_name?: string; distance_km?: number; after_hours?: boolean; scheduled_for?: string | null; reason?: string };
@@ -16,6 +17,8 @@ export function BookingForm() {
   const [locBusy, setLocBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [when, setWhen] = useState<"now" | "later">("now");
+  const [slot, setSlot] = useState<string | null>(null);
 
   function locate() {
     setErr(null); setQuote(null);
@@ -34,9 +37,10 @@ export function BookingForm() {
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!pos) return;
+    if (when === "later" && !slot) { setErr("Choose a day and a time, or pick As soon as possible."); return; }
     const f = new FormData(e.currentTarget);
     setBusy(true); setErr(null);
-    const r = await bookPickup({ ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? "") });
+    const r = await bookPickup({ ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null });
     if (r.ok && r.id) { router.push(`/orders/${r.id}`); return; }
     setBusy(false); setErr(r.message);
   }
@@ -71,6 +75,14 @@ export function BookingForm() {
             <h2 className="text-lg font-semibold">2. Address details</h2>
             <div><label htmlFor="address" className={labelCls}>House number, street and landmark</label><input id="address" name="address" required minLength={5} maxLength={300} className={inputCls} /></div>
             <div><label htmlFor="notes" className={labelCls}>Anything the agent should know? (optional)</label><textarea id="notes" name="notes" maxLength={500} rows={2} className={inputCls} /></div>
+          </div>
+          <div className="card space-y-4 p-5">
+            <h2 className="text-lg font-semibold">3. When should we come?</h2>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="When">
+              <button type="button" role="radio" aria-checked={when === "now"} onClick={() => { setWhen("now"); setSlot(null); }} className={`rounded-md border px-4 py-2 text-sm ${when === "now" ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line"}`}>As soon as possible</button>
+              <button type="button" role="radio" aria-checked={when === "later"} onClick={() => setWhen("later")} className={`rounded-md border px-4 py-2 text-sm ${when === "later" ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line"}`}>Choose a time</button>
+            </div>
+            {when === "later" && <SlotPicker value={slot} onChange={setSlot} />}
           </div>
           <button className="btn-primary w-full sm:w-auto" disabled={busy}>{busy ? "Booking" : `Book and pay ${naira(quote!.total_fare_kobo ?? quote!.fare_kobo!)} transport`}</button>
         </>

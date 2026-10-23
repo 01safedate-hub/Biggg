@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
+import { deskSendCount, failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
 export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; step?: "arrival" | "delivery"; label?: string }) {
@@ -27,7 +27,7 @@ export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived
 type Item = { id: string; name: string; price_kobo: number; category_id: string };
 type Cat = { id: string; name: string };
 
-export function Itemiser({ orderId, cats, items, initial }: { orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number> }) {
+export function Itemiser({ orderId, cats, items, initial, desk = false }: { orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
   const [q, setQ] = useState("");
@@ -38,11 +38,11 @@ export function Itemiser({ orderId, cats, items, initial }: { orderId: string; c
   const set = (id: string, n: number) => setQty((p) => ({ ...p, [id]: Math.max(0, Math.min(200, n)) }));
 
   async function send() {
-    if (!window.confirm(`Send a bill of ${naira(total)} for ${count} item${count === 1 ? "" : "s"} to the customer?`)) return;
+    if (!window.confirm(desk ? `Total ${naira(total)} for ${count} item${count === 1 ? "" : "s"}. Is this what the customer sees on the counter?` : `Send a bill of ${naira(total)} for ${count} item${count === 1 ? "" : "s"} to the customer?`)) return;
     setBusy(true); setErr(null);
     const ids = new Set([...Object.keys(initial), ...Object.keys(qty)]);
     const lines = Array.from(ids).filter((id) => (qty[id] ?? 0) !== (initial[id] ?? 0) || (qty[id] ?? 0) > 0).map((item) => ({ item, qty: qty[item] ?? 0 }));
-    const r = await sendBill(orderId, lines);
+    const r = desk ? await deskSendCount(orderId, lines) : await sendBill(orderId, lines);
     setBusy(false);
     if (r.ok) router.refresh(); else setErr(r.message);
   }
@@ -76,7 +76,7 @@ export function Itemiser({ orderId, cats, items, initial }: { orderId: string; c
         {err && <p role="alert" className="mb-2 text-sm text-red-300">{err}</p>}
         <div className="flex items-center justify-between gap-3">
           <div><p className="text-xs text-slate-400">{count} item{count === 1 ? "" : "s"}</p><p className="text-xl font-bold">{naira(total)}</p></div>
-          <button className="btn-primary" disabled={busy || count === 0} onClick={send}>{busy ? "Sending" : "Send bill to customer"}</button>
+          <button className="btn-primary" disabled={busy || count === 0} onClick={send}>{busy ? "Saving" : desk ? "Confirm the count" : "Send bill to customer"}</button>
         </div>
       </div>
     </div>

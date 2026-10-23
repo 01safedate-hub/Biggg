@@ -1,0 +1,4 @@
+-- Applied via apply_migration: pickup_time_slots
+-- settings 'slots'; private.slot_remaining(_start,_exclude); public.available_slots(_date); book_pickup_scheduled(...,_slot);
+-- reschedule_pickup(_order,_slot); private.held_until now also holds auto dispatch until 30 minutes before scheduled_for;
+-- save_slot_settings(_enabled,_window,_days,_lead,_capacity) (super admin).

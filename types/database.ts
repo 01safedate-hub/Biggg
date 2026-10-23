@@ -62,6 +62,48 @@ export type Database = {
           },
         ]
       }
+      agent_locations: {
+        Row: {
+          accuracy_m: number | null
+          agent_id: string
+          lat: number | null
+          lng: number | null
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          agent_id: string
+          lat?: number | null
+          lng?: number | null
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          agent_id?: string
+          lat?: number | null
+          lng?: number | null
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_locations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_locations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       attendance: {
         Row: {
           checked_in_at: string | null
@@ -1470,6 +1512,85 @@ export type Database = {
           },
         ]
       }
+      payment_disputes: {
+        Row: {
+          amount_kobo: number
+          created_at: string
+          due_at: string | null
+          evidence_note: string | null
+          evidence_sent_at: string | null
+          external_ref: string | null
+          id: string
+          opened_by: string | null
+          order_id: string
+          payment_id: string
+          provider: string
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          amount_kobo: number
+          created_at?: string
+          due_at?: string | null
+          evidence_note?: string | null
+          evidence_sent_at?: string | null
+          external_ref?: string | null
+          id?: string
+          opened_by?: string | null
+          order_id: string
+          payment_id: string
+          provider: string
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          amount_kobo?: number
+          created_at?: string
+          due_at?: string | null
+          evidence_note?: string | null
+          evidence_sent_at?: string | null
+          external_ref?: string | null
+          id?: string
+          opened_by?: string | null
+          order_id?: string
+          payment_id?: string
+          provider?: string
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_disputes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_disputes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "payment_disputes_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount_kobo: number
@@ -1723,6 +1844,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_walk_in: boolean
           marketing_opt_in: boolean
           phone: string | null
           status: string
@@ -1736,6 +1858,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id: string
+          is_walk_in?: boolean
           marketing_opt_in?: boolean
           phone?: string | null
           status?: string
@@ -1749,6 +1872,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_walk_in?: boolean
           marketing_opt_in?: boolean
           phone?: string | null
           status?: string
@@ -1804,6 +1928,7 @@ export type Database = {
           customer_id: string
           id: string
           order_id: string
+          released_at: string | null
         }
         Insert: {
           code_id: string
@@ -1811,6 +1936,7 @@ export type Database = {
           customer_id: string
           id?: string
           order_id: string
+          released_at?: string | null
         }
         Update: {
           code_id?: string
@@ -1818,6 +1944,7 @@ export type Database = {
           customer_id?: string
           id?: string
           order_id?: string
+          released_at?: string | null
         }
         Relationships: [
           {
@@ -2628,6 +2755,10 @@ export type Database = {
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
       agent_performance: { Args: { _from: string; _to: string }; Returns: Json }
+      agent_ping: {
+        Args: { _accuracy: number; _lat: number; _lng: number; _order: string }
+        Returns: undefined
+      }
       agent_reopen_count: { Args: { _order: string }; Returns: undefined }
       agent_set_item: {
         Args: { _item: string; _order: string; _qty: number }
@@ -2645,8 +2776,19 @@ export type Database = {
         Returns: undefined
       }
       attention_overview: { Args: never; Returns: Json }
+      available_slots: { Args: { _date: string }; Returns: Json }
       book_pickup: {
         Args: { _address: string; _lat: number; _lng: number; _notes: string }
+        Returns: string
+      }
+      book_pickup_scheduled: {
+        Args: {
+          _address: string
+          _lat: number
+          _lng: number
+          _notes: string
+          _slot: string
+        }
         Returns: string
       }
       callbacks_queue: { Args: never; Returns: Json }
@@ -2686,6 +2828,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      clear_agent_locations: { Args: never; Returns: number }
       close_week: { Args: { _week_start: string }; Returns: number }
       compute_payroll: { Args: { _month: string }; Returns: string }
       correct_order_item: {
@@ -2730,7 +2873,28 @@ export type Database = {
         Returns: undefined
       }
       demurrage_status: { Args: { _order: string }; Returns: Json }
+      desk_cancel_walkin: {
+        Args: { _note: string; _order: string }
+        Returns: undefined
+      }
+      desk_create_walkin_order: {
+        Args: { _customer: string; _notes: string }
+        Returns: string
+      }
+      desk_find_customer: { Args: { _q: string }; Returns: Json }
+      desk_gate: { Args: never; Returns: boolean }
+      desk_handover: { Args: { _order: string }; Returns: undefined }
       desk_issues: { Args: never; Returns: Json }
+      desk_record_payment: {
+        Args: {
+          _mode: string
+          _money_point: string
+          _note: string
+          _order: string
+        }
+        Returns: Json
+      }
+      desk_reopen_count: { Args: { _order: string }; Returns: undefined }
       desk_resolve_issue: {
         Args: {
           _action: string
@@ -2740,6 +2904,13 @@ export type Database = {
         }
         Returns: Json
       }
+      desk_set_item: {
+        Args: { _item: string; _order: string; _qty: number }
+        Returns: undefined
+      }
+      desk_submit_count: { Args: { _order: string }; Returns: undefined }
+      desk_walkin_recent: { Args: never; Returns: Json }
+      dispute_evidence: { Args: { _id: string }; Returns: Json }
       expense_feed: {
         Args: { _before?: string; _limit?: number }
         Returns: Json
@@ -2795,6 +2966,10 @@ export type Database = {
         Returns: string
       }
       mark_absences: { Args: never; Returns: number }
+      mark_dispute_evidence_sent: {
+        Args: { _id: string; _note: string }
+        Returns: undefined
+      }
       mark_payout_paid: { Args: { _id: string }; Returns: undefined }
       mark_ready: { Args: { _order: string }; Returns: undefined }
       mark_received: { Args: { _order: string }; Returns: undefined }
@@ -2804,6 +2979,11 @@ export type Database = {
       }
       my_pay_overview: { Args: never; Returns: Json }
       my_staff_state: { Args: never; Returns: Json }
+      open_dispute: {
+        Args: { _due: string; _payment: string; _reason: string }
+        Returns: string
+      }
+      order_agent_location: { Args: { _order: string }; Returns: Json }
       order_timeline: { Args: { _order: string }; Returns: Json }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
       rate_order: {
@@ -2821,9 +3001,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_dispute_from_provider: {
+        Args: {
+          _due: string
+          _external: string
+          _provider: string
+          _reason: string
+          _reference: string
+        }
+        Returns: string
+      }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
       redispatch_delivery: { Args: { _order: string }; Returns: undefined }
+      remove_promo: { Args: { _order: string }; Returns: undefined }
       report_failed_delivery: {
         Args: { _note: string; _order: string; _outcome: string }
         Returns: undefined
@@ -2834,6 +3025,14 @@ export type Database = {
       }
       report_issue: {
         Args: { _description: string; _kind: string; _order: string }
+        Returns: undefined
+      }
+      reschedule_pickup: {
+        Args: { _order: string; _slot: string }
+        Returns: undefined
+      }
+      resolve_dispute: {
+        Args: { _id: string; _note: string; _outcome: string }
         Returns: undefined
       }
       resolve_issue: {
@@ -2882,6 +3081,16 @@ export type Database = {
       }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
       save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }
+      save_slot_settings: {
+        Args: {
+          _capacity: number
+          _days: number
+          _enabled: boolean
+          _lead: number
+          _window: number
+        }
+        Returns: undefined
+      }
       send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
       send_daily_digest: { Args: never; Returns: number }
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }

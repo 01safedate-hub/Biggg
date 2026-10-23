@@ -12,7 +12,9 @@ import { RatingForm } from "@/components/orders/RatingForm";
 import { SupportCard } from "@/components/orders/SupportCard";
 import { VerifyPayment } from "@/components/orders/VerifyPayment";
 import { IssueForm } from "@/components/orders/IssueForm";
-import { PromoForm } from "@/components/orders/PromoForm";
+import { PromoForm, RemovePromo } from "@/components/orders/PromoForm";
+import { RescheduleControl } from "@/components/orders/RescheduleControl";
+import { TrackMap } from "@/components/orders/TrackMap";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
 export const metadata = { title: "Your order" };
@@ -66,19 +68,21 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="text-lg font-semibold">Pay transport to confirm your booking</h2>
           {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
           <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
+          <RescheduleControl orderId={id} current={o.scheduled_for} />
           <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} />
           <VerifyPayment orderId={id} auto={confirming} />
           <CancelButton orderId={id} />
         </section>
       )}
 
-      {o.status === "awaiting_dispatch" && <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><CancelButton orderId={id} refund /></section>}
+      {o.status === "awaiting_dispatch" && <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>}
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Your agent{agent?.full_name ? `, ${agent.full_name},` : ""} is on the way</h2>
           {agent?.phone && <p className="text-sm">Call: <a className="font-medium text-brand-dark underline" href={`tel:${agent.phone}`}>{agent.phone}</a></p>}
           <p className="text-sm text-ink-soft">When the agent arrives, they will show you a 4 digit code on their phone. Enter it here so we know it is really them.</p>
+          <TrackMap orderId={id} agentName={agent?.full_name} />
           <ArrivalCodeForm orderId={id} />
         </section>
       )}
@@ -100,7 +104,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>
-              {!o.promo_code_id && <PromoForm orderId={id} />}
+              {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
               <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
               <VerifyPayment orderId={id} />
             </div>
@@ -131,6 +135,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <h2 className="text-lg font-semibold">Your delivery agent{agent?.full_name ? `, ${agent.full_name},` : ""} is on the way</h2>
               {agent?.phone && <p className="text-sm">Call: <a className="font-medium text-brand-dark underline" href={`tel:${agent.phone}`}>{agent.phone}</a></p>}
               <p className="text-sm text-ink-soft">When your agent arrives, they will show you a 4 digit code. Enter it here to confirm you have your clothes.</p>
+              <TrackMap orderId={id} agentName={agent?.full_name} />
               <ArrivalCodeForm orderId={id} step="delivery" button="Confirm delivery" />
             </>
           ) : <p className="text-sm text-ink-soft">Delivery fare received. We are assigning your delivery agent and will tell you when they set off.</p>}

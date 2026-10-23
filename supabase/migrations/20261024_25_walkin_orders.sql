@@ -1,0 +1,5 @@
+-- Applied via apply_migration: walkin_orders (the full SQL lives in the database; run scripts/export-schema.sh for an exact copy)
+-- profiles.is_walk_in; public.desk_gate(), desk_find_customer(_q), desk_create_walkin_order(_customer,_notes), desk_set_item,
+-- desk_submit_count, desk_reopen_count, desk_record_payment(_order,_mode,_money_point,_note), desk_handover, desk_cancel_walkin,
+-- desk_walkin_recent(); private.walkin_order(); mark_ready walk-in branch; order_status_event skips email/notifications for walk-in profiles;
+-- expire_unpaid_bookings also cancels walk-in orders abandoned while counting for 12 hours.
