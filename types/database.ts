@@ -2665,6 +2665,7 @@ export type Database = {
         Args: { _comment: string; _order: string; _stars: number }
         Returns: undefined
       }
+      ratings_summary: { Args: never; Returns: Json }
       record_cash_count: {
         Args: {
           _basis: string

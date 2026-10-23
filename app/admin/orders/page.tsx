@@ -21,6 +21,8 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
     }
   }
   const { data } = await q;
+  const { data: rs } = await supabase.rpc("ratings_summary");
+  const rating = rs as unknown as { count: number; avg: number | null; dist: Record<string, number>; low: { order_id: string; order_no: number; stars: number; comment: string | null; customer: string }[] } | null;
   const ids = Array.from(new Set((data ?? []).flatMap((o) => [o.customer_id, o.pickup_agent_id].filter(Boolean) as string[])));
   const { data: ppl } = ids.length ? await supabase.from("profiles").select("id,full_name").in("id", ids) : { data: [] };
   const n = new Map((ppl ?? []).map((p) => [p.id, p.full_name]));
@@ -28,6 +30,13 @@ export default async function AdminOrders({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Orders</h1><p className="mt-1 text-sm text-ink-soft">Open any order to see who did each step and how long it took.</p></div>
+      {rating && rating.count > 0 && (
+        <section className="card space-y-3 p-5" aria-label="Customer ratings">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-lg font-semibold">Customer ratings</h2><p className="text-sm text-ink-soft"><strong className="text-xl text-ink">{rating.avg}</strong> / 5 from {rating.count} {rating.count === 1 ? "rating" : "ratings"}</p></div>
+          <div className="space-y-1" role="img" aria-label="Number of ratings by stars">{[5, 4, 3, 2, 1].map((n) => { const c = rating.dist[String(n)] ?? 0; return <div key={n} className="flex items-center gap-2 text-xs"><span className="w-8 text-ink-soft">{n} ★</span><div className="h-2 flex-1 rounded bg-slate-100"><div className="h-2 rounded bg-brand" style={{ width: `${(c / rating.count) * 100}%` }} /></div><span className="w-6 text-right tabular-nums">{c}</span></div>; })}</div>
+          {rating.low.length > 0 && <div><h3 className="text-sm font-semibold">Needs a call (3 stars or less)</h3><ul className="mt-1 divide-y divide-line text-sm">{rating.low.map((l) => <li key={l.order_id} className="py-2"><Link className="font-medium text-brand-dark underline" href={`/staff/orders/${l.order_id}`}>#{l.order_no}</Link> · {l.customer} · {l.stars} ★{l.comment ? ` · "${l.comment}"` : ""}</li>)}</ul></div>}
+        </section>
+      )}
       <form className="flex gap-2" role="search"><input name="q" defaultValue={needle} aria-label="Search orders" placeholder="Order number, customer name, phone or email" className="w-full max-w-md rounded-md border border-line px-3 py-2 text-sm focus:border-brand focus:outline-none" />{status && <input type="hidden" name="status" value={status} />}<button className="btn-secondary">Search</button>{needle && <Link href="/admin/orders" className="self-center text-sm underline">Clear</Link>}</form>
       <div className="flex flex-wrap gap-2 text-sm">
         <Link href="/admin/orders" className={`rounded-full border px-3 py-1 ${!status ? "border-brand bg-brand-tint text-brand-dark" : "border-line"}`}>All</Link>
