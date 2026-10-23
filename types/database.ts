@@ -2317,6 +2317,10 @@ export type Database = {
       }
       agent_submit_count: { Args: { _order: string }; Returns: undefined }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
+      assign_delivery_agent: {
+        Args: { _agent: string; _order: string }
+        Returns: undefined
+      }
       assign_pickup_agent: {
         Args: { _agent: string; _order: string }
         Returns: undefined
@@ -2358,6 +2362,10 @@ export type Database = {
       }
       close_week: { Args: { _week_start: string }; Returns: number }
       compute_payroll: { Args: { _month: string }; Returns: string }
+      correct_order_item: {
+        Args: { _line: string; _new_item: string; _note: string }
+        Returns: Json
+      }
       create_payment_intent: {
         Args: { _order: string; _provider: string; _purpose: string }
         Returns: Json
@@ -2395,6 +2403,7 @@ export type Database = {
         Args: { _order: string; _step: string }
         Returns: string
       }
+      items_balance: { Args: { _order: string }; Returns: number }
       list_agents: { Args: never; Returns: Json }
       log_failed_delivery: {
         Args: {
@@ -2411,7 +2420,12 @@ export type Database = {
       }
       mark_absences: { Args: never; Returns: number }
       mark_payout_paid: { Args: { _id: string }; Returns: undefined }
+      mark_ready: { Args: { _order: string }; Returns: undefined }
       mark_received: { Args: { _order: string }; Returns: undefined }
+      mark_refund_paid: {
+        Args: { _id: string; _note: string }
+        Returns: undefined
+      }
       my_pay_overview: { Args: never; Returns: Json }
       my_staff_state: { Args: never; Returns: Json }
       order_timeline: { Args: { _order: string }; Returns: Json }
@@ -2428,6 +2442,11 @@ export type Database = {
       }
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
+      redispatch_delivery: { Args: { _order: string }; Returns: undefined }
+      report_failed_delivery: {
+        Args: { _note: string; _order: string; _outcome: string }
+        Returns: undefined
+      }
       retry_email: { Args: { _id: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
@@ -2466,6 +2485,7 @@ export type Database = {
       }
       staff_list: { Args: never; Returns: Json }
       staff_onboarding_status: { Args: never; Returns: Json }
+      start_washing: { Args: { _order: string }; Returns: undefined }
       submit_expense: {
         Args: {
           _amount_kobo: number

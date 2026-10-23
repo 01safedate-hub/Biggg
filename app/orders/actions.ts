@@ -21,17 +21,17 @@ export async function cancelOrder(id: string): Promise<R> {
   return { ok: true, message: "Cancelled." };
 }
 
-export async function enterArrivalCode(id: string, code: string): Promise<R> {
+export async function enterOrderCode(id: string, step: "arrival" | "delivery", code: string): Promise<R> {
   const { supabase } = await requireUser(`/orders/${id}`);
   if (!/^\d{4}$/.test(code)) return { ok: false, message: "The code is 4 digits." };
-  const { data, error } = await supabase.rpc("verify_order_code", { _order: id, _step: "arrival", _code: code });
+  const { data, error } = await supabase.rpc("verify_order_code", { _order: id, _step: step, _code: code });
   if (error) return { ok: false, message: friendlyError(error.message) };
   const r = data as { ok: boolean; attempts_left?: number };
   revalidatePath(`/orders/${id}`);
-  return r.ok ? { ok: true, message: "Thank you. Your agent is confirmed." } : { ok: false, message: `That code is not right. ${r.attempts_left ?? 0} tries left.` };
+  return r.ok ? { ok: true, message: "Thank you. Confirmed." } : { ok: false, message: `That code is not right. ${r.attempts_left ?? 0} tries left.` };
 }
 
-export async function startPayment(orderId: string, purpose: "pickup_fare" | "items", provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
+export async function startPayment(orderId: string, purpose: "pickup_fare" | "items" | "delivery_fare", provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
   const { supabase } = await requireUser(`/orders/${orderId}`);
   const { data, error } = await supabase.functions.invoke("pay-init", { body: { order_id: orderId, purpose, provider } });
   if (error) {

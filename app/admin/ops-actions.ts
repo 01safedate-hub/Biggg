@@ -36,3 +36,11 @@ export async function retryEmail(id: string): Promise<R> {
   revalidatePath("/admin/emails");
   return { ok: true, message: "Queued again. It goes out within five minutes." };
 }
+
+export async function markRefundPaid(id: string, note: string): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("mark_refund_paid", { _id: id, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/payments");
+  return { ok: true, message: "Marked as refunded." };
+}

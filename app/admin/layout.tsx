@@ -18,6 +18,7 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/orders", label: "Orders and timelines", icon: "orders" },
     { href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" },
     { href: "/staff/receiving", label: "Receiving", icon: "receiving" },
+    { href: "/staff/hub", label: "Wash queue", icon: "hub" },
   ] },
   { label: "People", items: [
     { href: "/admin/staff", label: "Staff", icon: "staff" },
@@ -34,6 +35,7 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/waitlist", label: "Waitlist", icon: "waitlist" },
   ] },
   { label: "System", items: [
+    { href: "/admin/setup", label: "Go-live check", icon: "reports" },
     { href: "/admin/pricing", label: "Fares and hours", icon: "prices" },
     { href: "/admin/zones", label: "Coverage zones", icon: "points" },
     { href: "/admin/payments", label: "Online payments", icon: "money" },

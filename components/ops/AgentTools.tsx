@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
+import { failedDelivery, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
-export function ArrivalCode({ orderId }: { orderId: string }) {
+export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; step?: "arrival" | "delivery"; label?: string }) {
   const [code, setCode] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -18,7 +18,7 @@ export function ArrivalCode({ orderId }: { orderId: string }) {
           <p className="mt-3 text-xs text-slate-400">They type it on their own phone. This page moves on by itself when they do.</p>
         </div>
       ) : (
-        <button className="btn-primary" onClick={async () => { const r = await showArrivalCode(orderId); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>I have arrived: show my code</button>
+        <button className="btn-primary" onClick={async () => { const r = await showArrivalCode(orderId, step); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>{label}</button>
       )}
     </div>
   );
@@ -90,6 +90,30 @@ export function ReopenButton({ orderId }: { orderId: string }) {
     <div>
       <button className="btn-secondary" onClick={async () => { const r = await reopenBill(orderId); if (r.ok) router.refresh(); else setErr(r.message); }}>Withdraw bill to correct it</button>
       {err && <p role="alert" className="mt-2 text-sm text-red-700">{err}</p>}
+    </div>
+  );
+}
+
+const FAIL: [string, string][] = [["no_answer", "Customer did not answer"], ["client_unavailable", "Customer is not around"], ["address_issue", "Cannot find the address"], ["refused", "Customer refused the delivery"]];
+
+export function FailedDeliveryForm({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [why, setWhy] = useState("no_answer");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!open) return <button className="btn-secondary" onClick={() => setOpen(true)}>I could not deliver</button>;
+  return (
+    <div className="space-y-3 rounded-md border border-line p-4">
+      {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
+      <p className="text-sm text-ink-soft">Call the customer first. Only log this after you have tried.</p>
+      <select aria-label="What happened" value={why} onChange={(e) => setWhy(e.target.value)} className="w-full rounded-md border border-line px-3 py-2 text-sm">{FAIL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+      <input aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Short note, for example: called twice" className="w-full rounded-md border border-line px-3 py-2 text-sm" />
+      <div className="flex gap-2">
+        <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); const r = await failedDelivery(orderId, why, note); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>Log it</button>
+        <button className="btn-secondary" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
     </div>
   );
 }

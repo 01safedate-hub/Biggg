@@ -60,6 +60,7 @@ const MESSAGES: Record<string, string> = {
   no_items: "Add at least one item before sending the bill.",
   already_paid: "The customer has already paid, so this can no longer be changed.",
   items_not_checked: "Check every line first. Flagged lines must be resolved before receiving.",
+  balance_due: "The customer still owes a top-up for a corrected item. Ask them to pay it in the app first.",
   nothing_to_pay: "There is nothing left to pay.",
   provider_not_configured: "This payment method is not switched on yet. Try the other one.",
   provider_failed: "The payment provider could not start the payment. Please try again.",

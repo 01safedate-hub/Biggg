@@ -24,6 +24,8 @@ export const CUSTOMER_STEPS = [
   { label: "Bill sent", reached: ["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
   { label: "Bill paid", reached: ["count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
   { label: "Received at hub", reached: ["received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
+  { label: "Washed and ready", reached: ["ready", "out_for_delivery", "delivered", "closed"] },
+  { label: "Delivered", reached: ["delivered", "closed"] },
 ];
 
 export function duration(seconds: number | null | undefined): string {

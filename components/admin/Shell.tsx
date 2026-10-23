@@ -1,3 +1,4 @@
+import { Bell } from "@/components/notifications/Bell";
 import { Sidebar, type NavGroup } from "./Sidebar";
 
 export type { NavGroup, NavItem } from "./Sidebar";
@@ -7,7 +8,7 @@ export function Shell({ title, name, groups, children }: { title: string; name: 
     <div className="min-h-screen bg-canvas">
       <Sidebar title={title} name={name} groups={groups} />
       <div className="lg:pl-64">
-        <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
+        <main id="main" className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8"><div className="mb-4 flex justify-end"><Bell /></div>{children}</main>
       </div>
     </div>
   );

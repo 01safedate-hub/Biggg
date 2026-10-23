@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { retryEmail, saveZone, savePricing } from "@/app/admin/ops-actions";
+import { markRefundPaid, retryEmail, saveZone, savePricing } from "@/app/admin/ops-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
 
@@ -88,4 +88,19 @@ export function RetryButton({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<R | null>(null);
   return <span><button className="btn-secondary !px-3 !py-1" disabled={busy} onClick={async () => { setBusy(true); setMsg(await retryEmail(id)); setBusy(false); }}>Send again</button>{msg && <span role={msg.ok ? "status" : "alert"} className={`ml-2 text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}</span>;
+}
+
+export function RefundButton({ id }: { id: string }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<R | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button className="btn-secondary !px-3 !py-1" disabled={busy} onClick={async () => {
+        const note = window.prompt("How did you send the money? (for example: bank transfer, reference 12345)") ?? "";
+        if (note.trim().length < 3) return;
+        setBusy(true); setMsg(await markRefundPaid(id, note)); setBusy(false);
+      }}>I have sent this refund</button>
+      {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}
+    </div>
+  );
 }

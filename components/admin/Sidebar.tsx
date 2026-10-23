@@ -7,13 +7,13 @@ import { useEffect, useState } from "react";
 import { InstallApp } from "@/components/brand/InstallApp";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
-  Receipt, Settings, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
+  Receipt, Settings, WashingMachine, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
   home: Home, overview: LayoutDashboard, money: Banknote, expenses: Receipt, costs: PiggyBank, staff: Users, settings: Settings,
   weekly: Target, points: Landmark, categories: Tags, prices: ListChecks, customers: UserCog, audit: FileClock, waitlist: MailPlus,
-  jobs: Truck, dispatch: Send, receiving: PackageCheck, orders: Workflow, count: Coins, spending: Wallet, record: ClipboardList, admin: Shield, pay: Gauge, reports: BarChart3,
+  jobs: Truck, dispatch: Send, receiving: PackageCheck, hub: WashingMachine, orders: Workflow, count: Coins, spending: Wallet, record: ClipboardList, admin: Shield, pay: Gauge, reports: BarChart3,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS | string; exact?: boolean };
