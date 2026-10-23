@@ -29,7 +29,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
       {(lines ?? []).length > 0 && (
         <section className="card p-5"><h2 className="text-lg font-semibold">Clothes</h2>
           <table className="mt-3 w-full text-sm"><tbody className="divide-y divide-line">{(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.qty} × {l.name}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></tr>)}</tbody>
-            <tfoot>{o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3">Discount</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}<tr className="font-semibold"><td className="pt-3">Clothes total</td><td className="pt-3 text-right">{naira(Math.max(0, o.items_total_kobo - o.discount_kobo))}</td></tr></tfoot></table>
+            <tfoot>{o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3">Discount</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}{o.instant_fee_kobo > 0 && <tr><td className="pt-3">Instant delivery</td><td className="pt-3 text-right">{naira(o.instant_fee_kobo)}</td></tr>}<tr className="font-semibold"><td className="pt-3">Clothes total</td><td className="pt-3 text-right">{naira(Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo)}</td></tr></tfoot></table>
         </section>
       )}
       <section className="card p-5"><h2 className="text-lg font-semibold">Payments</h2>

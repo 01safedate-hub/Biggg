@@ -1,3 +1,4 @@
+import { TimeLeft } from "@/components/ops/TimeLeft";
 import { requireRole } from "@/lib/roles";
 import { HubButton } from "@/components/ops/DeskTools";
 import { STATUS_LABEL } from "@/lib/orders";
@@ -13,7 +14,7 @@ const ago = (iso: string | null) => {
 
 export default async function HubPage() {
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const { data } = await supabase.from("orders").select("id,order_no,status,customer_id,updated_at,ready_at,items_total_kobo").in("status", ["received", "in_house", "ready"]).order("updated_at");
+  const { data } = await supabase.from("orders").select("id,order_no,status,customer_id,updated_at,ready_at,items_total_kobo,instant,instant_target_at,instant_promise_at").in("status", ["received", "in_house", "ready"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at");
   const ids = Array.from(new Set((data ?? []).map((o) => o.customer_id)));
   const { data: ppl } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((ppl ?? []).map((p) => [p.id, p]));
@@ -28,7 +29,7 @@ export default async function HubPage() {
         <div className="card divide-y divide-line">
           {rows.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}</p></div>
+              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}</p></div>
               {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>}
             </div>
           ))}

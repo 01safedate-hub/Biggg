@@ -1,3 +1,4 @@
+import { TimeLeft } from "@/components/ops/TimeLeft";
 import { requireRole } from "@/lib/roles";
 import { AssignForm, CancelPaidForm, RedispatchButton } from "@/components/ops/DeskTools";
 import { LogContactForm } from "@/components/ops/DeskFollowUps";
@@ -11,7 +12,7 @@ export default async function DispatchPage() {
   const [{ data: orders }, { data: ag }, { data: back }, { data: cb }] = await Promise.all([
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
     supabase.rpc("list_agents"),
-    supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at").in("status", ["out_for_delivery", "failed_delivery"]).order("updated_at"),
+    supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at,instant,instant_target_at,instant_promise_at").in("status", ["out_for_delivery", "failed_delivery"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at"),
     supabase.rpc("callbacks_queue"),
   ]);
   type CB = { order_id: string; order_no: number; kind: "pickup" | "delivery"; customer: string; phone: string | null; address: string | null; failed_at: string; needs_call: boolean; held_until: string | null; attempts: number; last: { outcome: string; note: string; at: string } | null };
@@ -68,7 +69,7 @@ export default async function DispatchPage() {
           const c = who.get(o.customer_id); const map = mapsLink(o.pickup_lat, o.pickup_lng);
           return (
             <article key={o.id} className="card space-y-3 p-4">
-              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} {c?.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
+              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} {c?.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
                 <div className="text-right"><p className={`text-xs font-semibold ${o.status === "failed_delivery" ? "text-red-700" : "text-brand-dark"}`}>{o.status === "failed_delivery" ? "Delivery failed" : o.delivery_agent_id ? `With ${name.get(o.delivery_agent_id) ?? "agent"}` : "Needs an agent"}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${o.status !== "failed_delivery" && late(o.updated_at, o.delivery_agent_id ? 90 : 20) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
               {o.status === "failed_delivery" && (() => { const d = dcase.get(o.id); return d ? <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Storage fee: {d.status === "accruing" ? `running, ${naira(d.accrued_kobo)} so far` : d.status === "paid" ? "paid" : d.status === "waived" ? "waived" : `free until ${new Date(d.grace_ends_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}`}. The customer pays it on their order page.</p> : null; })()}
               {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agents} current={o.delivery_agent_id} kind="delivery" />}

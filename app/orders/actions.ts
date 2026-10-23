@@ -102,3 +102,11 @@ export async function reschedulePickup(orderId: string, slot: string): Promise<R
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: "Pickup time changed." };
 }
+
+export async function chooseInstant(orderId: string, on: boolean): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("set_instant", { _order: orderId, _on: on });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: on ? "Instant delivery added." : "Instant delivery removed." };
+}

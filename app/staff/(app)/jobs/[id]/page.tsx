@@ -24,7 +24,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
   const map = mapsLink(o.pickup_lat, o.pickup_lng);
-  const total = Math.max(0, o.items_total_kobo - o.discount_kobo);
+  const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
   if (delivering) {
     return (

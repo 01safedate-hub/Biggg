@@ -95,6 +95,8 @@ const MESSAGES: Record<string, string> = {
   invalid_shift: "Check the shift: it must start and end at different times, last at most 14 hours, and not be in the past.",
   shift_exists: "This person already has a shift that day.",
   range_too_large: "Choose a shorter range.",
+  instant_off: "Instant delivery is not available right now.",
+  invalid_instant: "Check the instant settings: fee 0 to 10,000 naira, target 1 to 24 hours, large-load hours not below the target, pickup target 5 to 240 minutes.",
   invalid_step: "That choice is not allowed here.",
   slot_unavailable: "That time is no longer available. Please choose another.",
   slots_off: "Choosing a pickup time is not switched on.",

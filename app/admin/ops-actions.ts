@@ -117,3 +117,11 @@ export async function resolveDisputeAction(id: string, outcome: "won" | "lost", 
   revalidatePath("/admin/disputes");
   return { ok: true, message: outcome === "won" ? "Marked as won. The order is released." : "Marked as lost. The refund is in the books." };
 }
+
+export async function saveInstantRules(v: { enabled: boolean; feeNaira: number; targetHours: number; largeItems: number; largeHours: number; pickupMinutes: number }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("save_instant_settings", { _enabled: v.enabled, _fee_kobo: Math.round(v.feeNaira * 100), _target_hours: Math.round(v.targetHours), _large_items: Math.round(v.largeItems), _large_hours: Math.round(v.largeHours), _pickup_target: Math.round(v.pickupMinutes) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/speed");
+  return { ok: true, message: "Saved." };
+}

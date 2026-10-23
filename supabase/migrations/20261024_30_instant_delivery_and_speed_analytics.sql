@@ -1,0 +1,8 @@
+-- Applied via apply_migration: instant_delivery_and_speed_analytics (exact SQL: run scripts/export-schema.sh)
+-- orders.instant, instant_fee_kobo, instant_items, instant_started_at, instant_target_at, instant_promise_at, instant_warned_at, instant_late_at
+-- settings 'instant' (fee per item 50000 kobo, target 4 h, large load above 30 items = up to 8 h) and 'pickup_target' (30 min)
+-- private.bill_total / items_due include the instant fee; create_payment_intent, settle_online_payment, verify_order_code patched to match
+-- run_dispatch hands deliveries to instant orders first; trigger private.orders_instant sets the fee at "counted" and starts the clock at "count_confirmed"
+-- public.instant_quote, set_instant (customer, only while the bill is unpaid), instant_board (desk and above), instant_watch (cron every 5 min: warns at 45 min left, alerts when missed)
+-- public.save_instant_settings (super admin); pickup_analytics and turnaround_analytics (admin and super admin)
+-- payments_read policy: the desk can read cash/transfer/POS payments on walk-in orders

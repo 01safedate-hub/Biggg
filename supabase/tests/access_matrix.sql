@@ -39,6 +39,18 @@ begin
     (_adm, 'admin', 'save slot settings',            'select public.save_slot_settings(true,60,7,120,4)', true),
     (_adm, 'admin', 'resolve a dispute',             'select public.resolve_dispute(gen_random_uuid(),''won'',''abc'')', true),
     (_adm, 'admin', 'find desk customers',           'select public.desk_find_customer(''08012345678'')', false),
+    (_cust, 'customer', 'save instant settings',     'select public.save_instant_settings(true,50000,4,30,8,30)', true),
+    (_cust, 'customer', 'read pickup analytics',     'select public.pickup_analytics(current_date - 7, current_date)', true),
+    (_cust, 'customer', 'see the instant board',     'select public.instant_board()', true),
+    (_other, 'other customer', 'add instant to someone else''s order', 'select public.set_instant(''' || _o || ''', true)', true),
+    (_agent, 'agent', 'read turnaround analytics',   'select public.turnaround_analytics(current_date - 7, current_date)', true),
+    (_sec, 'secretary', 'read pickup analytics',     'select public.pickup_analytics(current_date - 7, current_date)', true),
+    (_sec, 'secretary', 'save instant settings',     'select public.save_instant_settings(true,50000,4,30,8,30)', true),
+    (_sec, 'secretary', 'see the instant board',     'select public.instant_board()', false),
+    (_adm, 'admin', 'read pickup analytics',         'select public.pickup_analytics(current_date - 7, current_date)', false),
+    (_adm, 'admin', 'read turnaround analytics',     'select public.turnaround_analytics(current_date - 7, current_date)', false),
+    (_adm, 'admin', 'save instant settings',         'select public.save_instant_settings(true,50000,4,30,8,30)', true),
+    (_sup, 'super admin', 'save instant settings',   'select public.save_instant_settings(true,50000,4,30,8,30)', false),
     (_sup, 'super admin', 'save slot settings',      'select public.save_slot_settings(true,60,7,120,4)', false);
 
   declare _p record; _blocked boolean;
@@ -72,6 +84,7 @@ begin
   set local role authenticated;
   _n := _n + 1; if (select count(*) from public.orders where id = _o) <> 1 then _fail := _fail || 'customer cannot read their own order; '; end if;
   _n := _n + 1; begin update public.orders set status = 'delivered' where id = _o; if found then _fail := _fail || 'customer can change their order status directly; '; end if; exception when others then null; end;
+  _n := _n + 1; begin update public.orders set instant_fee_kobo = 0, instant = true where id = _o; if found then _fail := _fail || 'customer can edit the instant fields directly; '; end if; exception when others then null; end;
   _n := _n + 1; begin insert into public.payments (order_id, customer_id, purpose, kind, mode, amount_kobo, reference, status) values (_o, _cust, 'items', 'payment', 'cash', 100, 'MATRIX-X', 'success'); _fail := _fail || 'customer can insert a payment; '; exception when others then null; end;
   reset role;
 

@@ -1366,6 +1366,14 @@ export type Database = {
           demurrage_kobo: number
           discount_kobo: number
           id: string
+          instant: boolean
+          instant_fee_kobo: number
+          instant_items: number | null
+          instant_late_at: string | null
+          instant_promise_at: string | null
+          instant_started_at: string | null
+          instant_target_at: string | null
+          instant_warned_at: string | null
           items_total_kobo: number
           notes: string | null
           order_no: number
@@ -1397,6 +1405,14 @@ export type Database = {
           demurrage_kobo?: number
           discount_kobo?: number
           id?: string
+          instant?: boolean
+          instant_fee_kobo?: number
+          instant_items?: number | null
+          instant_late_at?: string | null
+          instant_promise_at?: string | null
+          instant_started_at?: string | null
+          instant_target_at?: string | null
+          instant_warned_at?: string | null
           items_total_kobo?: number
           notes?: string | null
           order_no?: never
@@ -1428,6 +1444,14 @@ export type Database = {
           demurrage_kobo?: number
           discount_kobo?: number
           id?: string
+          instant?: boolean
+          instant_fee_kobo?: number
+          instant_items?: number | null
+          instant_late_at?: string | null
+          instant_promise_at?: string | null
+          instant_started_at?: string | null
+          instant_target_at?: string | null
+          instant_warned_at?: string | null
           items_total_kobo?: number
           notes?: string | null
           order_no?: never
@@ -2936,6 +2960,9 @@ export type Database = {
         }
         Returns: undefined
       }
+      instant_board: { Args: never; Returns: Json }
+      instant_quote: { Args: { _order: string }; Returns: Json }
+      instant_watch: { Args: never; Returns: Json }
       integrity_check: { Args: never; Returns: Json }
       issue_order_code: {
         Args: { _order: string; _step: string }
@@ -2985,6 +3012,7 @@ export type Database = {
       }
       order_agent_location: { Args: { _order: string }; Returns: Json }
       order_timeline: { Args: { _order: string }; Returns: Json }
+      pickup_analytics: { Args: { _from: string; _to: string }; Returns: Json }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
       rate_order: {
         Args: { _comment: string; _order: string; _stars: number }
@@ -3079,6 +3107,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_instant_settings: {
+        Args: {
+          _enabled: boolean
+          _fee_kobo: number
+          _large_hours: number
+          _large_items: number
+          _pickup_target: number
+          _target_hours: number
+        }
+        Returns: undefined
+      }
       save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
       save_pricing_settings: { Args: { _patch: Json }; Returns: undefined }
       save_slot_settings: {
@@ -3093,6 +3132,7 @@ export type Database = {
       }
       send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
       send_daily_digest: { Args: never; Returns: number }
+      set_instant: { Args: { _on: boolean; _order: string }; Returns: Json }
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
       set_promo_active: {
         Args: { _active: boolean; _id: string }
@@ -3156,6 +3196,10 @@ export type Database = {
         Returns: string
       }
       submit_onboarding: { Args: never; Returns: undefined }
+      turnaround_analytics: {
+        Args: { _from: string; _to: string }
+        Returns: Json
+      }
       unsubscribe_marketing: { Args: { _token: string }; Returns: boolean }
       update_my_profile: {
         Args: { _full_name: string; _phone: string }

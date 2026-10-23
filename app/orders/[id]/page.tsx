@@ -12,6 +12,8 @@ import { RatingForm } from "@/components/orders/RatingForm";
 import { SupportCard } from "@/components/orders/SupportCard";
 import { VerifyPayment } from "@/components/orders/VerifyPayment";
 import { IssueForm } from "@/components/orders/IssueForm";
+import { InstantCard, type InstantQuote } from "@/components/orders/InstantCard";
+import { TimeLeft } from "@/components/ops/TimeLeft";
 import { PromoForm, RemovePromo } from "@/components/orders/PromoForm";
 import { RescheduleControl } from "@/components/orders/RescheduleControl";
 import { TrackMap } from "@/components/orders/TrackMap";
@@ -32,7 +34,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
-  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }] = await Promise.all([
+  const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }, { data: iq }] = await Promise.all([
     supabase.from("order_items").select("id,name,category_name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null).order("created_at"),
     supabase.rpc("order_timeline", { _order: id }),
     agentId ? supabase.from("profiles").select("full_name,phone").eq("id", agentId).maybeSingle() : Promise.resolve({ data: null }),
@@ -40,11 +42,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     supabase.from("order_ratings").select("stars").eq("order_id", id).maybeSingle(),
     supabase.from("order_issues").select("id,kind,status,resolution,compensation_kobo").eq("order_id", id).order("created_at"),
     o.status === "failed_delivery" ? supabase.rpc("demurrage_status", { _order: id }) : Promise.resolve({ data: null }),
+    o.status === "counted" && o.source === "online" ? supabase.rpc("instant_quote", { _order: id }) : Promise.resolve({ data: null }),
   ]);
+  const quote = iq as unknown as InstantQuote | null;
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
   const timeline = tl as unknown as Timeline | null;
-  const due = Math.max(0, o.items_total_kobo - o.discount_kobo);
+  const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const confirming = returning === "1" && o.status === "awaiting_fare_payment";
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
   const map = mapsLink(o.pickup_lat, o.pickup_lng);
@@ -62,6 +66,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           return <li key={s.label} className={`rounded-md border px-1 py-2 ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line text-ink-mute"}`}>{s.label}</li>;
         })}
       </ol>
+
+      {o.instant && o.instant_target_at && ["count_confirmed", "received", "in_house", "ready", "out_for_delivery", "failed_delivery"].includes(o.status) && (
+        <section className="rounded-lg border border-brand bg-brand-tint p-4 text-sm" aria-label="Instant delivery">
+          <p className="font-semibold">Instant delivery: we aim to be with you by {new Date(o.instant_target_at).toLocaleTimeString("en-NG", { timeZone: "Africa/Lagos", hour: "numeric", minute: "2-digit" })} <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} label={false} /></p>
+          {o.instant_promise_at && new Date(o.instant_promise_at) > new Date(o.instant_target_at) && <p className="mt-1 text-ink-soft">Because this is a large load, it can take up to {Math.round((new Date(o.instant_promise_at).getTime() - new Date(o.instant_started_at ?? o.instant_target_at).getTime()) / 3600000)} hours. We will do our best to be faster.</p>}
+        </section>
+      )}
 
       {o.status === "awaiting_fare_payment" && (
         <section className="card space-y-4 p-5">
@@ -99,11 +110,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
             </tbody>
             <tfoot>
               {o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3" colSpan={3}>Discount code</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}
+              {o.instant_fee_kobo > 0 && <tr><td className="pt-3" colSpan={3}>Instant delivery ({o.instant_items ?? (lines ?? []).reduce((n, l) => n + l.qty, 0)} items)</td><td className="pt-3 text-right">{naira(o.instant_fee_kobo)}</td></tr>}
               <tr className="font-semibold"><td className="pt-3" colSpan={3}>Total</td><td className="pt-3 text-right">{naira(due)}</td></tr></tfoot>
           </table>
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>
+              {quote && <InstantCard orderId={id} q={quote} />}
               {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
               <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
               <VerifyPayment orderId={id} />
