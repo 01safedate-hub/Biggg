@@ -11,6 +11,11 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/expenses", label: "Expenses", icon: "expenses" },
     { href: "/admin/costs", label: "Start-up costs", icon: "costs" },
   ] },
+  { label: "Operations", items: [
+    { href: "/admin/orders", label: "Orders and timelines", icon: "orders" },
+    { href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" },
+    { href: "/staff/receiving", label: "Receiving", icon: "receiving" },
+  ] },
   { label: "People", items: [
     { href: "/admin/staff", label: "Staff", icon: "staff" },
     { href: "/admin/weekly", label: "Weekly units", icon: "weekly" },

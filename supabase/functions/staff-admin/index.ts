@@ -7,7 +7,7 @@ const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
-const ROLES = ["delivery_agent", "cashier", "accountant", "admin", "super_admin"];
+const ROLES = ["delivery_agent", "cashier", "secretary", "admin", "super_admin"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

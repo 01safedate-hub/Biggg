@@ -14,7 +14,7 @@ type Item = {
 };
 
 export default async function Spending() {
-  const { supabase } = await requireRole(["super_admin", "admin", "accountant", "cashier", "delivery_agent"]);
+  const { supabase } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent"]);
   const { data } = await (supabase.rpc as unknown as (fn: string, args: object) => Promise<{ data: unknown }>)("expense_feed", { _limit: 50 });
   const items = (Array.isArray(data) ? data : []) as Item[];
 

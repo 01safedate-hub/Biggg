@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type Role = "super_admin" | "admin" | "accountant" | "cashier" | "delivery_agent";
+export type Role = "super_admin" | "admin" | "secretary" | "cashier" | "delivery_agent";
 
 /** Server-side gate. The database enforces the same rules; this just keeps people off screens they cannot use. */
 export async function requireRole(allowed: Role[]) {
@@ -16,4 +16,12 @@ export async function requireRole(allowed: Role[]) {
   if (profile?.status && profile.status !== "active") redirect("/account");
   if (!roles.some((r) => allowed.includes(r))) redirect("/account");
   return { supabase, user, roles, name: profile?.full_name ?? "" };
+}
+
+/** Any signed-in person (customers included). Sends signed-out visitors to sign in and then back. */
+export async function requireUser(next: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return { supabase, user };
 }

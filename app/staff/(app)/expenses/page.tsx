@@ -9,7 +9,7 @@ import { loadProofs } from "@/lib/proofs";
 export const metadata = { title: "Record expense" };
 
 export default async function StaffExpenses() {
-  const { supabase, user, roles } = await requireRole(["accountant", "super_admin"]);
+  const { supabase, user, roles } = await requireRole(["secretary", "super_admin"]);
   const [{ data: cats }, { data: pts }, { data: mine }] = await Promise.all([
     supabase.from("expense_categories").select("id,name").order("name"),
     supabase.from("money_points").select("id,name").eq("active", true).order("name"),

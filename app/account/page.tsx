@@ -7,7 +7,7 @@ export const metadata = { title: "My account" };
 export const dynamic = "force-dynamic";
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: "Super admin", admin: "Admin", accountant: "Accountant", cashier: "Cashier", delivery_agent: "Delivery agent",
+  super_admin: "Super admin", admin: "Admin", secretary: "Secretary", cashier: "Cashier", delivery_agent: "Delivery agent",
 };
 
 const NOTICE: Record<string, string> = {
@@ -28,7 +28,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
   const keys = (roles ?? []).map((r) => r.role as string);
   const isSuper = keys.includes("super_admin");
-  const isMoneyStaff = isSuper || keys.some((k) => ["admin", "accountant", "cashier"].includes(k));
+  const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
 
   return (
     <main id="main" className="container-page max-w-3xl py-12">

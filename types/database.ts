@@ -944,6 +944,10 @@ export type Database = {
       order_items: {
         Row: {
           category_name: string | null
+          check_note: string | null
+          check_state: string
+          checked_at: string | null
+          checked_by: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -953,11 +957,17 @@ export type Database = {
           note: string | null
           order_id: string
           qty: number
+          removed_at: string | null
+          removed_by: string | null
           status: string
           unit_price_kobo: number
         }
         Insert: {
           category_name?: string | null
+          check_note?: string | null
+          check_state?: string
+          checked_at?: string | null
+          checked_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -967,11 +977,17 @@ export type Database = {
           note?: string | null
           order_id: string
           qty: number
+          removed_at?: string | null
+          removed_by?: string | null
           status?: string
           unit_price_kobo: number
         }
         Update: {
           category_name?: string | null
+          check_note?: string | null
+          check_state?: string
+          checked_at?: string | null
+          checked_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -981,6 +997,8 @@ export type Database = {
           note?: string | null
           order_id?: string
           qty?: number
+          removed_at?: string | null
+          removed_by?: string | null
           status?: string
           unit_price_kobo?: number
         }
@@ -2292,8 +2310,27 @@ export type Database = {
         Returns: undefined
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
+      agent_reopen_count: { Args: { _order: string }; Returns: undefined }
+      agent_set_item: {
+        Args: { _item: string; _order: string; _qty: number }
+        Returns: undefined
+      }
+      agent_submit_count: { Args: { _order: string }; Returns: undefined }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
+      assign_pickup_agent: {
+        Args: { _agent: string; _order: string }
+        Returns: undefined
+      }
+      book_pickup: {
+        Args: { _address: string; _lat: number; _lng: number; _notes: string }
+        Returns: string
+      }
+      cancel_my_order: { Args: { _order: string }; Returns: undefined }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
+      check_order_item: {
+        Args: { _item: string; _note: string; _ok: boolean }
+        Returns: undefined
+      }
       check_out: { Args: { _lat: number; _lng: number }; Returns: Json }
       claim_email_batch: {
         Args: { _n?: number }
@@ -2321,6 +2358,10 @@ export type Database = {
       }
       close_week: { Args: { _week_start: string }; Returns: number }
       compute_payroll: { Args: { _month: string }; Returns: string }
+      create_payment_intent: {
+        Args: { _order: string; _provider: string; _purpose: string }
+        Returns: Json
+      }
       daily_money_view: { Args: { _day: string }; Returns: Json }
       decide_expense: {
         Args: { _approve: boolean; _id: string; _note: string }
@@ -2354,6 +2395,7 @@ export type Database = {
         Args: { _order: string; _step: string }
         Returns: string
       }
+      list_agents: { Args: never; Returns: Json }
       log_failed_delivery: {
         Args: {
           _called?: string
@@ -2369,8 +2411,10 @@ export type Database = {
       }
       mark_absences: { Args: never; Returns: number }
       mark_payout_paid: { Args: { _id: string }; Returns: undefined }
+      mark_received: { Args: { _order: string }; Returns: undefined }
       my_pay_overview: { Args: never; Returns: Json }
       my_staff_state: { Args: never; Returns: Json }
+      order_timeline: { Args: { _order: string }; Returns: Json }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
       record_cash_count: {
         Args: {
@@ -2413,6 +2457,10 @@ export type Database = {
       set_weekly_bonus: {
         Args: { _payout_kobo: number; _units: number }
         Returns: undefined
+      }
+      settle_online_payment: {
+        Args: { _amount_kobo: number; _provider: string; _reference: string }
+        Returns: Json
       }
       staff_list: { Args: never; Returns: Json }
       staff_onboarding_status: { Args: never; Returns: Json }
@@ -2477,7 +2525,7 @@ export type Database = {
       staff_role:
         | "delivery_agent"
         | "cashier"
-        | "accountant"
+        | "secretary"
         | "admin"
         | "super_admin"
     }
@@ -2627,7 +2675,7 @@ export const Constants = {
       staff_role: [
         "delivery_agent",
         "cashier",
-        "accountant",
+        "secretary",
         "admin",
         "super_admin",
       ],

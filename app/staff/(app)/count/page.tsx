@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/roles";
 export const metadata = { title: "Count money" };
 
 export default async function CountPage() {
-  const { supabase } = await requireRole(["super_admin", "admin", "accountant", "cashier"]);
+  const { supabase } = await requireRole(["super_admin", "admin", "secretary", "cashier"]);
   const { data: pts } = await supabase.from("money_points").select("id,name").eq("active", true).order("name");
   return (
     <div className="space-y-8">

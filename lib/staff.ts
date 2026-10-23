@@ -1,7 +1,7 @@
 export const STAFF_ROLES = [
   { key: "delivery_agent", label: "Delivery agent", note: "Pickups and deliveries" },
   { key: "cashier", label: "Cashier", note: "Counter, walk-ins, cash counts" },
-  { key: "accountant", label: "Accountant", note: "Records expenses with proof" },
+  { key: "secretary", label: "Secretary", note: "Records expenses, checks and receives clothes" },
   { key: "admin", label: "Admin", note: "Runs daily operations" },
   { key: "super_admin", label: "Super admin", note: "Full control, approves expenses" },
 ] as const;
