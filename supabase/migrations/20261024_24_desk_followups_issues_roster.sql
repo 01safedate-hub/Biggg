@@ -1,0 +1,4 @@
+-- Applied via apply_migration: desk_followups_tiered_issues_roster, contact_log_clock
+-- A. contact_log + log_contact, needs_callback/held_until/failure_at gates in assign_pickup_agent, redispatch_delivery, run_dispatch; callbacks_queue()
+-- B. order_issues escalation columns, settings 'desk' (admin_refund_limit_kobo), settle_issue, desk_resolve_issue, desk_issues
+-- C. shift_templates.active, generate_shifts (active only), set_shift_template, add_shift, coverage_plan

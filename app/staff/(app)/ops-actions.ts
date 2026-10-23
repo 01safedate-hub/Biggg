@@ -114,3 +114,58 @@ export async function failedPickup(orderId: string, reason: string, note: string
   revalidatePath("/staff/jobs");
   return { ok: true, message: "Logged. The office will call the customer and send another agent." };
 }
+
+export async function logContact(orderId: string, outcome: string, note: string, promisedIso: string | null): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("log_contact", { _order: orderId, _outcome: outcome, _note: note, _promised: promisedIso as string });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/dispatch");
+  return { ok: true, message: "Call logged." };
+}
+
+export async function deskResolveIssue(id: string, action: "resolve" | "reject" | "escalate", text: string, naira: number): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const kobo = Math.round((Number.isFinite(naira) ? naira : 0) * 100);
+  const { data, error } = await supabase.rpc("desk_resolve_issue", { _id: id, _action: action, _text: text, _comp_kobo: kobo });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/issues");
+  return { ok: true, message: (data as { result?: string } | null)?.result === "escalated" ? "Sent to the super admin." : "Saved. The customer has been told." };
+}
+
+export async function saveShiftTemplate(staff: string, weekday: number, start: string | null, end: string | null, active: boolean): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("set_shift_template", { _staff: staff, _weekday: weekday, _start: start as string, _end: end as string, _active: active });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/roster");
+  return { ok: true, message: "Saved." };
+}
+
+export async function makeShifts(days: number): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const from = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date());
+  const to = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos" }).format(new Date(Date.now() + Math.min(Math.max(days, 1), 60) * 86400000));
+  const { data, error } = await supabase.rpc("generate_shifts", { _from: from, _to: to });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/roster");
+  return { ok: true, message: Number(data) > 0 ? `${data} shift${Number(data) === 1 ? "" : "s"} added.` : "Nothing new to add. Every planned shift already exists." };
+}
+
+export async function addOneShift(staff: string, date: string, start: string, end: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("add_shift", { _staff: staff, _date: date, _start: start, _end: end });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/roster");
+  return { ok: true, message: "Shift added." };
+}
+
+export async function cancelShift(id: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data: s } = await supabase.from("shifts").select("starts_at").eq("id", id).maybeSingle();
+  if (!s || new Date(s.starts_at).getTime() <= Date.now()) return { ok: false, message: "Only shifts that have not started can be removed." };
+  const { count } = await supabase.from("attendance").select("id", { count: "exact", head: true }).eq("shift_id", id);
+  if ((count ?? 0) > 0) return { ok: false, message: "This shift already has a check-in and cannot be removed." };
+  const { error } = await supabase.from("shifts").delete().eq("id", id);
+  if (error) return { ok: false, message: "Could not remove the shift." };
+  revalidatePath("/staff/roster");
+  return { ok: true, message: "Shift removed." };
+}

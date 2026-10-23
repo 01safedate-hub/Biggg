@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/roles";
 import { AssignForm, CancelPaidForm, RedispatchButton } from "@/components/ops/DeskTools";
+import { LogContactForm } from "@/components/ops/DeskFollowUps";
 import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
 
@@ -7,11 +8,16 @@ export const metadata = { title: "Dispatch" };
 
 export default async function DispatchPage() {
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const [{ data: orders }, { data: ag }, { data: back }] = await Promise.all([
+  const [{ data: orders }, { data: ag }, { data: back }, { data: cb }] = await Promise.all([
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
     supabase.rpc("list_agents"),
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at").in("status", ["out_for_delivery", "failed_delivery"]).order("updated_at"),
+    supabase.rpc("callbacks_queue"),
   ]);
+  type CB = { order_id: string; order_no: number; kind: "pickup" | "delivery"; customer: string; phone: string | null; address: string | null; failed_at: string; needs_call: boolean; held_until: string | null; attempts: number; last: { outcome: string; note: string; at: string } | null };
+  const callbacks = (Array.isArray(cb) ? cb : []) as unknown as CB[];
+  const mustCall = new Set(callbacks.filter((c) => c.needs_call).map((c) => c.order_id));
+  const OUTCOME: Record<string, string> = { reached: "Spoke to customer", rescheduled: "New time agreed", no_answer: "No answer", wrong_number: "Wrong number" };
   const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean }[];
   const ids = Array.from(new Set([...(orders ?? []), ...(back ?? [])].map((o) => o.customer_id)));
   const { data: people } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
@@ -28,6 +34,20 @@ export default async function DispatchPage() {
         {[[ "Pickups need an agent", (orders ?? []).filter((o) => o.status === "awaiting_dispatch").length ], [ "Pickups on the way", (orders ?? []).filter((o) => o.status === "agent_assigned").length ], [ "Deliveries need an agent", (back ?? []).filter((o) => o.status === "out_for_delivery" && !o.delivery_agent_id).length ], [ "Failed deliveries", (back ?? []).filter((o) => o.status === "failed_delivery").length ]].map(([l, n]) => <span key={String(l)} className={`rounded-full border px-3 py-1 ${Number(n) > 0 && (String(l).includes("need") || String(l).includes("Failed")) ? "border-brand bg-brand-tint text-brand-dark" : "border-line text-ink-soft"}`}><strong>{n}</strong> {l}</span>)}
       </div>
       <div><h1 className="text-2xl font-bold tracking-tight">Dispatch</h1><p className="mt-1 text-sm text-ink-soft">Paid pickups waiting for an agent, and those on the way. You can change the agent until they reach the customer.</p></div>
+      <section className="space-y-3" aria-label="Calls to make">
+        <div><h2 className="text-xl font-bold tracking-tight">Calls to make <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-medium text-ink-soft">{callbacks.length}</span></h2><p className="text-sm text-ink-soft">A pickup or delivery that failed. Call the customer and log it. Nothing goes out again, by hand or automatically, until you have spoken to them or agreed a new time.</p></div>
+        {callbacks.map((c) => (
+          <article key={c.order_id} className={`card space-y-2 p-4 ${c.needs_call ? "border-l-4 border-l-red-500" : ""}`}>
+            <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{c.order_no} · {c.customer} <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 text-xs text-brand-dark">{c.kind === "pickup" ? "Failed pickup" : "Failed delivery"}</span></p>
+              <p className="text-sm text-ink-soft">{c.address} {c.phone && <a className="font-medium text-brand-dark underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
+              <p className="text-xs text-ink-soft">{c.attempts} call{c.attempts === 1 ? "" : "s"} so far</p></div>
+            {c.last && <p className="text-xs text-ink-soft">Last call: {OUTCOME[c.last.outcome] ?? c.last.outcome}. {c.last.note}</p>}
+            {c.held_until && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-900">New time agreed: {new Date(c.held_until).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}. Automatic dispatch waits until then.</p>}
+            {c.needs_call ? <LogContactForm orderId={c.order_id} /> : <p className="text-xs text-emerald-800">Customer reached. You can send this out again below.</p>}
+          </article>
+        ))}
+        {callbacks.length === 0 && <p className="card p-5 text-sm text-ink-soft">No calls waiting.</p>}
+      </section>
       <section className="space-y-3">
         {(orders ?? []).map((o) => {
           const c = who.get(o.customer_id); const map = mapsLink(o.pickup_lat, o.pickup_lng);
@@ -35,7 +55,7 @@ export default async function DispatchPage() {
             <article key={o.id} className="card space-y-3 p-4">
               <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>}</p></div>
                 <div className="text-right"><p className="text-xs font-semibold text-brand-dark">{o.status === "awaiting_dispatch" ? "Needs an agent" : `With ${name.get(o.pickup_agent_id ?? "") ?? "agent"}`}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${late(o.updated_at, o.status === "awaiting_dispatch" ? 15 : 60) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
-              <AssignForm orderId={o.id} agents={agents} current={o.pickup_agent_id} />
+              {mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <AssignForm orderId={o.id} agents={agents} current={o.pickup_agent_id} />}
               <CancelPaidForm orderId={o.id} fareKobo={o.pickup_fare_kobo} />
             </article>
           );
@@ -51,7 +71,7 @@ export default async function DispatchPage() {
               <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} {c?.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
                 <div className="text-right"><p className={`text-xs font-semibold ${o.status === "failed_delivery" ? "text-red-700" : "text-brand-dark"}`}>{o.status === "failed_delivery" ? "Delivery failed" : o.delivery_agent_id ? `With ${name.get(o.delivery_agent_id) ?? "agent"}` : "Needs an agent"}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${o.status !== "failed_delivery" && late(o.updated_at, o.delivery_agent_id ? 90 : 20) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
               {o.status === "failed_delivery" && (() => { const d = dcase.get(o.id); return d ? <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Storage fee: {d.status === "accruing" ? `running, ${naira(d.accrued_kobo)} so far` : d.status === "paid" ? "paid" : d.status === "waived" ? "waived" : `free until ${new Date(d.grace_ends_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}`}. The customer pays it on their order page.</p> : null; })()}
-              {o.status === "failed_delivery" ? <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agents} current={o.delivery_agent_id} kind="delivery" />}
+              {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agents} current={o.delivery_agent_id} kind="delivery" />}
             </article>
           );
         })}

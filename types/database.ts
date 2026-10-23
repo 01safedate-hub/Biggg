@@ -320,6 +320,51 @@ export type Database = {
           },
         ]
       }
+      contact_log: {
+        Row: {
+          created_at: string
+          id: string
+          logged_by: string
+          note: string
+          order_id: string
+          outcome: string
+          promised_for: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logged_by: string
+          note: string
+          order_id: string
+          outcome: string
+          promised_for?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logged_by?: string
+          note?: string
+          order_id?: string
+          outcome?: string
+          promised_for?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       daily_sales_summary: {
         Row: {
           cashier_id: string
@@ -1006,9 +1051,13 @@ export type Database = {
           created_at: string
           customer_id: string
           description: string
+          escalated_at: string | null
+          escalated_by: string | null
+          escalation_note: string | null
           id: string
           kind: string
           order_id: string
+          recommended_kobo: number
           resolution: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -1019,9 +1068,13 @@ export type Database = {
           created_at?: string
           customer_id: string
           description: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_note?: string | null
           id?: string
           kind: string
           order_id: string
+          recommended_kobo?: number
           resolution?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -1032,9 +1085,13 @@ export type Database = {
           created_at?: string
           customer_id?: string
           description?: string
+          escalated_at?: string | null
+          escalated_by?: string | null
+          escalation_note?: string | null
           id?: string
           kind?: string
           order_id?: string
+          recommended_kobo?: number
           resolution?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -1815,6 +1872,7 @@ export type Database = {
       }
       shift_templates: {
         Row: {
+          active: boolean
           ends_at: string
           id: string
           staff_id: string
@@ -1822,6 +1880,7 @@ export type Database = {
           weekday: number
         }
         Insert: {
+          active?: boolean
           ends_at: string
           id?: string
           staff_id: string
@@ -1829,6 +1888,7 @@ export type Database = {
           weekday: number
         }
         Update: {
+          active?: boolean
           ends_at?: string
           id?: string
           staff_id?: string
@@ -2557,6 +2617,10 @@ export type Database = {
         }
         Returns: string
       }
+      add_shift: {
+        Args: { _date: string; _end: string; _staff: string; _start: string }
+        Returns: undefined
+      }
       admin_dashboard: { Args: { _from: string; _to: string }; Returns: Json }
       admin_save_staff_profile: {
         Args: { _data: Json; _user: string }
@@ -2585,6 +2649,7 @@ export type Database = {
         Args: { _address: string; _lat: number; _lng: number; _notes: string }
         Returns: string
       }
+      callbacks_queue: { Args: never; Returns: Json }
       campaign_audience: { Args: { _segment: string }; Returns: Json }
       cancel_my_order: { Args: { _order: string }; Returns: undefined }
       cancel_paid_order: {
@@ -2627,6 +2692,7 @@ export type Database = {
         Args: { _line: string; _new_item: string; _note: string }
         Returns: Json
       }
+      coverage_plan: { Args: { _days: number; _from: string }; Returns: Json }
       create_payment_intent: {
         Args: { _order: string; _provider: string; _purpose: string }
         Returns: Json
@@ -2664,6 +2730,16 @@ export type Database = {
         Returns: undefined
       }
       demurrage_status: { Args: { _order: string }; Returns: Json }
+      desk_issues: { Args: never; Returns: Json }
+      desk_resolve_issue: {
+        Args: {
+          _action: string
+          _comp_kobo: number
+          _id: string
+          _text: string
+        }
+        Returns: Json
+      }
       expense_feed: {
         Args: { _before?: string; _limit?: number }
         Returns: Json
@@ -2696,6 +2772,15 @@ export type Database = {
       }
       items_balance: { Args: { _order: string }; Returns: number }
       list_agents: { Args: never; Returns: Json }
+      log_contact: {
+        Args: {
+          _note: string
+          _order: string
+          _outcome: string
+          _promised: string
+        }
+        Returns: undefined
+      }
       log_failed_delivery: {
         Args: {
           _called?: string
@@ -2802,6 +2887,16 @@ export type Database = {
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
       set_promo_active: {
         Args: { _active: boolean; _id: string }
+        Returns: undefined
+      }
+      set_shift_template: {
+        Args: {
+          _active: boolean
+          _end: string
+          _staff: string
+          _start: string
+          _weekday: number
+        }
         Returns: undefined
       }
       set_staff_pay: {

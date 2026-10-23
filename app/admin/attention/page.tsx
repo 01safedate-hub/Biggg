@@ -25,6 +25,8 @@ export default async function Attention() {
   const { data: integ } = await supabase.rpc("integrity_check");
   const flags = (Array.isArray(integ) ? integ : []) as unknown as { code: string; severity: string; order_id: string; order_no: number; detail: string }[];
   if (!o) return <p className="card p-5 text-sm">Could not load this page. Please refresh.</p>;
+  const esc = o.issues.length ? (await supabase.from("order_issues").select("id,escalated_at,recommended_kobo,escalation_note").in("id", o.issues.map((i) => i.id))).data ?? [] : [];
+  const escById = new Map(esc.map((e) => [e.id, e]));
   const total = flags.length + o.reviews.length + o.storage.length + o.stuck.length + o.issues.length + (o.refunds.count > 0 ? 1 : 0);
   const Section = ({ title, hint, n, children }: { title: string; hint: string; n: number; children: React.ReactNode }) => (
     <section className="space-y-2"><div><h2 className="text-lg font-semibold">{title} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-soft">{n}</span></h2><p className="text-sm text-ink-soft">{hint}</p></div>{n > 0 ? <div className="card divide-y divide-line">{children}</div> : <p className="card p-4 text-sm text-ink-soft">Nothing here. Good.</p>}</section>
@@ -37,6 +39,7 @@ export default async function Attention() {
         {o.issues.map((i) => (
           <div key={i.id} className="space-y-2 p-4"><p className="font-medium"><Link className="text-brand-dark underline" href={`/staff/orders/${i.order_id}`}>#{i.order_no}</Link> · {i.customer} · {KIND[i.kind] ?? i.kind} <span className="text-xs text-ink-mute">{dt(i.at)}</span></p>
             <p className="text-sm">{i.description}</p>{i.phone && <p className="text-sm"><a className="text-brand-dark underline" href={`tel:${i.phone}`}>{i.phone}</a></p>}
+            {escById.get(i.id)?.escalated_at && <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Sent up by the desk{(escById.get(i.id)?.recommended_kobo ?? 0) > 0 ? `, suggested refund ${naira(escById.get(i.id)?.recommended_kobo ?? 0)}` : ""}. {escById.get(i.id)?.escalation_note}</p>}
             <IssueResolve id={i.id} maxNaira={Math.floor(i.items_paid_kobo / 100)} /></div>
         ))}
       </Section>

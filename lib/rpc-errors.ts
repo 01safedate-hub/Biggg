@@ -88,6 +88,13 @@ const MESSAGES: Record<string, string> = {
   issue_window_closed: "Problems can be reported within 7 days of delivery. Please contact us directly.",
   compensation_too_high: "The refund cannot be more than the customer paid for clothes.",
   invalid_dispatch: "Jobs per agent must be 1 to 20, and the wait before moving a job must be 10 to 480 minutes.",
+  callback_needed: "Call the customer first and log the call. Then you can send this out again.",
+  needs_escalation: "Only an admin can refund. Send it up with your suggested amount.",
+  over_limit: "That is above what an admin can refund. Send it up to the super admin.",
+  invalid_time: "Choose a time from now up to 14 days ahead.",
+  invalid_shift: "Check the shift: it must start and end at different times, last at most 14 hours, and not be in the past.",
+  shift_exists: "This person already has a shift that day.",
+  range_too_large: "Choose a shorter range.",
   basis_invalid: "Choose what you counted against.",
 };
 
