@@ -6,7 +6,7 @@ import { isPwnedPassword, passwordProblem, PWNED_MESSAGE } from "@/lib/auth";
 import { Field, FormMessage } from "@/components/auth/AuthShell";
 
 /** Changing a password needs the current one, so a borrowed or left-open session cannot take over the account. */
-export function PasswordForm({ email }: { email: string }) {
+export function PasswordForm({ email, forced }: { email: string; forced?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "error" | "info"; text: string } | null>(null);
 
@@ -30,6 +30,12 @@ export function PasswordForm({ email }: { email: string }) {
     const { error } = await supabase.auth.updateUser({ password: next });
     if (error) { setBusy(false); return setMsg({ kind: "error", text: error.message }); }
     await supabase.auth.signOut({ scope: "others" });
+    if (forced) {
+      const ack = await supabase.rpc("acknowledge_password_changed");
+      if (ack.error) { setBusy(false); return setMsg({ kind: "error", text: "Your password changed, but we could not finish. Please sign in again." }); }
+      window.location.assign("/staff");
+      return;
+    }
     setBusy(false);
     form.reset();
     setMsg({ kind: "info", text: "Your password was changed. Other devices were signed out." });

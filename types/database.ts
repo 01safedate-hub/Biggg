@@ -1621,6 +1621,7 @@ export type Database = {
           active: boolean
           base_salary_kobo: number
           boosted_salary_kobo: number
+          earns_weekly_bonus: boolean
           hired_on: string | null
           job_title: string | null
           monthly_target_kobo: number | null
@@ -1631,6 +1632,7 @@ export type Database = {
           active?: boolean
           base_salary_kobo?: number
           boosted_salary_kobo?: number
+          earns_weekly_bonus?: boolean
           hired_on?: string | null
           job_title?: string | null
           monthly_target_kobo?: number | null
@@ -1641,6 +1643,7 @@ export type Database = {
           active?: boolean
           base_salary_kobo?: number
           boosted_salary_kobo?: number
+          earns_weekly_bonus?: boolean
           hired_on?: string | null
           job_title?: string | null
           monthly_target_kobo?: number | null
@@ -1656,6 +1659,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_profiles: {
+        Row: {
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          created_at: string
+          date_of_birth: string | null
+          home_address: string | null
+          initial_pw_hash: string | null
+          must_change_password: boolean
+          next_of_kin_name: string | null
+          next_of_kin_phone: string | null
+          nin: string | null
+          onboarding_status: string
+          photo_path: string | null
+          photo_taken_at: string | null
+          referee_address: string | null
+          referee_name: string | null
+          referee_phone: string | null
+          referee_relationship: string | null
+          review_note: string | null
+          updated_at: string
+          user_id: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          home_address?: string | null
+          initial_pw_hash?: string | null
+          must_change_password?: boolean
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          nin?: string | null
+          onboarding_status?: string
+          photo_path?: string | null
+          photo_taken_at?: string | null
+          referee_address?: string | null
+          referee_name?: string | null
+          referee_phone?: string | null
+          referee_relationship?: string | null
+          review_note?: string | null
+          updated_at?: string
+          user_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          home_address?: string | null
+          initial_pw_hash?: string | null
+          must_change_password?: boolean
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          nin?: string | null
+          onboarding_status?: string
+          photo_path?: string | null
+          photo_taken_at?: string | null
+          referee_address?: string | null
+          referee_name?: string | null
+          referee_phone?: string | null
+          referee_relationship?: string | null
+          review_note?: string | null
+          updated_at?: string
+          user_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
       }
       subscription_invoices: {
         Row: {
@@ -1876,6 +1957,60 @@ export type Database = {
         }
         Relationships: []
       }
+      unit_log: {
+        Row: {
+          id: string
+          logged_at: string
+          logged_by: string | null
+          note: string | null
+          order_id: string | null
+          staff_id: string
+          units: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          id?: string
+          logged_at?: string
+          logged_by?: string | null
+          note?: string | null
+          order_id?: string | null
+          staff_id: string
+          units: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          id?: string
+          logged_at?: string
+          logged_by?: string | null
+          note?: string | null
+          order_id?: string | null
+          staff_id?: string
+          units?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unit_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unit_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
+          },
+        ]
+      }
       user_notifications: {
         Row: {
           body: string | null
@@ -1993,6 +2128,48 @@ export type Database = {
           },
         ]
       }
+      weekly_payouts: {
+        Row: {
+          amount_kobo: number
+          created_at: string
+          created_by: string | null
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          staff_id: string
+          status: string
+          target_units: number
+          units: number
+          week_start: string
+        }
+        Insert: {
+          amount_kobo: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          staff_id: string
+          status?: string
+          target_units: number
+          units: number
+          week_start: string
+        }
+        Update: {
+          amount_kobo?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          staff_id?: string
+          status?: string
+          target_units?: number
+          units?: number
+          week_start?: string
+        }
+        Relationships: []
+      }
       zones: {
         Row: {
           centre_lat: number | null
@@ -2098,6 +2275,7 @@ export type Database = {
     }
     Functions: {
       accrue_demurrage: { Args: never; Returns: Json }
+      acknowledge_password_changed: { Args: never; Returns: undefined }
       add_capital_entry: {
         Args: {
           _amount_kobo: number
@@ -2109,6 +2287,11 @@ export type Database = {
         Returns: string
       }
       admin_dashboard: { Args: { _from: string; _to: string }; Returns: Json }
+      admin_save_staff_profile: {
+        Args: { _data: Json; _user: string }
+        Returns: undefined
+      }
+      admin_staff_detail: { Args: { _user: string }; Returns: Json }
       approve_payroll: { Args: { _run: string }; Returns: undefined }
       check_in: { Args: { _lat: number; _lng: number }; Returns: Json }
       check_out: { Args: { _lat: number; _lng: number }; Returns: Json }
@@ -2136,6 +2319,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      close_week: { Args: { _week_start: string }; Returns: number }
       compute_payroll: { Args: { _month: string }; Returns: string }
       daily_money_view: { Args: { _day: string }; Returns: Json }
       decide_expense: {
@@ -2157,6 +2341,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      flag_initial_password: { Args: { _user: string }; Returns: undefined }
       generate_shifts: { Args: { _from: string; _to: string }; Returns: number }
       grant_staff_role: {
         Args: {
@@ -2178,7 +2363,14 @@ export type Database = {
         }
         Returns: Json
       }
+      log_units: {
+        Args: { _note: string; _staff: string; _units: number }
+        Returns: string
+      }
       mark_absences: { Args: never; Returns: number }
+      mark_payout_paid: { Args: { _id: string }; Returns: undefined }
+      my_pay_overview: { Args: never; Returns: Json }
+      my_staff_state: { Args: never; Returns: Json }
       quote_pickup: { Args: { _lat: number; _lng: number }; Returns: Json }
       record_cash_count: {
         Args: {
@@ -2193,6 +2385,19 @@ export type Database = {
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
+      save_my_staff_profile: { Args: { _data: Json }; Returns: undefined }
+      set_staff_pay: {
+        Args: {
+          _active: boolean
+          _base: number
+          _boosted: number
+          _job_title: string
+          _monthly_target: number
+          _user: string
+          _weekly: boolean
+        }
+        Returns: undefined
+      }
       set_staff_roles: {
         Args: { _roles: string[]; _user: string }
         Returns: undefined
@@ -2205,7 +2410,12 @@ export type Database = {
         Args: { _reason?: string; _status: string; _user: string }
         Returns: undefined
       }
+      set_weekly_bonus: {
+        Args: { _payout_kobo: number; _units: number }
+        Returns: undefined
+      }
       staff_list: { Args: never; Returns: Json }
+      staff_onboarding_status: { Args: never; Returns: Json }
       submit_expense: {
         Args: {
           _amount_kobo: number
@@ -2218,6 +2428,7 @@ export type Database = {
         }
         Returns: string
       }
+      submit_onboarding: { Args: never; Returns: undefined }
       update_my_profile: {
         Args: { _full_name: string; _phone: string }
         Returns: undefined
@@ -2225,6 +2436,10 @@ export type Database = {
       verify_order_code: {
         Args: { _code: string; _order: string; _step: string }
         Returns: Json
+      }
+      verify_staff: {
+        Args: { _approve: boolean; _note: string; _user: string }
+        Returns: undefined
       }
       verify_worker_secret: { Args: { _s: string }; Returns: boolean }
       void_capital_entry: {
@@ -2235,10 +2450,12 @@ export type Database = {
         Args: { _id: string; _reason: string }
         Returns: undefined
       }
+      void_units: { Args: { _id: string; _reason: string }; Returns: undefined }
       waive_demurrage: {
         Args: { _order: string; _reason: string }
         Returns: undefined
       }
+      weekly_board: { Args: { _week_start?: string }; Returns: Json }
     }
     Enums: {
       order_status:

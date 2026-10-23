@@ -21,3 +21,9 @@
   .section { @apply py-16 sm:py-24; }
   .card { @apply rounded-lg border border-line bg-white shadow-card; }
 }
+
+@keyframes ring-fill { from { stroke-dashoffset: var(--ring-full); } }
+.ring-arc { animation: ring-fill 2.8s cubic-bezier(.22,.8,.2,1) both; }
+@keyframes ring-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.ring-glow { animation: ring-pulse 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .ring-arc, .ring-glow { animation: none; } }

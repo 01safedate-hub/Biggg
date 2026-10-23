@@ -48,3 +48,10 @@ export async function changeRoles(userId: string, roles: string[]): Promise<Acti
   revalidatePath("/admin/staff");
   return { ok: true, message: roles.length ? "Roles saved." : "All staff access removed. They are now a customer." };
 }
+
+export async function createStaff(input: { email: string; full_name: string; phone: string; roles: string[]; password: string }): Promise<ActionResult & { userId?: string }> {
+  const r = await callStaffAdmin({ action: "create", ...input });
+  if (!r.ok) return { ok: false, message: r.error ?? "Could not create the account." };
+  revalidatePath("/admin/staff");
+  return { ok: true, message: "Account created. Share the password with them in person. They must change it at first sign-in.", userId: String(r.data?.user_id ?? "") };
+}

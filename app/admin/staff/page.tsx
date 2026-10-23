@@ -9,6 +9,8 @@ export default async function StaffPage() {
   const { supabase, user } = await requireRole(["super_admin"]);
   const { data, error } = await supabase.rpc("staff_list");
   const staff = (Array.isArray(data) ? data : []) as unknown as StaffRowData[];
+  const { data: ob } = await supabase.rpc("staff_onboarding_status");
+  const onboarding = (ob ?? {}) as unknown as Record<string, string>;
 
   return (
     <div className="space-y-8">
@@ -20,7 +22,7 @@ export default async function StaffPage() {
       <section aria-label="Team" className="space-y-3">
         <h2 className="text-lg font-semibold">Team ({staff.length})</h2>
         {error && <p role="alert" className="text-sm text-red-700">The team list could not be loaded. Please refresh.</p>}
-        {staff.map((s) => <StaffRow key={s.id} s={s} isMe={s.id === user.id} />)}
+        {staff.map((s) => <StaffRow key={s.id} s={s} isMe={s.id === user.id} onboarding={onboarding[s.id] ?? "incomplete"} />)}
       </section>
     </div>
   );

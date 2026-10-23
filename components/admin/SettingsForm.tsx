@@ -40,7 +40,7 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
     const { error } = await createClient().rpc("save_business_settings", {
       _patch: {
         contact_phone: s("phone"), whatsapp_number: s("whatsapp"), hub_address: s("address"), hub_lat: num(s("lat")), hub_lng: num(s("lng")),
-        demurrage_fee_kobo: fee, demurrage_grace_hours: grace, demurrage_basis: s("basis"), monthly_net_target_kobo: target, recovery_basis: s("recovery"),
+        demurrage_fee_kobo: fee, demurrage_grace_hours: grace, demurrage_basis: s("basis"), monthly_net_target_kobo: target,
       },
     });
     setBusy(false);
@@ -84,7 +84,7 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
         <h2 className="text-lg font-semibold">Targets and recovery</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <div><label htmlFor="target" className={labelCls}>Monthly target (sales minus approved expenses), naira</label><input id="target" name="target" inputMode="decimal" defaultValue={v.targetNaira} className={inputCls} /><p className="mt-1 text-xs text-ink-mute">Staff only ever see this as a percentage. Leave empty for none.</p></div>
-          <div><label htmlFor="recovery" className={labelCls}>Recover start-up costs from</label><select id="recovery" name="recovery" defaultValue={v.recoveryBasis} className={inputCls}><option value="profit">Profit (sales minus expenses)</option><option value="revenue">Sales</option></select></div>
+          <div><p className={labelCls}>Start-up costs are recovered from</p><p className="mt-1 rounded-md border border-line bg-canvas px-3 py-2.5 text-sm text-ink-soft">Profit only (sales minus approved expenses)</p></div>
         </div>
       </section>
 

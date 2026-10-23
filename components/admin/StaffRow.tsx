@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { changeRoles, changeStatus, resendInvite } from "@/app/admin/staff/actions";
 import { ROLE_NAME, STAFF_ROLES, type StaffRowData } from "@/lib/staff";
@@ -13,7 +14,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 const STATUS_LABEL: Record<string, string> = { active: "Active", restricted: "Suspended", dismissed: "Dismissed" };
 
-export function StaffRow({ s, isMe }: { s: StaffRowData; isMe: boolean }) {
+export function StaffRow({ s, isMe, onboarding }: { s: StaffRowData; isMe: boolean; onboarding: string }) {
   const [editing, setEditing] = useState(false);
   const [roles, setRoles] = useState<string[]>(s.roles);
   const [reason, setReason] = useState("");
@@ -46,7 +47,7 @@ export function StaffRow({ s, isMe }: { s: StaffRowData; isMe: boolean }) {
         </div>
         <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[s.status]}`}>{STATUS_LABEL[s.status]}</span>
       </div>
-      <p className="mt-2 text-sm">{s.roles.map((r) => ROLE_NAME[r] ?? r).join(", ")}</p>
+      <p className="mt-2 text-sm">{s.roles.map((r) => ROLE_NAME[r] ?? r).join(", ")} · <Link href={`/admin/staff/${s.id}`} className="font-medium text-brand-dark hover:underline">Details and pay ({onboarding})</Link></p>
       {s.status !== "active" && s.status_reason && <p className="mt-1 text-sm text-ink-soft">Reason: {s.status_reason}</p>}
 
       {!isMe && (
