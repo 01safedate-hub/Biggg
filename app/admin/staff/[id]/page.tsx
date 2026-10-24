@@ -44,7 +44,7 @@ export default async function StaffDetail({ params }: { params: Promise<{ id: st
       <div>
         <h2 className="mb-3 text-lg font-semibold">Personal details</h2>
         <p className="mb-3 text-sm text-ink-soft">You can fill or correct everything here for someone who cannot do it themselves, including taking their photo.</p>
-        <ProfileForm userId={id} initial={d.profile ?? {}} photoUrl={photo} onSave={(x) => adminSaveProfile(id, x)} />
+        <ProfileForm userId={id} initial={d.profile ?? {}} photoUrl={photo} onSave={adminSaveProfile.bind(null, id)} />
       </div>
       {d.payouts.length > 0 && (
         <section className="card p-5">
