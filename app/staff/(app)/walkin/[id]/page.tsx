@@ -4,7 +4,7 @@ import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/orders";
 import { Itemiser } from "@/components/ops/AgentTools";
-import { WalkinActions, WalkinPay } from "@/components/ops/WalkinTools";
+import { WalkinActions, WalkinInstant, WalkinPay } from "@/components/ops/WalkinTools";
 import { PrintButton } from "@/components/orders/PrintButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 
@@ -25,9 +25,10 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
     supabase.from("money_points").select("id,name,kind").eq("active", true).neq("kind", "online").order("name"),
     supabase.from("payments").select("mode,amount_kobo,reference,paid_at,note").eq("order_id", id).eq("kind", "payment").eq("status", "success").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const iq = o.status === "counted" ? (await supabase.rpc("instant_quote", { _order: id })).data as unknown as { enabled: boolean; per_item_kobo: number; items: number; fee_kobo: number; on: boolean; target_hours: number } | null : null;
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
-  const total = Math.max(0, o.items_total_kobo - o.discount_kobo);
+  const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const moving = ["count_confirmed", "received", "in_house"].includes(o.status);
   const paidLabel = pay ? (pay.mode === "cash" ? "Cash" : pay.mode === "transfer" ? "Bank transfer" : "POS card") : "";
   return (
@@ -52,6 +53,8 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">2. Take payment</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
+          {iq?.enabled && <WalkinInstant orderId={id} on={iq.on} perItemKobo={iq.per_item_kobo} items={iq.items} feeKobo={iq.fee_kobo} targetHours={iq.target_hours} />}
+          {o.instant_fee_kobo > 0 && <p className="text-sm text-ink-soft">Includes instant delivery {naira(o.instant_fee_kobo)}.</p>}
           <p className="text-2xl font-bold">Customer pays {naira(total)}</p>
           <WalkinPay orderId={id} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} due={naira(total)} />
           <div className="flex flex-wrap gap-4 border-t border-line pt-4"><WalkinActions orderId={id} kind="reopen" /><WalkinActions orderId={id} kind="cancel" /></div>

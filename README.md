@@ -34,3 +34,9 @@ All email goes through Resend. Sign-up and password-reset emails use a Supabase 
 
 - `scripts/export-schema.sh` saves an exact copy of the live database structure to `supabase/schema.sql` (needs `DB_URL`). Run it after every migration and commit the result. The numbered files in `supabase/migrations` are the history; some are notes only.
 - `supabase/tests/access_matrix.sql` checks what each role (customer, agent, secretary, admin, super admin) can and cannot do. Paste it into the Supabase SQL editor. It saves nothing and always ends with a message starting `RESULT`: `ALL PASS` or the list of failures. Run it after every migration.
+
+## Sending email through Resend (checklist)
+
+1. Resend: add the `laundrypoint.app` domain, paste the DNS records at your domain provider, then verify it.
+2. Edge function secrets: `RESEND_API_KEY`, `EMAIL_FROM` (for example `LaundryPoint <hello@laundrypoint.app>`), `EMAIL_REPLY_TO`, `SITE_URL`.
+3. Supabase > Authentication > Hooks > Send Email: choose the `auth-email` function and copy the generated secret into the `SEND_EMAIL_HOOK_SECRET` secret. Until this is on, Supabase sends its own plain emails.

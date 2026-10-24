@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addWalkinCustomer, deskCancelWalkin, deskHandover, deskReopenCount, deskTakePayment, findDeskCustomers, startWalkin } from "@/app/staff/(app)/ops-actions";
+import { addWalkinCustomer, deskCancelWalkin, deskHandover, deskReopenCount, deskSetInstant, deskTakePayment, findDeskCustomers, startWalkin } from "@/app/staff/(app)/ops-actions";
 import { inputCls, labelCls } from "@/components/admin/ui";
+import { naira } from "@/lib/format";
 
 type Found = { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number };
 
@@ -126,6 +127,22 @@ export function WalkinActions({ orderId, kind }: { orderId: string; kind: "reope
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+export function WalkinInstant({ orderId, on, perItemKobo, items, feeKobo, targetHours }: { orderId: string; on: boolean; perItemKobo: number; items: number; feeKobo: number; targetHours: number }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (perItemKobo <= 0) return null;
+  return (
+    <div className={`rounded-lg border p-4 ${on ? "border-brand bg-brand-tint" : "border-line"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm"><strong>Instant:</strong> back within {targetHours} hours for {naira(perItemKobo)} more per item ({naira(feeKobo)} for {items} items). It goes first in the wash queue.</p>
+        <button type="button" className={on ? "btn-secondary" : "btn-primary"} disabled={busy} onClick={async () => { setBusy(true); setErr(null); const r = await deskSetInstant(orderId, !on); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>{busy ? "Saving" : on ? "Remove instant" : "Add instant"}</button>
+      </div>
+      {err && <p role="alert" className="mt-2 text-sm text-red-700">{err}</p>}
     </div>
   );
 }

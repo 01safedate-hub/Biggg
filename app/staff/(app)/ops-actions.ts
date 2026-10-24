@@ -253,3 +253,11 @@ export async function deskCancelWalkin(orderId: string, note: string): Promise<R
   revalidatePath("/staff/walkin");
   return { ok: true, message: "Cancelled." };
 }
+
+export async function deskSetInstant(orderId: string, on: boolean): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("desk_set_instant", { _order: orderId, _on: on });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: on ? "Instant added." : "Instant removed." };
+}

@@ -1,0 +1,3 @@
+-- Applied via apply_migration: walkin_instant_and_digest
+-- private.orders_instant skips the notification for walk-in profiles; public.desk_set_instant(_order,_on) (desk, while counting is done and nothing is paid);
+-- public.send_daily_digest now counts open bank disputes (and those due within 3 days) and instant orders that were late in the last day.

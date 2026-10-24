@@ -2931,6 +2931,10 @@ export type Database = {
         }
         Returns: Json
       }
+      desk_set_instant: {
+        Args: { _on: boolean; _order: string }
+        Returns: Json
+      }
       desk_set_item: {
         Args: { _item: string; _order: string; _qty: number }
         Returns: undefined
