@@ -75,6 +75,19 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       const lines = [`${esc(title)}.`, `Order reference: ${order}.`, `You can follow your order at <a href="${esc(SITE)}" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`];
       return { subject: p.order_no ? `${title} - order #${p.order_no}` : title, html: layout(esc(title), lines), text: `${title}.\nOrder reference: ${order}.` };
     }
+    case "staff_review": {
+      const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+      if (p.approved) {
+        const lines = [`Hello ${esc(first)}, your details have been checked and approved. Your account is fully set up.`, `You can sign in any time at <a href="${esc(SITE)}/staff" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}/staff</a>.`];
+        return { subject: "Your LaundryPoint details are approved", html: layout("You are approved", lines), text: `Hello ${first}, your details have been approved. Sign in at ${SITE}/staff` };
+      }
+      const lines = [`Hello ${esc(first)}, we looked at your details and need you to change something before we can approve them.`, `<strong>What to fix:</strong> ${esc(p.note)}`, `Sign in, correct your details, and submit them again.`];
+      return { subject: "Please update your LaundryPoint details", html: layout("A change is needed", lines), text: `Hello ${first}, we need a change before approving your details: ${p.note}. Sign in, update and submit again.` };
+    }
+    case "test": {
+      const lines = ["This is a test message from your LaundryPoint admin screen.", "If you can read this, email delivery through Resend is working."];
+      return { subject: "LaundryPoint test email", html: layout("Email is working", lines), text: lines.join("\n\n") };
+    }
     case "demurrage_warning": {
       const lines = [
         `Delivery of ${order} has not been completed and the order is being held for you.`,

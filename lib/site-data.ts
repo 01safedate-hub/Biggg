@@ -7,7 +7,7 @@ type ZoneRow = { name: string; kind: string; is_live: boolean };
 export type PublicSettings = {
   business: { name: string; timezone: string; opening_time: string; closing_time: string };
   agent: { eta_minutes: number };
-  hub: { maps_url: string | null; address: string | null };
+  hub: { maps_url: string | null; address: string | null; lat?: number | null; lng?: number | null };
   whatsapp: { number: string | null };
   contact: { phone: string | null };
   subscription: { pickups_per_month: number; yearly_discount_pct: number };

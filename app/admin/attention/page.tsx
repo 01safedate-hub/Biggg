@@ -25,10 +25,13 @@ export default async function Attention() {
   const { data: integ } = await supabase.rpc("integrity_check");
   const flags = (Array.isArray(integ) ? integ : []) as unknown as { code: string; severity: string; order_id: string; order_no: number; detail: string }[];
   const { count: openDisputes } = await supabase.from("payment_disputes").select("id", { count: "exact", head: true }).in("status", ["open", "evidence_sent"]);
+  const { data: ob } = await supabase.rpc("staff_onboarding_status");
+  const submittedIds = Object.entries((ob ?? {}) as unknown as Record<string, string>).filter(([, v]) => v === "submitted").map(([k]) => k);
+  const { data: waitingStaff } = submittedIds.length ? await supabase.from("profiles").select("id,full_name").in("id", submittedIds) : { data: [] as { id: string; full_name: string | null }[] };
   if (!o) return <p className="card p-5 text-sm">Could not load this page. Please refresh.</p>;
   const esc = o.issues.length ? (await supabase.from("order_issues").select("id,escalated_at,recommended_kobo,escalation_note").in("id", o.issues.map((i) => i.id))).data ?? [] : [];
   const escById = new Map(esc.map((e) => [e.id, e]));
-  const total = (openDisputes ?? 0) + flags.length + o.reviews.length + o.storage.length + o.stuck.length + o.issues.length + (o.refunds.count > 0 ? 1 : 0);
+  const total = submittedIds.length + (openDisputes ?? 0) + flags.length + o.reviews.length + o.storage.length + o.stuck.length + o.issues.length + (o.refunds.count > 0 ? 1 : 0);
   const Section = ({ title, hint, n, children }: { title: string; hint: string; n: number; children: React.ReactNode }) => (
     <section className="space-y-2"><div><h2 className="text-lg font-semibold">{title} <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-ink-soft">{n}</span></h2><p className="text-sm text-ink-soft">{hint}</p></div>{n > 0 ? <div className="card divide-y divide-line">{children}</div> : <p className="card p-4 text-sm text-ink-soft">Nothing here. Good.</p>}</section>
   );
@@ -37,6 +40,13 @@ export default async function Attention() {
       <div><h1 className="text-2xl font-bold tracking-tight">Needs attention</h1><p className="mt-1 text-sm text-ink-soft">{total === 0 ? "Everything is in order." : "Things only you can fix. Each one has a button."}</p></div>
 
       {(openDisputes ?? 0) > 0 && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-900"><strong>{openDisputes} bank dispute{openDisputes === 1 ? "" : "s"} open.</strong> A customer asked their bank to take a payment back. <Link className="font-semibold underline" href="/admin/disputes">Reply before the deadline</Link>.</p>}
+
+      {submittedIds.length > 0 && (
+        <p role="status" className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <strong>{submittedIds.length} staff member{submittedIds.length === 1 ? "" : "s"} waiting for approval.</strong>{" "}
+          {(waitingStaff ?? []).map((w, i) => <span key={w.id}>{i > 0 ? ", " : ""}<Link className="font-semibold underline" href={`/admin/staff/${w.id}`}>{w.full_name || "Unnamed"}</Link></span>)}. Open the person, check the details, then approve or send back.
+        </p>
+      )}
 
       <Section title="Customer problems" hint="Reported after delivery. Respond and, if it is fair, refund part of the clothes bill." n={o.issues.length}>
         {o.issues.map((i) => (

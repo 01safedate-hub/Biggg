@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/roles";
+import { SendTestEmail } from "@/components/admin/SendTestEmail";
 import { RetryButton } from "@/components/admin/OpsForms";
 
 export const metadata = { title: "Email delivery" };
@@ -17,6 +18,7 @@ export default async function EmailsPage({ searchParams }: { searchParams: Promi
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Email delivery</h1><p className="mt-1 text-sm text-ink-soft">Order updates and confirmations sent to customers. A failed email can be sent again once the cause is fixed (for example, the domain was not verified yet).</p></div>
+      <SendTestEmail />
       <div className="flex flex-wrap gap-2">
         {chip("/admin/emails", "All", !status)}
         {(["queued", "sent", "failed"] as const).map((s) => chip(`/admin/emails?status=${s}`, `${s} (${count(s)})`, status === s))}

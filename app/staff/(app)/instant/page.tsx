@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireRole } from "@/lib/roles";
 import { STATUS_LABEL } from "@/lib/orders";
 import { TimeLeft } from "@/components/ops/TimeLeft";
+import { ExtendInstant } from "@/components/admin/ExtendInstant";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 
 export const metadata = { title: "Instant orders" };
@@ -12,7 +13,8 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-NG", { timeZ
 const NEXT: Record<string, string> = { count_confirmed: "Agent is bringing it to the hub: receive it", received: "Start washing", in_house: "Finish washing and mark ready", ready: "Send it out for delivery", out_for_delivery: "With the delivery agent", failed_delivery: "Delivery failed: call the customer" };
 
 export default async function InstantBoard() {
-  const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
+  const { supabase, roles } = await requireRole(["secretary", "admin", "super_admin"]);
+  const canExtend = roles.includes("admin") || roles.includes("super_admin");
   const { data } = await supabase.rpc("instant_board");
   const rows = (Array.isArray(data) ? data : []) as unknown as B[];
   const late = rows.filter((r) => new Date(r.target_at).getTime() < Date.now()).length;
@@ -32,6 +34,7 @@ export default async function InstantBoard() {
               {r.phone && <a className="font-medium text-brand-dark underline" href={`tel:${r.phone}`}>{r.phone}</a>}
               <Link className="btn-secondary" href={r.status === "count_confirmed" || r.status === "received" ? `/staff/receiving/${r.id}` : r.status === "out_for_delivery" || r.status === "failed_delivery" ? "/staff/dispatch" : "/staff/hub"}>Open</Link>
             </div>
+            {canExtend && <div className="w-full"><ExtendInstant orderId={r.id} /></div>}
           </div>
         ))}
         {rows.length === 0 && <p className="p-5 text-sm text-ink-soft">No instant orders are running.</p>}

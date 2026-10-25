@@ -2947,6 +2947,10 @@ export type Database = {
         Returns: Json
       }
       expire_unpaid_bookings: { Args: never; Returns: number }
+      extend_instant: {
+        Args: { _minutes: number; _note: string; _order: string }
+        Returns: undefined
+      }
       finance_overview: { Args: { _from: string; _to: string }; Returns: Json }
       find_user_by_email: { Args: { _email: string }; Returns: Json }
       finish_email: {
@@ -3143,6 +3147,7 @@ export type Database = {
       }
       send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
       send_daily_digest: { Args: never; Returns: number }
+      send_test_email: { Args: never; Returns: undefined }
       set_instant: { Args: { _on: boolean; _order: string }; Returns: Json }
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
       set_promo_active: {
