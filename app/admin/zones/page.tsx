@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/roles";
-import { ServiceDepthForm, ZoneRow } from "@/components/admin/OpsForms";
+import { ServiceDepthForm, ZoneRow, ZoneCreateForm } from "@/components/admin/OpsForms";
 
 export const metadata = { title: "Coverage zones" };
 export const dynamic = "force-dynamic";
@@ -39,6 +39,7 @@ export default async function ZonesPage({ searchParams }: { searchParams: Promis
       <div><h1 className="text-2xl font-bold tracking-tight">Coverage zones</h1>
         <p className="mt-1 text-sm text-ink-soft">{live} switched on, {all.length} places saved from the Anambra list, {unplaced} still without a map point. A customer is served if their location is inside the circle of a zone that is on. Set the centre from Google Maps (right-click a spot, copy the numbers), then choose a radius.</p></div>
       {sa.reference_lat != null && sa.reference_lng != null && <ServiceDepthForm name={sa.reference_name ?? "Amawbia"} lat={sa.reference_lat} lng={sa.reference_lng} multiplier={sa.multiplier ?? 1} depthKm={sa.depth_km ?? null} />}
+      <ZoneCreateForm />
       <form className="flex flex-wrap items-end gap-2" role="search">
         <input type="hidden" name="show" value={show} />
         <label className="min-w-0 flex-1 text-sm font-medium">Find a place, local government or postal code<input name="q" defaultValue={q} className="mt-1 w-full rounded-md border border-line px-3 py-2.5 text-sm" /></label>
