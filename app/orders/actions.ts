@@ -33,9 +33,9 @@ export async function enterOrderCode(id: string, step: "arrival" | "delivery", c
 
 export async function startPayment(orderId: string, purpose: "pickup_fare" | "items" | "delivery_fare" | "demurrage", provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
   const { supabase } = await requireUser(`/orders/${orderId}`);
-  const { data: points, error: pointsError } = await supabase.from("money_points").select("name").eq("kind", "online").eq("active", true);
+  const { data: points, error: pointsError } = await supabase.rpc("active_payment_providers");
   if (pointsError) return { ok: false, message: "We could not check payment availability. Please try again." };
-  const enabled = (points ?? []).some((point) => point.name.trim().toLowerCase().includes(provider));
+  const enabled = (points ?? []).includes(provider);
   if (!enabled) return { ok: false, message: `${provider === "paystack" ? "Paystack" : "Flutterwave"} is currently switched off. Please choose another available payment method.` };
   const { data, error } = await supabase.functions.invoke("pay-init", { body: { order_id: orderId, purpose, provider } });
   if (error) {
