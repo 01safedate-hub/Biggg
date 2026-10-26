@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { PHOTO_PROBLEM, compressImage, extFor } from "@/lib/compress-image";
 
 export type EvidenceKind = "receipt" | "bank_debit" | "transfer_alert" | "invoice" | "other";
 export type EvidenceItem = { id: string; file: File; kind: EvidenceKind };
@@ -21,8 +22,16 @@ export function checkFile(f: File): string | null {
 export async function uploadEvidence(supabase: SupabaseClient<Database>, userId: string, items: EvidenceItem[]) {
   const out: { path: string; kind: EvidenceKind }[] = [];
   for (const it of items) {
-    const path = `${userId}/${crypto.randomUUID()}.${EXT[it.file.type]}`;
-    const { error } = await supabase.storage.from("expense-evidence").upload(path, it.file, { contentType: it.file.type, upsert: false });
+    // Photos are shrunk under 20 KB on the phone. PDFs are uploaded as they are.
+    let body: Blob = it.file;
+    let type = it.file.type;
+    let ext = EXT[it.file.type];
+    if (type !== "application/pdf") {
+      try { body = await compressImage(it.file); } catch { throw new Error(`${it.file.name}: ${PHOTO_PROBLEM}`); }
+      type = body.type; ext = extFor(body);
+    }
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("expense-evidence").upload(path, body, { contentType: type, upsert: false });
     if (error) throw new Error(`Could not upload ${it.file.name}. Please check your connection and try again.`);
     out.push({ path, kind: it.kind });
   }

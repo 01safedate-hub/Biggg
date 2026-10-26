@@ -261,3 +261,12 @@ export async function deskSetInstant(orderId: string, on: boolean): Promise<R> {
   revalidatePath(`/staff/walkin/${orderId}`);
   return { ok: true, message: on ? "Instant added." : "Instant removed." };
 }
+
+export async function flagStain(orderId: string, itemId: string | null, itemName: string, path: string, note: string): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent", "admin", "super_admin"]);
+  const { error } = await supabase.rpc("flag_stain", { _order: orderId, _item: (itemId || null) as string, _item_name: itemName, _path: path, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/jobs/${orderId}`);
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Stain recorded. The customer has been told." };
+}

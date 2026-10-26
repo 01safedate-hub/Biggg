@@ -1,3 +1,4 @@
+import { StainList } from "@/components/orders/StainList";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
@@ -19,6 +20,7 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
       <Link href="/admin/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Orders</Link>
       <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-sm text-ink-soft">{STATUS_LABEL[o.status] ?? o.status} · {o.pickup_address}</p></div>
       {rt && <p className="rounded-md border border-line bg-white p-3 text-sm"><span className="text-amber-500">{"★".repeat(rt.stars)}</span><span className="text-slate-300">{"★".repeat(5 - rt.stars)}</span> Customer rating{rt.comment ? `: "${rt.comment}"` : ""}</p>}
+      <StainList supabase={supabase} orderId={id} />
       <OrderTimeline t={tl as unknown as Timeline} showPeople />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { PHOTO_PROBLEM, compressImage, extFor } from "@/lib/compress-image";
 
 /** Captures a photo with the camera right now and uploads it privately. A picture picked from the gallery is not accepted on phones that support the camera. */
 export function LivePhoto({ userId, currentUrl, onUploaded, disabled }: { userId: string; currentUrl: string | null; onUploaded: (path: string) => void; disabled?: boolean }) {
@@ -28,10 +29,12 @@ export function LivePhoto({ userId, currentUrl, onUploaded, disabled }: { userId
     }
   }
 
-  async function upload(blob: Blob) {
+  async function upload(raw: Blob) {
     setBusy(true);
-    const path = `${userId}/photo-${Date.now()}.jpg`;
-    const { error } = await createClient().storage.from("staff-docs").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    let blob: Blob;
+    try { blob = await compressImage(raw); } catch { setBusy(false); return setErr(PHOTO_PROBLEM); }
+    const path = `${userId}/photo-${Date.now()}.${extFor(blob)}`;
+    const { error } = await createClient().storage.from("staff-docs").upload(path, blob, { contentType: blob.type, upsert: false });
     setBusy(false);
     if (error) return setErr("The photo could not be uploaded. Please try again.");
     setPreview(URL.createObjectURL(blob));
@@ -47,13 +50,13 @@ export function LivePhoto({ userId, currentUrl, onUploaded, disabled }: { userId
     c.width = w; c.height = h;
     c.getContext("2d")!.drawImage(v, 0, 0, w, h);
     stop();
-    c.toBlob((b) => b && void upload(b), "image/jpeg", 0.85);
+    c.toBlob((b) => b && void upload(b), "image/jpeg", 0.9);
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 5_000_000) return setErr("Use a JPG, PNG or WebP photo under 5 MB.");
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size > 15_000_000) return setErr("Use a JPG, PNG or WebP photo.");
     await upload(f);
   }
 

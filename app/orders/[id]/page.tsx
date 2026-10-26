@@ -17,6 +17,7 @@ import { TimeLeft } from "@/components/ops/TimeLeft";
 import { PromoForm, RemovePromo } from "@/components/orders/PromoForm";
 import { RescheduleControl } from "@/components/orders/RescheduleControl";
 import { TrackMap } from "@/components/orders/TrackMap";
+import { StainList } from "@/components/orders/StainList";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
 export const metadata = { title: "Your order" };
@@ -166,6 +167,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <Link href="/request" className="btn-primary mt-4 inline-block">Book again</Link>
         </section>
       )}
+      <StainList supabase={supabase} orderId={id} canAck />
       {o.status === "cancelled" && <section className="card p-5 text-sm text-ink-soft">This booking was cancelled. If you had paid, your refund is being sent to your account. We will email you when it is done.</section>}
       {o.status === "failed_delivery" && (
         <section className="space-y-3 rounded-xl border border-red-300 bg-red-50 p-5 text-red-900">

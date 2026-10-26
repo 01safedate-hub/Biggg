@@ -110,3 +110,11 @@ export async function chooseInstant(orderId: string, on: boolean): Promise<R> {
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: on ? "Instant delivery added." : "Instant delivery removed." };
 }
+
+export async function acknowledgeStain(photoId: string, orderId: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.from("order_photos").update({ acknowledged_at: new Date().toISOString() }).eq("id", photoId).eq("order_id", orderId);
+  if (error) return { ok: false, message: "Could not save that. Please try again." };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Thank you." };
+}

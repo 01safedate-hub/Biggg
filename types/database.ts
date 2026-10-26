@@ -2963,6 +2963,16 @@ export type Database = {
         Returns: undefined
       }
       flag_initial_password: { Args: { _user: string }; Returns: undefined }
+      flag_stain: {
+        Args: {
+          _item: string
+          _item_name: string
+          _note: string
+          _order: string
+          _path: string
+        }
+        Returns: string
+      }
       generate_shifts: { Args: { _from: string; _to: string }; Returns: number }
       grant_staff_role: {
         Args: {

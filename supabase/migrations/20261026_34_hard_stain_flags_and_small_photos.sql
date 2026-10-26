@@ -1,0 +1,6 @@
+-- Applied via apply_migration: hard_stain_flags_and_small_photos
+-- flag_stain(_order, _item, _item_name, _path, _note): pickup/delivery agent on the order, or secretary/admin/super_admin.
+--   checks the photo exists in bucket order-photos under '<order id>/', max 12 stains per order, writes order_photos(kind 'stain'),
+--   order_events 'stain_flagged', and a customer notification.
+-- Customers can only update order_photos.acknowledged_at (column grant).
+-- storage.buckets order-photos and staff-docs limited to 20480 bytes.

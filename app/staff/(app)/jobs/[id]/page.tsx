@@ -4,6 +4,8 @@ import { requireRole } from "@/lib/roles";
 import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
+import { StainFlag } from "@/components/ops/StainFlag";
+import { StainList } from "@/components/orders/StainList";
 import { LocationSharer } from "@/components/ops/LocationSharer";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 
@@ -70,6 +72,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <h2 className="text-xl font-bold">Paid ✓ {naira(total)}</h2>
           <p className="text-sm">The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary.</p>
         </section>
+      )}
+      {["agent_arrived", "counted", "count_confirmed"].includes(o.status) && (
+        <section className="space-y-3"><StainList supabase={supabase} orderId={id} /><StainFlag orderId={id} lines={(lines ?? []).map((l) => ({ id: l.id, name: l.name }))} /></section>
       )}
     </div>
   );
