@@ -8,6 +8,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const work: NavGroup["items"] = [{ href: "/staff", label: "Home", icon: "home", exact: true }];
   if (roles.includes("secretary") || roles.includes("super_admin")) work.push({ href: "/staff/expenses", label: "Record expense", icon: "record" });
   if (roles.includes("delivery_agent")) work.push({ href: "/staff/jobs", label: "Pickup jobs", icon: "jobs" });
+  if (roles.some((r) => ["delivery_agent", "admin", "super_admin"].includes(r))) work.push({ href: "/staff/clients", label: "My clients", icon: "customers" });
   if (roles.some((r) => ["secretary", "admin", "super_admin"].includes(r))) {
     work.push({ href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" });
     work.push({ href: "/staff/instant", label: "Instant orders", icon: "dispatch" });

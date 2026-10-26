@@ -1357,6 +1357,9 @@ export type Database = {
           address_id: string | null
           after_hours: boolean
           closed_at: string | null
+          count_accepted_at: string | null
+          count_auto: boolean
+          count_disputed_at: string | null
           created_at: string
           created_by: string | null
           customer_id: string
@@ -1397,6 +1400,9 @@ export type Database = {
           address_id?: string | null
           after_hours?: boolean
           closed_at?: string | null
+          count_accepted_at?: string | null
+          count_auto?: boolean
+          count_disputed_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id: string
@@ -1437,6 +1443,9 @@ export type Database = {
           address_id?: string | null
           after_hours?: boolean
           closed_at?: string | null
+          count_accepted_at?: string | null
+          count_auto?: boolean
+          count_disputed_at?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string
@@ -1873,6 +1882,8 @@ export type Database = {
           id: string
           is_walk_in: boolean
           marketing_opt_in: boolean
+          onboarded_at: string | null
+          onboarded_by: string | null
           phone: string | null
           status: string
           status_reason: string | null
@@ -1887,6 +1898,8 @@ export type Database = {
           id: string
           is_walk_in?: boolean
           marketing_opt_in?: boolean
+          onboarded_at?: string | null
+          onboarded_by?: string | null
           phone?: string | null
           status?: string
           status_reason?: string | null
@@ -1901,13 +1914,23 @@ export type Database = {
           id?: string
           is_walk_in?: boolean
           marketing_opt_in?: boolean
+          onboarded_at?: string | null
+          onboarded_by?: string | null
           phone?: string | null
           status?: string
           status_reason?: string | null
           unsub_token?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_onboarded_by_fkey"
+            columns: ["onboarded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promo_codes: {
         Row: {
@@ -2759,6 +2782,7 @@ export type Database = {
       }
     }
     Functions: {
+      accept_count: { Args: { _order: string }; Returns: undefined }
       accrue_demurrage: { Args: never; Returns: Json }
       acknowledge_password_changed: { Args: never; Returns: undefined }
       add_capital_entry: {
@@ -2781,6 +2805,7 @@ export type Database = {
         Returns: undefined
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
+      agent_gate: { Args: never; Returns: boolean }
       agent_performance: { Args: { _from: string; _to: string }; Returns: Json }
       agent_ping: {
         Args: { _accuracy: number; _lat: number; _lng: number; _order: string }
@@ -2941,6 +2966,10 @@ export type Database = {
       }
       desk_submit_count: { Args: { _order: string }; Returns: undefined }
       desk_walkin_recent: { Args: never; Returns: Json }
+      dispute_count: {
+        Args: { _note: string; _order: string }
+        Returns: undefined
+      }
       dispute_evidence: { Args: { _id: string }; Returns: Json }
       expense_feed: {
         Args: { _before?: string; _limit?: number }
@@ -3025,6 +3054,7 @@ export type Database = {
         Args: { _id: string; _note: string }
         Returns: undefined
       }
+      my_clients: { Args: never; Returns: Json }
       my_pay_overview: { Args: never; Returns: Json }
       my_staff_state: { Args: never; Returns: Json }
       open_dispute: {
@@ -3158,6 +3188,10 @@ export type Database = {
       send_campaign: { Args: { _id: string; _test?: boolean }; Returns: Json }
       send_daily_digest: { Args: never; Returns: number }
       send_test_email: { Args: never; Returns: undefined }
+      set_client_owner: {
+        Args: { _client: string; _owner: string }
+        Returns: undefined
+      }
       set_instant: { Args: { _on: boolean; _order: string }; Returns: Json }
       set_marketing_opt_in: { Args: { _on: boolean }; Returns: undefined }
       set_promo_active: {

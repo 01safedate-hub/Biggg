@@ -63,7 +63,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <h2 className="text-lg font-semibold">3. Waiting for the customer to pay</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
           <p className="text-lg font-bold">Bill: {naira(total)}</p>
-          <p className="text-sm text-ink-soft">The bill is on their phone. This page updates when they have paid.</p>
+          <p className="text-sm text-ink-soft">{o.source === "online" && !o.count_accepted_at ? "The customer must check and accept this count on their phone first, then pay." : o.count_auto ? "This count is accepted automatically because you brought this client in. They can still pay now." : "The bill is on their phone."} This page updates when they have paid.</p>
           <ReopenButton orderId={id} />
         </section>
       )}

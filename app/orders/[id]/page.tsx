@@ -17,6 +17,7 @@ import { TimeLeft } from "@/components/ops/TimeLeft";
 import { PromoForm, RemovePromo } from "@/components/orders/PromoForm";
 import { RescheduleControl } from "@/components/orders/RescheduleControl";
 import { TrackMap } from "@/components/orders/TrackMap";
+import { AcceptCount, ReportCount } from "@/components/orders/CountAccept";
 import { StainList } from "@/components/orders/StainList";
 import { OrderTimeline } from "@/components/orders/Timeline";
 
@@ -116,13 +117,19 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           </table>
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
-              <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>
-              {quote && <InstantCard orderId={id} q={quote} />}
-              {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
-              <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
-              <VerifyPayment orderId={id} />
+              {o.source === "online" && !o.count_accepted_at ? <AcceptCount orderId={id} /> : (
+                <>
+                  {o.count_auto ? <p className="text-sm text-ink-soft">Your agent counted these for you.</p> : <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>}
+                  {quote && <InstantCard orderId={id} q={quote} />}
+                  {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
+                  <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
+                  <VerifyPayment orderId={id} />
+                </>
+              )}
             </div>
           )}
+          {o.count_auto && o.count_accepted_at && !o.count_disputed_at && ["counted", "count_confirmed", "received"].includes(o.status) && Date.now() - new Date(o.count_accepted_at).getTime() < 86_400_000 && <div className="mt-4"><ReportCount orderId={id} /></div>}
+          {o.count_disputed_at && <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">You told us the count looks wrong. Our team has been told and will contact you.</p>}
           {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Paid. Your agent is taking your clothes to our hub, where they are checked again.</p>}
           {o.status === "count_confirmed" && topUp > 0 && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">

@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
 import { STATUS_LABEL } from "@/lib/orders";
 import { StageBadge } from "@/components/customers/StageBadge";
+import { OwnerSelect } from "@/components/admin/OwnerSelect";
 import { CustomerMap } from "@/components/customers/CustomerMap";
 import { CustomerStatus } from "@/components/admin/CustomerRow";
 import { dt, gmaps, type CustomerRow, type MapPoint } from "@/lib/customers";
@@ -24,6 +25,8 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
   const { data, error } = await supabase.rpc("customer_detail", { _id: id });
   if (error || !data) notFound();
   const { customer: c, orders, emails } = data as unknown as Detail;
+  const [{ data: own }, { data: ag }] = await Promise.all([supabase.from("profiles").select("onboarded_by").eq("id", id).maybeSingle(), supabase.rpc("list_agents")]);
+  const agents = ((Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string }[]).map((a) => ({ id: a.id, name: a.name }));
   const wa = c.phone ? c.phone.replace(/\D/g, "").replace(/^0/, "234") : null;
   const point: MapPoint[] = c.lat != null && c.lng != null ? [{ id: c.id, name: c.full_name, lat: c.lat, lng: c.lng, stage: c.stage, orders: c.orders, address: c.address, zone: c.zone_name }] : [];
   const tile = (label: string, value: string, hint?: string) => <div className="card p-4"><p className="text-sm text-ink-mute">{label}</p><p className="mt-1 text-xl font-bold">{value}</p>{hint && <p className="text-xs text-ink-mute">{hint}</p>}</div>;
@@ -42,6 +45,7 @@ export default async function CustomerDetail({ params }: { params: Promise<{ id:
         </div>
         <CustomerStatus id={c.id} status={c.status} />
       </section>
+      <OwnerSelect clientId={id} current={own?.onboarded_by ?? null} agents={agents} />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {tile("Orders", String(c.orders), c.first_order_at ? `First on ${dt(c.first_order_at)}` : "Has not ordered")}
         {tile("Busiest month", `${c.busiest_month} order${c.busiest_month === 1 ? "" : "s"}`)}

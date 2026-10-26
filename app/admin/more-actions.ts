@@ -21,3 +21,11 @@ export async function extendInstant(orderId: string, minutes: number, note: stri
   revalidatePath("/staff/instant");
   return { ok: true, message: "Time extended. The customer has been told." };
 }
+
+export async function setClientOwner(clientId: string, ownerId: string | null): Promise<R> {
+  const { supabase } = await requireRole(["super_admin", "admin"]);
+  const { error } = await supabase.rpc("set_client_owner", { _client: clientId, _owner: (ownerId || null) as string });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/admin/customers/${clientId}`);
+  return { ok: true, message: "Saved." };
+}

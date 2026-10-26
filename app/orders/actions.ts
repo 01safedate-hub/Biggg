@@ -118,3 +118,19 @@ export async function acknowledgeStain(photoId: string, orderId: string): Promis
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: "Thank you." };
 }
+
+export async function acceptCount(orderId: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("accept_count", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "Thank you. You can pay now." };
+}
+
+export async function disputeCount(orderId: string, note: string): Promise<R> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { error } = await supabase.rpc("dispute_count", { _order: orderId, _note: note });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  return { ok: true, message: "We have told our team. They will contact you." };
+}

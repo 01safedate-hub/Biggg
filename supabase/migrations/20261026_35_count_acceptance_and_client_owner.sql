@@ -1,0 +1,7 @@
+-- Applied via apply_migration: count_acceptance_and_client_owner
+-- profiles.onboarded_by / onboarded_at (who brought the client in); orders.count_accepted_at / count_auto / count_disputed_at.
+-- Trigger private.orders_count_rule: when an order becomes 'counted' it is accepted at once for desk orders and for clients whose
+--   onboarder is the counting agent (client notified, 24h to dispute); otherwise the client must accept.
+-- Trigger private.payments_need_count_accepted: an items payment is refused while the count is not accepted.
+-- RPCs: accept_count, dispute_count, set_client_owner (admin, audited), my_clients, agent_gate.
+-- Edge function agent-add-client: invites a client by email and records the agent as their owner.

@@ -270,3 +270,17 @@ export async function flagStain(orderId: string, itemId: string | null, itemName
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: "Stain recorded. The customer has been told." };
 }
+
+export async function addClient(v: { name: string; email: string; phone: string }): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent", "admin", "super_admin"]);
+  const { data, error } = await supabase.functions.invoke("agent-add-client", { body: { full_name: v.name.trim(), email: v.email.trim(), phone: v.phone.trim() } });
+  if (error) {
+    let code = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") { try { code = (await ctx.json())?.error ?? code; } catch { /* keep */ } }
+    return { ok: false, message: friendlyError(String(code)) };
+  }
+  if (!(data as { ok?: boolean } | null)?.ok) return { ok: false, message: "Something went wrong. Please try again." };
+  revalidatePath("/staff/clients");
+  return { ok: true, message: "Added. We sent them an email to choose a password." };
+}
