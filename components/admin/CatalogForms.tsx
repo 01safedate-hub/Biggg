@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { addExpenseCategory, addItem, addItemCategory, addMoneyPoint, renameExpenseCategory, saveItem, setMoneyPointActive } from "@/app/admin/catalog-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
@@ -41,8 +42,17 @@ export function AddMoneyPoint() {
 }
 
 export function PointToggle({ id, active }: { id: string; active: boolean }) {
+  const router = useRouter();
   const { busy, msg, run } = useRun();
-  return <span><button className="btn-secondary !px-3 !py-1" disabled={busy} onClick={() => run(() => setMoneyPointActive(id, !active))}>{active ? "Turn off" : "Turn on"}</button>{msg && !msg.ok && <span role="alert" className="ml-2 text-xs text-red-700">{msg.message}</span>}</span>;
+  const [enabled, setEnabled] = useState(active);
+  return <span className="inline-flex flex-wrap items-center gap-2">
+    <button type="button" className="btn-secondary !px-3 !py-1" disabled={busy} onClick={async () => {
+      const next = !enabled;
+      const r = await run(() => setMoneyPointActive(id, next));
+      if (r.ok) { setEnabled(next); router.refresh(); }
+    }}>{busy ? "Saving…" : enabled ? "Turn off" : "Turn on"}</button>
+    {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}
+  </span>;
 }
 
 export function AddCategory({ kind }: { kind: "expense" | "item" }) {
