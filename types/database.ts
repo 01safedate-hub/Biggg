@@ -2700,46 +2700,61 @@ export type Database = {
       }
       zones: {
         Row: {
+          auto_live: boolean
           centre_lat: number | null
           centre_lng: number | null
+          coords_approx: boolean
           created_at: string
           id: string
           is_live: boolean
           kind: string
           name: string
+          note: string | null
           parent_id: string | null
+          postal_code: string | null
           radius_m: number | null
           slug: string
           sort_order: number
           updated_at: string
+          villages: string[]
         }
         Insert: {
+          auto_live?: boolean
           centre_lat?: number | null
           centre_lng?: number | null
+          coords_approx?: boolean
           created_at?: string
           id?: string
           is_live?: boolean
           kind: string
           name: string
+          note?: string | null
           parent_id?: string | null
+          postal_code?: string | null
           radius_m?: number | null
           slug: string
           sort_order?: number
           updated_at?: string
+          villages?: string[]
         }
         Update: {
+          auto_live?: boolean
           centre_lat?: number | null
           centre_lng?: number | null
+          coords_approx?: boolean
           created_at?: string
           id?: string
           is_live?: boolean
           kind?: string
           name?: string
+          note?: string | null
           parent_id?: string | null
+          postal_code?: string | null
           radius_m?: number | null
           slug?: string
           sort_order?: number
           updated_at?: string
+          villages?: string[]
         }
         Relationships: [
           {
@@ -3144,6 +3159,7 @@ export type Database = {
       recovery_detail: { Args: never; Returns: Json }
       recovery_progress: { Args: never; Returns: Json }
       redispatch_delivery: { Args: { _order: string }; Returns: undefined }
+      refresh_service_area: { Args: never; Returns: Json }
       refund_instant_fee: {
         Args: { _note: string; _order: string }
         Returns: undefined

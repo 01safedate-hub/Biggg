@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { markRefundPaid, retryEmail, saveZone, savePricing } from "@/app/admin/ops-actions";
+import { markRefundPaid, retryEmail, saveServiceArea, saveZone, savePricing } from "@/app/admin/ops-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
 
@@ -54,7 +54,9 @@ export function PricingForm({ v }: { v: PricingValues }) {
   );
 }
 
-export function ZoneRow({ z, parent }: { z: { id: string; name: string; kind: string; is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null }; parent: string | null }) {
+type ZoneRowData = { id: string; name: string; kind: string; is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null; auto_live: boolean; coords_approx: boolean; postal_code: string | null; note: string | null; villages: string[] };
+
+export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | null; km: number | null }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<R | null>(null);
   return (
@@ -65,12 +67,21 @@ export function ZoneRow({ z, parent }: { z: { id: string; name: string; kind: st
       const lat = num("lat"), lng = num("lng"), rad = num("rad");
       if ([lat, lng, rad].some((x) => x != null && Number.isNaN(x))) return setMsg({ ok: false, message: "Use numbers only." });
       setBusy(true); setMsg(null);
-      const r = await saveZone(z.id, { is_live: f.get("live") === "on", radius_m: rad, centre_lat: lat, centre_lng: lng });
+      const r = await saveZone(z.id, { is_live: f.get("live") === "on", radius_m: rad, centre_lat: lat, centre_lng: lng, auto_live: f.get("auto") === "on" });
       setBusy(false); setMsg(r);
     }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-medium">{z.name} <span className="text-xs font-normal text-ink-mute">{z.kind}{parent ? ` in ${parent}` : ""}</span></p>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="live" defaultChecked={z.is_live} /> We pick up here</label>
+        <div>
+          <p className="font-medium">{z.name} <span className="text-xs font-normal text-ink-mute">{z.kind}{parent ? ` in ${parent}` : ""}{z.postal_code ? ` · ${z.postal_code}` : ""}</span></p>
+          {(z.note || z.villages.length > 0) && <p className="text-xs text-ink-soft">{z.note}{z.note && z.villages.length > 0 ? " · " : ""}{z.villages.length > 0 ? `${z.villages.length} villages` : ""}</p>}
+          {z.centre_lat == null && z.kind === "area" && <p className="text-xs text-amber-700">No map point yet. Add one to switch it on.</p>}
+          {z.coords_approx && <p className="text-xs text-amber-700">Map point is approximate. Check it on the map and save to confirm.</p>}
+          {km != null && <p className="text-xs text-ink-mute">{km.toFixed(1)} km from the hub</p>}
+        </div>
+        <div className="flex flex-col items-end gap-1 text-sm">
+          <label className="flex items-center gap-2"><input type="checkbox" name="live" defaultChecked={z.is_live} /> We pick up here</label>
+          <label className="flex items-center gap-2 text-xs text-ink-soft"><input type="checkbox" name="auto" defaultChecked={z.auto_live} /> Switch on automatically by distance</label>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <input name="lat" aria-label="Centre latitude" placeholder="Latitude" defaultValue={z.centre_lat ?? ""} className="rounded-md border border-line px-3 py-2 text-sm" />
@@ -80,6 +91,33 @@ export function ZoneRow({ z, parent }: { z: { id: string; name: string; kind: st
           {z.centre_lat != null && z.centre_lng != null && <a className="text-xs underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps?q=${z.centre_lat},${z.centre_lng}`}>Check on map</a>}</div>
       </div>
       <Msg m={msg} />
+    </form>
+  );
+}
+
+export function ServiceDepthForm({ name, lat, lng, multiplier, depthKm }: { name: string; lat: number; lng: number; multiplier: number; depthKm: number | null }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<R | null>(null);
+  return (
+    <form className="card space-y-3 p-5" onSubmit={async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.currentTarget);
+      setBusy(true); setMsg(null);
+      const r = await saveServiceArea({ name: String(f.get("n") ?? ""), lat: Number(f.get("la")), lng: Number(f.get("lo")), multiplier: Number(f.get("m")) });
+      setBusy(false); setMsg(r);
+    }}>
+      <div>
+        <h2 className="text-lg font-semibold">Service depth: {depthKm != null ? `${depthKm.toFixed(1)} km around the hub` : "not set"}</h2>
+        <p className="text-sm text-ink-soft">The depth is the distance from the hub (Ifite) to the reference place below, times the multiplier. Every place with a map point inside that distance is switched on automatically, and an address anywhere inside it can be served. Change the reference place or the multiplier to widen or narrow the area.</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-4">
+        <label className="block text-sm">Reference place<input name="n" defaultValue={name} required maxLength={60} className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm" /></label>
+        <label className="block text-sm">Latitude<input name="la" defaultValue={lat} required inputMode="decimal" className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm" /></label>
+        <label className="block text-sm">Longitude<input name="lo" defaultValue={lng} required inputMode="decimal" className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm" /></label>
+        <label className="block text-sm">Multiplier<input name="m" defaultValue={multiplier} required inputMode="decimal" className="mt-1 w-full rounded-md border border-line px-3 py-2 text-sm" /></label>
+      </div>
+      <p className="text-xs text-ink-mute">Check the reference place on Google Maps (right-click the spot and copy the two numbers). The starting point for Amawbia is approximate.</p>
+      <div className="flex items-center gap-3"><button className="btn-primary" disabled={busy}>{busy ? "Saving" : "Save and recalculate"}</button><Msg m={msg} /></div>
     </form>
   );
 }

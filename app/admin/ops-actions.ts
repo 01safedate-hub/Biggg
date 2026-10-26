@@ -15,14 +15,14 @@ export async function savePricing(patch: Record<string, number | string>): Promi
   return { ok: true, message: "Saved. New bookings use these straight away." };
 }
 
-export async function saveZone(id: string, v: { is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null }): Promise<R> {
+export async function saveZone(id: string, v: { is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null; auto_live: boolean }): Promise<R> {
   const { supabase } = await requireRole(["super_admin"]);
   const hasCentre = v.centre_lat != null && v.centre_lng != null;
   const centreOk = !hasCentre || (v.centre_lat! >= -90 && v.centre_lat! <= 90 && v.centre_lng! >= -180 && v.centre_lng! <= 180);
   const radiusOk = v.radius_m == null || (Number.isInteger(v.radius_m) && v.radius_m >= 200 && v.radius_m <= 50000);
   if (!centreOk || !radiusOk || (v.centre_lat == null) !== (v.centre_lng == null)) return { ok: false, message: friendlyError("invalid_zone") };
-  if (v.is_live && (!hasCentre || v.radius_m == null)) return { ok: false, message: "To switch a zone on, give it a centre point and a radius first." };
-  const { error } = await supabase.from("zones").update({ is_live: v.is_live, radius_m: v.radius_m, centre_lat: v.centre_lat, centre_lng: v.centre_lng }).eq("id", id);
+  if (v.is_live && !v.auto_live && (!hasCentre || v.radius_m == null)) return { ok: false, message: "To switch a zone on, give it a centre point and a radius first." };
+  const { error } = await supabase.from("zones").update({ is_live: v.is_live, radius_m: v.radius_m, centre_lat: v.centre_lat, centre_lng: v.centre_lng, auto_live: v.auto_live, coords_approx: false }).eq("id", id);
   if (error) return { ok: false, message: "Could not save the zone. Please try again." };
   revalidatePath("/admin/zones");
   revalidatePath("/", "layout");
@@ -132,4 +132,18 @@ export async function refundInstantFee(orderId: string, note: string): Promise<R
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/speed");
   return { ok: true, message: "Refund queued. Pay it from Online payments, then mark it paid." };
+}
+
+export async function saveServiceArea(v: { name: string; lat: number; lng: number; multiplier: number }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const name = v.name.trim().slice(0, 60);
+  if (!name || !Number.isFinite(v.lat) || !Number.isFinite(v.lng) || Math.abs(v.lat) > 90 || Math.abs(v.lng) > 180) return { ok: false, message: friendlyError("invalid_zone") };
+  if (!Number.isFinite(v.multiplier) || v.multiplier < 0.5 || v.multiplier > 5) return { ok: false, message: "The multiplier must be between 0.5 and 5." };
+  const { data: cur } = await supabase.from("settings").select("value").eq("key", "service_area").maybeSingle();
+  const value = { ...((cur?.value as Record<string, unknown>) ?? {}), reference_name: name, reference_lat: v.lat, reference_lng: v.lng, multiplier: v.multiplier };
+  const { error } = await supabase.from("settings").update({ value }).eq("key", "service_area");
+  if (error) return { ok: false, message: "Could not save. Please try again." };
+  revalidatePath("/admin/zones");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Saved. Places inside the new depth are switched on automatically." };
 }

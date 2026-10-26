@@ -1,0 +1,9 @@
+-- Applied via apply_migration in several steps: zones_location_columns, service_area_setting_and_refresh_function,
+-- service_area_trigger_functions, zones_auto_live_trigger, settings_refresh_service_trigger, load_anambra_locations_from_pdf, retire_seed_zone_duplicates.
+-- zones: postal_code, villages text[], note, coords_approx, auto_live. Source: the Anambra locations PDF (26 Oct 2026):
+--   1 state, 21 LGAs, about 207 towns, quarters and areas (postal codes and villages kept), GRA Onitsha and the Awka areas.
+-- settings.service_area {reference_name 'Amawbia', reference_lat, reference_lng, multiplier, depth_km}: depth_km = distance(hub, reference) x multiplier.
+-- private.refresh_service_area(): keeps the "Ifite hub service area" zone (radius = depth) on, and switches auto_live towns on when their map point is
+--   inside the depth. Runs when the hub or service_area setting changes (trigger) and when a town map point is saved (zones_auto_live trigger).
+-- public.refresh_service_area(): super admin only. Map points are approximate (only the Awka ring, Onitsha and Nnewi have them); the rest are
+--   added in Admin > Coverage zones. Old starter zones were repointed and switched off (marked "Safe to delete"); Aroma was kept under Awka South.
