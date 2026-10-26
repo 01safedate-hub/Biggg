@@ -28,7 +28,6 @@ export function PricingForm({ v }: { v: PricingValues }) {
       setBusy(true); setMsg(null);
       const r = await savePricing({ ...(vals as Record<string, number>), opening_time: String(f.get("open")), closing_time: String(f.get("close")), agent_eta_minutes: Number(f.get("eta")) });
       setBusy(false); setMsg(r);
-      if (r.ok) { setLive(f.get("live") === "on"); setAutoLive(f.get("auto") === "on"); }
     }}>
       <Msg m={msg} />
       <section className="card space-y-4 p-5">
@@ -123,6 +122,7 @@ export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | nu
       setBusy(true); setMsg(null);
       const r = await saveZone(z.id, { is_live: f.get("live") === "on", radius_m: rad, centre_lat: lat, centre_lng: lng, auto_live: f.get("auto") === "on" });
       setBusy(false); setMsg(r);
+      if (r.ok) { setLive(f.get("live") === "on"); setAutoLive(f.get("auto") === "on"); }
     }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
