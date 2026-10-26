@@ -4,6 +4,7 @@ import { useState } from "react";
 import { markRefundPaid, retryEmail, saveServiceArea, saveZone, savePricing } from "@/app/admin/ops-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
+import ZoneMapPicker from "./ZoneMapPicker";
 
 type R = { ok: boolean; message: string };
 const Msg = ({ m }: { m: R | null }) => m ? <p role={m.ok ? "status" : "alert"} className={`rounded-md border p-2 text-sm ${m.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{m.message}</p> : null;
@@ -59,13 +60,28 @@ type ZoneRowData = { id: string; name: string; kind: string; is_live: boolean; r
 export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | null; km: number | null }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<R | null>(null);
+  const [lat, setLat] = useState(z.centre_lat);
+  const [lng, setLng] = useState(z.centre_lng);
+  const [radius, setRadius] = useState(z.radius_m);
+  const [locating, setLocating] = useState(false);
+  const locate = () => {
+    if (!navigator.geolocation) return setMsg({ ok: false, message: "This browser does not support location. Choose a point on the map instead." });
+    setLocating(true); setMsg(null);
+    navigator.geolocation.getCurrentPosition((pos) => {
+      setLat(pos.coords.latitude); setLng(pos.coords.longitude);
+      setLocating(false);
+      setMsg({ ok: true, message: "Location found. Save the zone to keep these coordinates." });
+    }, (err) => {
+      setLocating(false);
+      setMsg({ ok: false, message: err.code === err.PERMISSION_DENIED ? "Location permission was denied. Allow location access in your browser or choose a point on the map." : "Could not determine your location. Try again or choose a point on the map." });
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  };
   return (
     <form className="space-y-3 p-4" onSubmit={async (e) => {
       e.preventDefault();
       const f = new FormData(e.currentTarget);
-      const num = (id: string) => { const t = String(f.get(id) ?? "").trim(); return t === "" ? null : Number(t); };
-      const lat = num("lat"), lng = num("lng"), rad = num("rad");
-      if ([lat, lng, rad].some((x) => x != null && Number.isNaN(x))) return setMsg({ ok: false, message: "Use numbers only." });
+      const rad = radius == null ? null : Number(radius);
+      if ([lat, lng, rad].some((x) => x != null && !Number.isFinite(x))) return setMsg({ ok: false, message: "Use valid numeric coordinates and radius." });
       setBusy(true); setMsg(null);
       const r = await saveZone(z.id, { is_live: f.get("live") === "on", radius_m: rad, centre_lat: lat, centre_lng: lng, auto_live: f.get("auto") === "on" });
       setBusy(false); setMsg(r);
@@ -83,12 +99,16 @@ export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | nu
           <label className="flex items-center gap-2 text-xs text-ink-soft"><input type="checkbox" name="auto" defaultChecked={z.auto_live} /> Switch on automatically by distance</label>
         </div>
       </div>
+      <ZoneMapPicker lat={lat} lng={lng} radiusM={radius} onPick={(a, b) => { setLat(a); setLng(b); }} />
       <div className="grid gap-3 sm:grid-cols-4">
-        <input name="lat" aria-label="Centre latitude" placeholder="Latitude" defaultValue={z.centre_lat ?? ""} className="rounded-md border border-line px-3 py-2 text-sm" />
-        <input name="lng" aria-label="Centre longitude" placeholder="Longitude" defaultValue={z.centre_lng ?? ""} className="rounded-md border border-line px-3 py-2 text-sm" />
-        <input name="rad" aria-label="Radius in metres" placeholder="Radius (m)" defaultValue={z.radius_m ?? ""} className="rounded-md border border-line px-3 py-2 text-sm" />
-        <div className="flex items-center gap-2"><button className="btn-secondary !px-3 !py-2" disabled={busy}>Save</button>
-          {z.centre_lat != null && z.centre_lng != null && <a className="text-xs underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps?q=${z.centre_lat},${z.centre_lng}`}>Check on map</a>}</div>
+        <input name="lat" aria-label="Centre latitude" placeholder="Latitude" value={lat ?? ""} onChange={(e) => setLat(e.target.value === "" ? null : Number(e.target.value))} className="rounded-md border border-line px-3 py-2 text-sm" />
+        <input name="lng" aria-label="Centre longitude" placeholder="Longitude" value={lng ?? ""} onChange={(e) => setLng(e.target.value === "" ? null : Number(e.target.value))} className="rounded-md border border-line px-3 py-2 text-sm" />
+        <input name="rad" aria-label="Radius in metres" placeholder="Radius (m)" value={radius ?? ""} onChange={(e) => setRadius(e.target.value === "" ? null : Number(e.target.value))} className="rounded-md border border-line px-3 py-2 text-sm" />
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="btn-secondary !px-3 !py-2" disabled={locating} onClick={locate}>{locating ? "Finding…" : "Use my location"}</button>
+          <button type="submit" className="btn-secondary !px-3 !py-2" disabled={busy}>{busy ? "Saving…" : "Save zone"}</button>
+          {lat != null && lng != null && <a className="text-xs underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps?q=${lat},${lng}`}>Open map</a>}
+        </div>
       </div>
       <Msg m={msg} />
     </form>
