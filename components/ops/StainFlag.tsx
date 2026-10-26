@@ -7,7 +7,7 @@ import { PHOTO_PROBLEM, compressImage, extFor } from "@/lib/compress-image";
 import { createClient } from "@/lib/supabase/client";
 
 /** Lets an agent photograph a hard stain on an item. The photo is shrunk under 20 KB on the phone. */
-export function StainFlag({ orderId, lines }: { orderId: string; lines: { id: string; name: string }[] }) {
+export function StainFlag({ orderId, lines, nameOnly = false, onFlagged }: { orderId: string; lines: { id: string; name: string }[]; nameOnly?: boolean; onFlagged?: (name: string) => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [item, setItem] = useState("");
@@ -27,9 +27,9 @@ export function StainFlag({ orderId, lines }: { orderId: string; lines: { id: st
       const { error } = await createClient().storage.from("order-photos").upload(path, blob, { contentType: blob.type, upsert: false });
       if (error) throw new Error("The photo could not be uploaded. Check your connection and try again.");
       const line = lines.find((l) => l.id === item);
-      const r = await flagStain(orderId, line?.id ?? null, line?.name ?? "", path, note);
+      const r = await flagStain(orderId, nameOnly ? null : line?.id ?? null, line?.name ?? "", path, note);
       setMsg({ ok: r.ok, text: r.message });
-      if (r.ok) { setNote(""); setItem(""); router.refresh(); }
+      if (r.ok) { if (line) onFlagged?.(line.name); setNote(""); setItem(""); router.refresh(); }
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : "Something went wrong. Please try again." });
     } finally { setBusy(false); }

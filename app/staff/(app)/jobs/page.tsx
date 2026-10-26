@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
 import { STATUS_LABEL, mapsLink } from "@/lib/orders";
 
@@ -20,7 +21,7 @@ export default async function JobsPage() {
             <p className="font-semibold">Order #{o.order_no} <span className={`ml-1 rounded-full px-2 py-0.5 text-xs ${o.status === "out_for_delivery" ? "bg-emerald-100 text-emerald-800" : "bg-brand-tint text-brand-dark"}`}>{o.status === "out_for_delivery" ? "Delivery" : "Pickup"}</span></p><p className="text-sm text-ink-soft">{o.pickup_address}</p><p className="mt-1 text-xs font-medium text-brand-dark">{STATUS_LABEL[o.status] ?? o.status}</p>
           </Link>
           <div className="flex gap-3 border-t border-line px-4 py-2 text-sm">
-            {phone.get(o.customer_id) && <a className="font-medium text-brand-dark underline" href={`tel:${phone.get(o.customer_id)}`}>Call customer</a>}
+            {phone.get(o.customer_id) && <PhoneActions phone={phone.get(o.customer_id)} label="Call or WhatsApp customer" />}
             {mapsLink(o.pickup_lat, o.pickup_lng) && <a className="font-medium text-brand-dark underline" target="_blank" rel="noopener noreferrer" href={mapsLink(o.pickup_lat, o.pickup_lng) ?? undefined}>Directions</a>}
           </div></div>
         ))}

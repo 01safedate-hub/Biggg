@@ -16,7 +16,7 @@ const esc = (v: unknown) =>
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function layout(heading: string, body: string[]) {
-  const paras = body.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${p}</p>`).join("");
+  const paras = body.map((p) => (p.startsWith("<table") ? p : `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${p}</p>`)).join("");
   return `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" style="max-width:520px;background:#fff;border:1px solid #e2e8f0;border-radius:8px" cellpadding="0" cellspacing="0">
@@ -83,6 +83,19 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       }
       const lines = [`Hello ${esc(first)}, we looked at your details and need you to change something before we can approve them.`, `<strong>What to fix:</strong> ${esc(p.note)}`, `Sign in, correct your details, and submit them again.`];
       return { subject: "Please update your LaundryPoint details", html: layout("A change is needed", lines), text: `Hello ${first}, we need a change before approving your details: ${p.note}. Sign in, update and submit again.` };
+    }
+    case "count_summary": {
+      const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+      const items = (Array.isArray(p.items) ? p.items : []) as { name?: unknown; qty?: unknown; instant?: unknown; stain?: unknown }[];
+      const stains = (Array.isArray(p.stains) ? p.stains : []).map((x) => String(x));
+      const td = "padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:15px;color:#334155";
+      const rows = items.map((i) => `<tr><td style="${td}">${esc(i.name)}${i.instant ? ' <span style="color:#c2410c;font-size:12px">(instant)</span>' : ""}${i.stain ? ' <span style="background:#fef3c7;color:#92400e;font-size:12px;padding:1px 6px;border-radius:4px">hard stain</span>' : ""}</td><td align="right" style="${td}">${esc(i.qty)}</td></tr>`).join("");
+      const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr><td style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding-bottom:4px">Item</td><td align="right" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding-bottom:4px">Qty</td></tr>${rows}<tr><td style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">Total items</td><td align="right" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${esc(p.total)}</td></tr></table>`;
+      const lines = [`Hello ${esc(first)}, we have counted your clothes for order #${esc(p.order_no)}. Here is what we recorded.`, table];
+      if (stains.length) lines.push(`<strong>Hard stains noticed (${stains.length}):</strong><br>${stains.map((x) => `&bull; ${esc(x)}`).join("<br>")}<br>We will do our best to remove them, but some stains cannot come out fully.`);
+      lines.push(`If anything here looks wrong, tell us as soon as you can. You can see your order${stains.length ? " and the photos of the stains" : ""} at <a href="${esc(SITE)}/orders/${esc(p.order_id)}" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`);
+      const text = `Hello ${first}, we counted your clothes for order #${p.order_no}.\n` + items.map((i) => `${i.qty} x ${i.name}${i.stain ? " (hard stain)" : ""}`).join("\n") + `\nTotal items: ${p.total}` + (stains.length ? `\nHard stains: ${stains.join("; ")}` : "");
+      return { subject: `Your clothes were counted: ${p.total} items, order #${p.order_no}`, html: layout("Your clothes were counted", lines), text };
     }
     case "test": {
       const lines = ["This is a test message from your LaundryPoint admin screen.", "If you can read this, email delivery through Resend is working."];

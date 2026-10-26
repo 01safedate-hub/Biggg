@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/roles";
 import { friendlyError } from "@/lib/rpc-errors";
+import { parseLocation } from "@/lib/maps";
 
 type R = { ok: boolean; message: string };
 const DESK = ["secretary", "admin", "super_admin"] as const;
@@ -185,12 +186,12 @@ export async function findDeskCustomers(q: string): Promise<{ ok: boolean; messa
   return { ok: true, message: "", rows: (data ?? []) as never };
 }
 
-export async function addWalkinCustomer(name: string, phone: string): Promise<R & { id?: string }> {
+export async function addWalkinCustomer(name: string, phone: string, email = ""): Promise<R & { id?: string }> {
   const { supabase } = await requireRole([...DESK]);
   const n = name.trim(); const digits = phone.replace(/\D/g, "");
   if (n.length < 2 || n.length > 80) return { ok: false, message: "Enter the customer's name." };
   if (digits.length < 10 || digits.length > 15) return { ok: false, message: "Enter a phone number with 10 to 15 digits." };
-  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { full_name: n, phone: phone.trim() } });
+  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { full_name: n, phone: phone.trim(), ...(email.trim() ? { email: email.trim() } : {}) } });
   if (error) {
     let code = error.message;
     const ctx = (error as { context?: Response }).context;
@@ -209,16 +210,95 @@ export async function startWalkin(customerId: string, notes: string): Promise<R 
   return { ok: true, message: "", id: String(data) };
 }
 
-export async function deskSendCount(orderId: string, lines: { item: string; qty: number }[]): Promise<R> {
+export async function deskSendCount(orderId: string, lines: { item: string; qty: number }[], instant: { item: string; qty: number }[] = []): Promise<R & { orderId?: string }> {
   const { supabase } = await requireRole([...DESK]);
   for (const l of lines) {
     const { error } = await supabase.rpc("desk_set_item", { _order: orderId, _item: l.item, _qty: l.qty });
     if (error) return { ok: false, message: friendlyError(error.message) };
   }
+  const inst = instant.filter((l) => l.qty > 0);
+  let child: string | null = null;
+  if (inst.length) {
+    const { data, error } = await supabase.rpc("desk_split_instant", { _order: orderId, _lines: inst });
+    if (error) return { ok: false, message: friendlyError(error.message) };
+    if (data && String(data) !== orderId) child = String(data);
+  }
   const { error } = await supabase.rpc("desk_submit_count", { _order: orderId });
   if (error) return { ok: false, message: friendlyError(error.message) };
+  if (child) {
+    const r2 = await supabase.rpc("desk_submit_count", { _order: child });
+    if (r2.error) return { ok: false, message: friendlyError(r2.error.message) };
+    revalidatePath(`/staff/walkin/${child}`);
+  }
   revalidatePath(`/staff/walkin/${orderId}`);
-  return { ok: true, message: "Bill ready." };
+  revalidatePath("/staff/walkin");
+  return { ok: true, message: "Bill ready.", orderId };
+}
+
+export async function deskAddItem(category: string, name: string, priceNaira: number, description: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const kobo = Math.round(Number(priceNaira) * 100);
+  if (!Number.isFinite(kobo) || kobo < 100 || kobo > 100_000_000) return { ok: false, message: friendlyError("invalid_amount") };
+  const { error } = await supabase.rpc("desk_add_item", { _category: category, _name: name.trim().slice(0, 80), _price_kobo: kobo, _description: description.trim().slice(0, 300) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/walkin", "layout");
+  return { ok: true, message: "Item added." };
+}
+
+export async function deskRequestDelivery(orderId: string, address: string, where: string): Promise<R & { fare?: number }> {
+  const { supabase } = await requireRole([...DESK]);
+  const a = address.trim().slice(0, 300);
+  if (a.length < 5) return { ok: false, message: friendlyError("address_required") };
+  const pin = await parseLocation(where);
+  if (!pin) return { ok: false, message: "We could not read that location. Paste the Google Maps link or the two numbers the customer sent on WhatsApp, for example 6.2510, 7.1003." };
+  const { data, error } = await supabase.rpc("desk_request_delivery", { _order: orderId, _lat: pin.lat, _lng: pin.lng, _address: a });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "", fare: Number((data as { fare_kobo?: number; delivery_fare_kobo?: number } | null)?.delivery_fare_kobo ?? (data as { fare_kobo?: number } | null)?.fare_kobo ?? 0) };
+}
+
+export async function deskCancelDelivery(orderId: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { error } = await supabase.rpc("desk_cancel_delivery", { _order: orderId });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Delivery cancelled." };
+}
+
+export async function deskPayDelivery(orderId: string, mode: "cash" | "transfer" | "pos", moneyPoint: string, note: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  if (!["cash", "transfer", "pos"].includes(mode)) return { ok: false, message: "Choose how the customer paid." };
+  const { error } = await supabase.rpc("desk_pay_delivery", { _order: orderId, _mode: mode, _money_point: moneyPoint, _note: note.trim().slice(0, 200) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Delivery fee recorded. You can now assign a rider." };
+}
+
+export async function deskPayLink(orderId: string, provider: "paystack" | "flutterwave"): Promise<R & { url?: string }> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.functions.invoke("desk-pay-link", { body: { order_id: orderId, provider } });
+  if (error) {
+    let code = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") { try { code = (await ctx.json())?.error ?? code; } catch { /* keep */ } }
+    return { ok: false, message: friendlyError(String(code)) };
+  }
+  const url = (data as { url?: string } | null)?.url;
+  return url ? { ok: true, message: "", url } : { ok: false, message: "Something went wrong. Please try again." };
+}
+
+export async function deskUpgradeCustomer(customerId: string, email: string, orderId: string): Promise<R> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { upgrade_id: customerId, email: email.trim() } });
+  if (error) {
+    let code = error.message;
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === "function") { try { code = (await ctx.json())?.error ?? code; } catch { /* keep */ } }
+    return { ok: false, message: friendlyError(String(code)) };
+  }
+  if (!(data as { ok?: boolean } | null)?.ok) return { ok: false, message: "Something went wrong. Please try again." };
+  revalidatePath(`/staff/walkin/${orderId}`);
+  return { ok: true, message: "Done. We emailed them a link to choose a password." };
 }
 
 export async function deskReopenCount(orderId: string): Promise<R> {
@@ -263,10 +343,11 @@ export async function deskSetInstant(orderId: string, on: boolean): Promise<R> {
 }
 
 export async function flagStain(orderId: string, itemId: string | null, itemName: string, path: string, note: string): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent", "admin", "super_admin"]);
+  const { supabase } = await requireRole(["delivery_agent", "secretary", "admin", "super_admin"]);
   const { error } = await supabase.rpc("flag_stain", { _order: orderId, _item: (itemId || null) as string, _item_name: itemName, _path: path, _note: note });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath(`/staff/jobs/${orderId}`);
+  revalidatePath(`/staff/walkin/${orderId}`);
   revalidatePath(`/orders/${orderId}`);
   return { ok: true, message: "Stain recorded. The customer has been told." };
 }

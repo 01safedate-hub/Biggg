@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addWalkinCustomer, deskCancelWalkin, deskHandover, deskReopenCount, deskSetInstant, deskTakePayment, findDeskCustomers, startWalkin } from "@/app/staff/(app)/ops-actions";
+import { addWalkinCustomer, deskCancelDelivery, deskCancelWalkin, deskHandover, deskPayDelivery, deskPayLink, deskReopenCount, deskRequestDelivery, deskSetInstant, deskTakePayment, deskUpgradeCustomer, findDeskCustomers, startWalkin } from "@/app/staff/(app)/ops-actions";
 import { inputCls, labelCls } from "@/components/admin/ui";
 import { naira } from "@/lib/format";
 
@@ -15,6 +15,7 @@ export function WalkinStart() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export function WalkinStart() {
   }
   async function addAndBegin(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr(null);
-    const c = await addWalkinCustomer(name, phone);
+    const c = await addWalkinCustomer(name, phone, email);
     if (!c.ok || !c.id) { setBusy(false); return setErr(c.message); }
     await begin(c.id);
   }
@@ -61,10 +62,11 @@ export function WalkinStart() {
       {rows && !adding && <button type="button" className="text-sm font-medium text-brand-dark underline" onClick={() => setAdding(true)}>Not them? Add a new customer</button>}
       {adding && (
         <form onSubmit={addAndBegin} className="space-y-3 rounded-md border border-line bg-canvas p-4">
-          <p className="text-sm text-ink-soft">No match. Add them now. They get no emails unless they later sign up themselves with this phone number.</p>
+          <p className="text-sm text-ink-soft">No match. Add them now. Tell the customer their email is how they track their orders: we send them a link to choose a password.</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div><label htmlFor="an" className={labelCls}>Full name</label><input id="an" value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} className={inputCls} /></div>
             <div><label htmlFor="ap" className={labelCls}>Phone number</label><input id="ap" value={phone} onChange={(e) => setPhone(e.target.value)} required inputMode="tel" className={inputCls} /></div>
+            <div className="sm:col-span-2"><label htmlFor="ae" className={labelCls}>Email (so they can track their orders)</label><input id="ae" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={120} className={inputCls} placeholder="name@example.com" autoComplete="off" /></div>
           </div>
           <button className="btn-primary" disabled={busy}>{busy ? "Starting" : "Add customer and start order"}</button>
         </form>
@@ -146,3 +148,82 @@ export function WalkinInstant({ orderId, on, perItemKobo, items, feeKobo, target
     </div>
   );
 }
+
+export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, hasAccount, points }: {
+  orderId: string; customerId: string; status: "ready" | "awaiting_delivery_fare"; address: string | null; fareKobo: number; hasAccount: boolean; points: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [addr, setAddr] = useState(address ?? "");
+  const [where, setWhere] = useState("");
+  const [email, setEmail] = useState("");
+  const [mode, setMode] = useState<"cash" | "transfer" | "pos">("cash");
+  const [point, setPoint] = useState(points[0]?.id ?? "");
+  const [note, setNote] = useState("");
+  const [link, setLink] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fail = (text: string) => setMsg({ ok: false, text });
+  async function run(key: string, fn: () => Promise<{ ok: boolean; message: string }>, after?: () => void) {
+    setBusy(key); setMsg(null);
+    const r = await fn();
+    setBusy(null);
+    if (!r.ok) return fail(r.message);
+    if (after) after(); else router.refresh();
+  }
+
+  if (!hasAccount) {
+    return (
+      <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-amber-950">Delivery needs the customer&apos;s email</p>
+        <p className="text-sm text-amber-950">A delivery is confirmed with a code the customer types on their own phone, so they need an account. Add their email now. We send them a link to choose a password.</p>
+        <div className="flex flex-wrap gap-2"><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Customer email" placeholder="name@example.com" className={`${inputCls} max-w-xs`} /><button type="button" className="btn-primary" disabled={!!busy || email.length < 5} onClick={() => run("up", () => deskUpgradeCustomer(customerId, email, orderId))}>{busy === "up" ? "Saving" : "Save email"}</button></div>
+        {msg && <p role="alert" className="text-sm text-red-700">{msg.text}</p>}
+      </div>
+    );
+  }
+
+  if (status === "ready") {
+    return (
+      <form className="space-y-3 rounded-lg border border-line p-4" onSubmit={(e) => { e.preventDefault(); void run("req", async () => { const r = await deskRequestDelivery(orderId, addr, where); return r; }); }}>
+        <p className="text-sm font-semibold">Customer wants delivery instead of collecting</p>
+        <div><label htmlFor="da" className={labelCls}>Delivery address</label><input id="da" value={addr} onChange={(e) => setAddr(e.target.value)} required minLength={5} maxLength={300} className={inputCls} /></div>
+        <div><label htmlFor="dl" className={labelCls}>Location the customer sent on WhatsApp</label><input id="dl" value={where} onChange={(e) => setWhere(e.target.value)} required className={inputCls} placeholder="Paste the Google Maps link, or 6.2510, 7.1003" /></div>
+        <button className="btn-primary" disabled={!!busy}>{busy === "req" ? "Working out the fee" : "Work out the delivery fee"}</button>
+        {msg && <p role="alert" className="text-sm text-red-700">{msg.text}</p>}
+      </form>
+    );
+  }
+
+  const due = naira(fareKobo);
+  return (
+    <div className="space-y-4 rounded-lg border border-brand bg-brand-tint p-4">
+      <div><p className="text-sm font-semibold">Delivery fee: {due}</p><p className="text-sm text-ink-soft">To: {address}. A rider can be assigned only after this is paid.</p></div>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Customer pays online</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run("ps", async () => { const r = await deskPayLink(orderId, "paystack"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "ps" ? "Making link" : "Get Paystack link"}</button>
+          <button type="button" className="btn-secondary" disabled={!!busy} onClick={() => run("fw", async () => { const r = await deskPayLink(orderId, "flutterwave"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "fw" ? "Making link" : "Flutterwave link"}</button>
+        </div>
+        <p className="text-xs text-ink-soft">The customer can also pay from their own order page. This screen updates by itself when the payment arrives.</p>
+        {link && (
+          <div className="space-y-2 rounded-md border border-line bg-white p-3 text-sm">
+            <input readOnly value={link} aria-label="Payment link" className={inputCls} onFocus={(e) => e.currentTarget.select()} />
+            <div className="flex flex-wrap gap-3"><button type="button" className="btn-secondary" onClick={() => void navigator.clipboard?.writeText(link)}>Copy link</button><a className="btn-secondary" target="_blank" rel="noopener noreferrer" href={`https://wa.me/?text=${encodeURIComponent(`Please pay ${due} for delivery of your LaundryPoint clothes: ${link}`)}`}>Send by WhatsApp</a></div>
+          </div>
+        )}
+      </div>
+      <form className="space-y-3 border-t border-line pt-3" onSubmit={(e) => { e.preventDefault(); if (!window.confirm(`Confirm you received ${due} (${mode}) for delivery?`)) return; void run("pay", () => deskPayDelivery(orderId, mode, point, note)); }}>
+        <p className="text-sm font-medium">Or customer pays at the desk</p>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="How they paid">
+          {(["cash", "transfer", "pos"] as const).map((m) => <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`rounded-md border px-4 py-2 text-sm ${mode === m ? "border-brand bg-white font-semibold text-brand-dark" : "border-line bg-white"}`}>{m === "cash" ? "Cash" : m === "transfer" ? "Bank transfer" : "POS card"}</button>)}
+        </div>
+        <div><label htmlFor="dpm" className={labelCls}>Money goes into</label><select id="dpm" value={point} onChange={(e) => setPoint(e.target.value)} className={inputCls}>{points.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+        {mode !== "cash" && <div><label htmlFor="dpn" className={labelCls}>{mode === "transfer" ? "Sender name or transfer reference" : "POS receipt number"}</label><input id="dpn" value={note} onChange={(e) => setNote(e.target.value)} required minLength={3} maxLength={200} className={inputCls} /></div>}
+        <button className="btn-primary" disabled={!!busy || !point}>{busy === "pay" ? "Recording" : `Record ${due} received`}</button>
+      </form>
+      <button type="button" className="text-sm font-medium text-red-700 underline" disabled={!!busy} onClick={() => run("can", () => deskCancelDelivery(orderId))}>Customer changed their mind: cancel delivery</button>
+      {msg && <p role="alert" className="text-sm text-red-700">{msg.text}</p>}
+    </div>
+  );
+}
+

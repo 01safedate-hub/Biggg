@@ -816,6 +816,7 @@ export type Database = {
           active: boolean
           category_id: string
           created_at: string
+          description: string | null
           id: string
           name: string
           price_kobo: number
@@ -827,6 +828,7 @@ export type Database = {
           active?: boolean
           category_id: string
           created_at?: string
+          description?: string | null
           id?: string
           name: string
           price_kobo: number
@@ -838,6 +840,7 @@ export type Database = {
           active?: boolean
           category_id?: string
           created_at?: string
+          description?: string | null
           id?: string
           name?: string
           price_kobo?: number
@@ -1381,6 +1384,7 @@ export type Database = {
           items_total_kobo: number
           notes: string | null
           order_no: number
+          parent_order_id: string | null
           pickup_address: string | null
           pickup_agent_id: string | null
           pickup_distance_km: number | null
@@ -1424,6 +1428,7 @@ export type Database = {
           items_total_kobo?: number
           notes?: string | null
           order_no?: never
+          parent_order_id?: string | null
           pickup_address?: string | null
           pickup_agent_id?: string | null
           pickup_distance_km?: number | null
@@ -1467,6 +1472,7 @@ export type Database = {
           items_total_kobo?: number
           notes?: string | null
           order_no?: never
+          parent_order_id?: string | null
           pickup_address?: string | null
           pickup_agent_id?: string | null
           pickup_distance_km?: number | null
@@ -1510,6 +1516,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_parent_order_id_fkey"
+            columns: ["parent_order_id"]
+            isOneToOne: false
+            referencedRelation: "storage_queue"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "orders_pickup_agent_id_fkey"
@@ -2925,6 +2945,16 @@ export type Database = {
         Returns: undefined
       }
       demurrage_status: { Args: { _order: string }; Returns: Json }
+      desk_add_item: {
+        Args: {
+          _category: string
+          _description: string
+          _name: string
+          _price_kobo: number
+        }
+        Returns: string
+      }
+      desk_cancel_delivery: { Args: { _order: string }; Returns: undefined }
       desk_cancel_walkin: {
         Args: { _note: string; _order: string }
         Returns: undefined
@@ -2933,10 +2963,23 @@ export type Database = {
         Args: { _customer: string; _notes: string }
         Returns: string
       }
+      desk_delivery_intent: {
+        Args: { _order: string; _provider: string }
+        Returns: Json
+      }
       desk_find_customer: { Args: { _q: string }; Returns: Json }
       desk_gate: { Args: never; Returns: boolean }
       desk_handover: { Args: { _order: string }; Returns: undefined }
       desk_issues: { Args: never; Returns: Json }
+      desk_pay_delivery: {
+        Args: {
+          _mode: string
+          _money_point: string
+          _note: string
+          _order: string
+        }
+        Returns: Json
+      }
       desk_record_payment: {
         Args: {
           _mode: string
@@ -2947,6 +2990,10 @@ export type Database = {
         Returns: Json
       }
       desk_reopen_count: { Args: { _order: string }; Returns: undefined }
+      desk_request_delivery: {
+        Args: { _address: string; _lat: number; _lng: number; _order: string }
+        Returns: Json
+      }
       desk_resolve_issue: {
         Args: {
           _action: string
@@ -2963,6 +3010,10 @@ export type Database = {
       desk_set_item: {
         Args: { _item: string; _order: string; _qty: number }
         Returns: undefined
+      }
+      desk_split_instant: {
+        Args: { _lines: Json; _order: string }
+        Returns: string
       }
       desk_submit_count: { Args: { _order: string }; Returns: undefined }
       desk_walkin_recent: { Args: never; Returns: Json }

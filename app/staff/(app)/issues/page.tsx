@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
 import { DeskIssueActions } from "@/components/ops/DeskIssues";
@@ -25,7 +26,7 @@ export default async function DeskIssues() {
           <article key={i.id} className="card space-y-2 p-4">
             <p className="font-medium"><Link className="text-brand-dark underline" href={`/staff/orders/${i.order_id}`}>#{i.order_no}</Link> · {i.customer} · {KIND[i.kind] ?? i.kind} <span className="text-xs text-ink-mute">{dt(i.at)}</span></p>
             <p className="text-sm">{i.description}</p>
-            {i.phone && <p className="text-sm"><a className="text-brand-dark underline" href={`tel:${i.phone}`}>{i.phone}</a></p>}
+            {i.phone && <p className="text-sm"><PhoneActions phone={i.phone} /></p>}
             {i.escalated_at && <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Sent to the super admin {dt(i.escalated_at)}{i.recommended_kobo > 0 ? `, suggested refund ${naira(i.recommended_kobo)}` : ""}. {i.escalation_note}</p>}
             {!i.escalated_at && <DeskIssueActions id={i.id} canRefund={Boolean(d?.can_refund)} limitNaira={Math.floor((d?.limit_kobo ?? 0) / 100)} paidNaira={Math.floor(i.items_paid_kobo / 100)} suggested={0} />}
           </article>

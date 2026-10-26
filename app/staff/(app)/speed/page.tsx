@@ -113,7 +113,7 @@ export default async function Speed({ searchParams }: { searchParams: Promise<{ 
       </section>
 
       {roles.includes("super_admin") && (
-        <InstantRules initial={{ enabled: cfg.enabled !== false, feeNaira: (cfg.fee_per_item_kobo ?? 50000) / 100, targetHours: cfg.target_hours ?? 4, largeItems: cfg.large_load_items ?? 30, largeHours: cfg.large_load_hours ?? 8, pickupMinutes: pt.minutes ?? 30 }} />
+        <InstantRules initial={{ enabled: cfg.enabled !== false, feeNaira: (cfg.fee_per_item_kobo ?? 30000) / 100, targetHours: cfg.target_hours ?? 4, largeItems: cfg.large_load_items ?? 30, largeHours: cfg.large_load_hours ?? 8, pickupMinutes: pt.minutes ?? 30 }} />
       )}
     </div>
   );

@@ -1,0 +1,9 @@
+-- Applied via apply_migration: desk_instant_split_delivery_billing_items_summary
+-- items.description (shown as "View description"); orders.parent_order_id; instant setting fee_per_item_kobo = 30000 (300 naira per item).
+-- desk_add_item (cashier may add an item with a price; audited); desk_split_instant (moves chosen quantities into a child instant walk-in order).
+-- private.queue_count_summary: one email per root order listing all items, total count and hard-stain items (idempotent);
+--   called from desk_submit_count and agent_submit_count. Skips desk placeholder emails.
+-- Delivery billing for walk-in orders: desk_request_delivery (needs a real account), desk_cancel_delivery, desk_delivery_intent (pay link),
+--   desk_pay_delivery (cash/transfer/POS). A rider can be assigned only once status is out_for_delivery, i.e. after the fee is paid.
+-- desk_walkin_recent returns all open orders plus 3 days of finished ones. Storage: shift managers may upload to order-photos.
+-- Edge functions: desk-pay-link (Paystack/Flutterwave link), desk-walkin v2 (optional email, upgrade placeholder), email-worker v5 (count_summary template).

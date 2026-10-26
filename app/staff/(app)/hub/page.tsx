@@ -2,6 +2,8 @@ import { TimeLeft } from "@/components/ops/TimeLeft";
 import { requireRole } from "@/lib/roles";
 import { HubButton } from "@/components/ops/DeskTools";
 import { STATUS_LABEL } from "@/lib/orders";
+import { PhoneActions } from "@/components/ops/PhoneActions";
+import Link from "next/link";
 
 export const metadata = { title: "Wash queue" };
 export const dynamic = "force-dynamic";
@@ -14,7 +16,7 @@ const ago = (iso: string | null) => {
 
 export default async function HubPage() {
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const { data } = await supabase.from("orders").select("id,order_no,status,customer_id,updated_at,ready_at,items_total_kobo,instant,instant_target_at,instant_promise_at").in("status", ["received", "in_house", "ready"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at");
+  const { data } = await supabase.from("orders").select("id,order_no,source,status,customer_id,updated_at,ready_at,items_total_kobo,instant,instant_target_at,instant_promise_at").in("status", ["received", "in_house", "ready"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at");
   const ids = Array.from(new Set((data ?? []).map((o) => o.customer_id)));
   const { data: ppl } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((ppl ?? []).map((p) => [p.id, p]));
@@ -29,8 +31,8 @@ export default async function HubPage() {
         <div className="card divide-y divide-line">
           {rows.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}</p></div>
-              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>}
+              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
+              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{o.source === "walk_in" && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
             </div>
           ))}
           {rows.length === 0 && <p className="p-5 text-sm text-ink-soft">Nothing here.</p>}

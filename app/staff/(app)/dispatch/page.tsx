@@ -1,4 +1,5 @@
 import { TimeLeft } from "@/components/ops/TimeLeft";
+import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
 import { AssignForm, CancelPaidForm, RedispatchButton } from "@/components/ops/DeskTools";
 import { LogContactForm } from "@/components/ops/DeskFollowUps";
@@ -40,7 +41,7 @@ export default async function DispatchPage() {
         {callbacks.map((c) => (
           <article key={c.order_id} className={`card space-y-2 p-4 ${c.needs_call ? "border-l-4 border-l-red-500" : ""}`}>
             <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{c.order_no} · {c.customer} <span className="ml-1 rounded-full bg-brand-tint px-2 py-0.5 text-xs text-brand-dark">{c.kind === "pickup" ? "Failed pickup" : "Failed delivery"}</span></p>
-              <p className="text-sm text-ink-soft">{c.address} {c.phone && <a className="font-medium text-brand-dark underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
+              <p className="text-sm text-ink-soft">{c.address} <PhoneActions phone={c.phone} /></p></div>
               <p className="text-xs text-ink-soft">{c.attempts} call{c.attempts === 1 ? "" : "s"} so far</p></div>
             {c.last && <p className="text-xs text-ink-soft">Last call: {OUTCOME[c.last.outcome] ?? c.last.outcome}. {c.last.note}</p>}
             {c.held_until && <p className="rounded-md bg-emerald-50 p-2 text-xs text-emerald-900">New time agreed: {new Date(c.held_until).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}. Automatic dispatch waits until then.</p>}
@@ -69,7 +70,7 @@ export default async function DispatchPage() {
           const c = who.get(o.customer_id); const map = mapsLink(o.pickup_lat, o.pickup_lng);
           return (
             <article key={o.id} className="card space-y-3 p-4">
-              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} {c?.phone && <a className="underline" href={`tel:${c.phone}`}>{c.phone}</a>}</p></div>
+              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={c?.phone} /></p></div>
                 <div className="text-right"><p className={`text-xs font-semibold ${o.status === "failed_delivery" ? "text-red-700" : "text-brand-dark"}`}>{o.status === "failed_delivery" ? "Delivery failed" : o.delivery_agent_id ? `With ${name.get(o.delivery_agent_id) ?? "agent"}` : "Needs an agent"}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${o.status !== "failed_delivery" && late(o.updated_at, o.delivery_agent_id ? 90 : 20) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
               {o.status === "failed_delivery" && (() => { const d = dcase.get(o.id); return d ? <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Storage fee: {d.status === "accruing" ? `running, ${naira(d.accrued_kobo)} so far` : d.status === "paid" ? "paid" : d.status === "waived" ? "waived" : `free until ${new Date(d.grace_ends_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}`}. The customer pays it on their order page.</p> : null; })()}
               {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agents} current={o.delivery_agent_id} kind="delivery" />}

@@ -1,4 +1,5 @@
 import { requireRole } from "@/lib/roles";
+import { PhoneActions } from "@/components/ops/PhoneActions";
 import { AddClient } from "@/components/ops/AddClient";
 
 export const metadata = { title: "My clients" };
@@ -18,7 +19,7 @@ export default async function MyClients() {
       <div className="card divide-y divide-line">
         {rows.map((c) => (
           <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm">
-            <div><p className="font-medium">{c.name || "No name"}</p><p className="text-ink-soft">{c.phone ? <a className="text-brand-dark underline" href={`tel:${c.phone}`}>{c.phone}</a> : "No phone"} · {c.email}</p></div>
+            <div><p className="font-medium">{c.name || "No name"}</p><p className="text-ink-soft"><PhoneActions phone={c.phone} /> · {c.email}</p></div>
             <p className="text-ink-soft">Added {day(c.since)} · {c.orders} order{c.orders === 1 ? "" : "s"} · last {day(c.last_order)}</p>
           </div>
         ))}

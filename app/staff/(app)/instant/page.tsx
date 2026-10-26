@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
 import { STATUS_LABEL } from "@/lib/orders";
 import { TimeLeft } from "@/components/ops/TimeLeft";
@@ -31,7 +32,7 @@ export default async function InstantBoard() {
               <p className="text-sm">{STATUS_LABEL[r.status] ?? r.status}: <span className="text-ink-soft">{NEXT[r.status]}{r.delivery_agent ? ` (${r.delivery_agent})` : ""}</span></p>
             </div>
             <div className="flex items-center gap-3 text-sm">
-              {r.phone && <a className="font-medium text-brand-dark underline" href={`tel:${r.phone}`}>{r.phone}</a>}
+              {r.phone && <PhoneActions phone={r.phone} />}
               <Link className="btn-secondary" href={r.status === "count_confirmed" || r.status === "received" ? `/staff/receiving/${r.id}` : r.status === "out_for_delivery" || r.status === "failed_delivery" ? "/staff/dispatch" : "/staff/hub"}>Open</Link>
             </div>
             {canExtend && <div className="w-full"><ExtendInstant orderId={r.id} /></div>}
