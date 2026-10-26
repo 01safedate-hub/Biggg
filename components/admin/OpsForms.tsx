@@ -28,6 +28,7 @@ export function PricingForm({ v }: { v: PricingValues }) {
       setBusy(true); setMsg(null);
       const r = await savePricing({ ...(vals as Record<string, number>), opening_time: String(f.get("open")), closing_time: String(f.get("close")), agent_eta_minutes: Number(f.get("eta")) });
       setBusy(false); setMsg(r);
+      if (r.ok) { setLive(f.get("live") === "on"); setAutoLive(f.get("auto") === "on"); }
     }}>
       <Msg m={msg} />
       <section className="card space-y-4 p-5">
@@ -99,6 +100,8 @@ export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | nu
   const [lng, setLng] = useState(z.centre_lng);
   const [radius, setRadius] = useState(z.radius_m);
   const [locating, setLocating] = useState(false);
+  const [autoLive, setAutoLive] = useState(z.auto_live);
+  const [live, setLive] = useState(z.is_live);
   const locate = () => {
     if (!navigator.geolocation) return setMsg({ ok: false, message: "This browser does not support location. Choose a point on the map instead." });
     setLocating(true); setMsg(null);
@@ -130,10 +133,11 @@ export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | nu
           {km != null && <p className="text-xs text-ink-mute">{km.toFixed(1)} km from the hub</p>}
         </div>
         <div className="flex flex-col items-end gap-1 text-sm">
-          <label className="flex items-center gap-2"><input type="checkbox" name="live" defaultChecked={z.is_live} /> We pick up here</label>
-          <label className="flex items-center gap-2 text-xs text-ink-soft"><input type="checkbox" name="auto" defaultChecked={z.auto_live} /> Switch on automatically by distance</label>
+          <label className="flex items-center gap-2"><input type="checkbox" name="live" checked={live} onChange={(e) => setLive(e.target.checked)} /> We pick up here</label>
+          <label className="flex items-center gap-2 text-xs text-ink-soft"><input type="checkbox" name="auto" checked={autoLive} onChange={(e) => setAutoLive(e.target.checked)} /> Switch on automatically by distance</label>
         </div>
       </div>
+      {autoLive ? <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-900">Automatic mode controls whether this zone is live based on its distance from the hub. If the zone is outside the configured service distance, checking “We pick up here” may not activate it. To deliberately serve a farther area, turn off automatic mode, check “We pick up here”, then press “Save zone”. Only do this when operations can serve the area.</p> : <p className="rounded-md bg-sky-50 p-3 text-xs text-sky-900">Manual mode: this zone will use the “We pick up here” setting you save below. Confirm the team can serve this area before enabling it.</p>}
       <ZoneMapPicker lat={lat} lng={lng} radiusM={radius} onPick={(a, b) => { setLat(a); setLng(b); }} />
       <div className="grid gap-3 sm:grid-cols-4">
         <input name="lat" aria-label="Centre latitude" placeholder="Latitude" value={lat ?? ""} onChange={(e) => setLat(e.target.value === "" ? null : Number(e.target.value))} className="rounded-md border border-line px-3 py-2 text-sm" />
