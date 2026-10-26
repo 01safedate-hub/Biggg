@@ -30,7 +30,7 @@ export function AddMoneyPoint() {
       <Msg m={msg} />
       <div className="grid gap-4 sm:grid-cols-3">
         <div><label htmlFor="mp-name" className={labelCls}>Name</label><input id="mp-name" name="name" required className={inputCls} placeholder="e.g. Shop POS" /></div>
-        <div><label htmlFor="mp-kind" className={labelCls}>Type</label><select id="mp-kind" name="kind" className={inputCls}><option value="cash">Cash drawer</option><option value="pos">POS</option><option value="bank">Bank account</option><option value="online">Online (Paystack)</option></select></div>
+        <div><label htmlFor="mp-kind" className={labelCls}>Type</label><select id="mp-kind" name="kind" className={inputCls}><option value="cash">Cash drawer</option><option value="pos">POS</option><option value="bank">Bank account</option><option value="online">Online payment provider (Paystack or Flutterwave)</option></select></div>
         <div><label htmlFor="mp-open" className={labelCls}>Opening balance (₦)</label><input id="mp-open" name="opening" inputMode="decimal" defaultValue="0" className={inputCls} /></div>
         <div><label htmlFor="mp-bank" className={labelCls}>Bank (optional)</label><input id="mp-bank" name="bank_name" className={inputCls} /></div>
         <div><label htmlFor="mp-an" className={labelCls}>Account name (optional)</label><input id="mp-an" name="account_name" className={inputCls} /></div>
