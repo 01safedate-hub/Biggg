@@ -31,11 +31,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { returning } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase, user } = await requireUser(`/orders/${id}`);
-  const [{ data: st }, { data: paymentProviders }] = await Promise.all([
+  const [{ data: st }, { data: paymentProviders, error: providersError }] = await Promise.all([
     supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]),
-    supabase.rpc("active_payment_providers"),
+    // The function is added by the PR migration before deployment; cast this RPC
+    // because generated Supabase types are refreshed separately from migrations.
+    (supabase as any).rpc("active_payment_providers") as Promise<{ data: string[] | null; error: { message: string } | null }>,
   ]);
-  const enabledProviders = (paymentProviders ?? []).filter((provider: string): provider is "paystack" | "flutterwave" => provider === "paystack" || provider === "flutterwave");
+  const enabledProviders = providersError
+    ? []
+    : (paymentProviders ?? []).filter((provider: string): provider is "paystack" | "flutterwave" => provider === "paystack" || provider === "flutterwave");
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
