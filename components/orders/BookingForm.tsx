@@ -31,7 +31,13 @@ export function BookingForm() {
       setLocBusy(false);
       if (error) return setErr("We could not price this location. Please try again.");
       setQuote(data as unknown as Quote);
-    }, () => { setLocBusy(false); setErr("We could not get your location. Allow location access and try again."); }, { enableHighAccuracy: true, timeout: 15000 });
+    }, (e) => {
+      setLocBusy(false);
+      if (e.code === e.PERMISSION_DENIED) setErr("Location access is blocked. Allow location access for this site in your browser settings, then tap Update my location.");
+      else if (e.code === e.POSITION_UNAVAILABLE) setErr("Your device could not determine its location. Check that Location Services are on and try again.");
+      else if (e.code === e.TIMEOUT) setErr("Finding your location took too long. Move to an area with a clearer signal and try again.");
+      else setErr("We could not get your location. Check your browser's location permission and try again.");
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   }
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -53,7 +59,7 @@ export function BookingForm() {
         <h2 className="text-lg font-semibold">1. Where should we pick up?</h2>
         <button type="button" className="btn-secondary" onClick={locate} disabled={locBusy}>{locBusy ? "Finding you" : pos ? "Update my location" : "Use my current location"}</button>
         {pos && <p className="text-xs text-ink-mute">Location captured. <a className="underline" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps?q=${pos.lat},${pos.lng}`}>Check it on Google Maps</a></p>}
-        {quote && !quote.served && <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">We do not pick up from here yet. <a className="font-semibold underline" href="/#coverage">Join the waitlist</a> and we will tell you.</p>}
+        {quote && !quote.served && <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">We captured your location, but no active pickup zone covers this exact spot yet. Try Update my location if the pin is inaccurate, or <a className="font-semibold underline" href="/#coverage">join the waitlist</a> and we will let you know when service reaches you.</p>}
         {quote?.served && quote.fare_kobo == null && <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Booking in {quote.zone_name} opens very soon. Please check back.</p>}
         {ready && (
           <div className="rounded-md border border-line bg-canvas p-4 text-sm">
