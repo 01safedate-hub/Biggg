@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { markRefundPaid, retryEmail, saveServiceArea, saveZone, savePricing } from "@/app/admin/ops-actions";
+import { markRefundPaid, retryEmail, saveServiceArea, saveZone, savePricing, createZone } from "@/app/admin/ops-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
 import ZoneMapPicker from "./ZoneMapPicker";
@@ -56,6 +56,41 @@ export function PricingForm({ v }: { v: PricingValues }) {
 }
 
 type ZoneRowData = { id: string; name: string; kind: string; is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null; auto_live: boolean; coords_approx: boolean; postal_code: string | null; note: string | null; villages: string[] };
+
+export function ZoneCreateForm() {
+  const [name, setName] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [radius, setRadius] = useState(1500);
+  const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [msg, setMsg] = useState<R | null>(null);
+  const locate = () => {
+    if (!navigator.geolocation) return setMsg({ ok: false, message: "Location is not supported by this browser. Choose a point on the map." });
+    setLocating(true); setMsg(null);
+    navigator.geolocation.getCurrentPosition((p) => {
+      setLat(p.coords.latitude); setLng(p.coords.longitude); setLocating(false);
+      setMsg({ ok: true, message: "Location found. Check the map and save when ready." });
+    }, () => { setLocating(false); setMsg({ ok: false, message: "Location unavailable. Allow location permission or choose a point on the map." }); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 });
+  };
+  return <form className="card space-y-4 p-5" onSubmit={async (e) => {
+    e.preventDefault(); setBusy(true); setMsg(null);
+    const r = await createZone({ name, centre_lat: lat, centre_lng: lng, radius_m: radius });
+    setBusy(false); setMsg(r);
+    if (r.ok) { setName(""); setLat(null); setLng(null); setRadius(1500); }
+  }}>
+    <div><h2 className="text-lg font-semibold">Add a coverage zone</h2><p className="mt-1 text-sm text-ink-soft">Pick a centre on the map or use your current location. New zones are created switched off so you can review them before accepting orders there.</p></div>
+    <label className={labelCls}>Zone name<input required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. New neighbourhood" className={inputCls} /></label>
+    <ZoneMapPicker lat={lat} lng={lng} radiusM={radius} onPick={(a,b) => { setLat(a); setLng(b); }} />
+    <div className="grid gap-3 sm:grid-cols-3">
+      <label className={labelCls}>Latitude<input value={lat ?? ""} onChange={(e) => setLat(e.target.value === "" ? null : Number(e.target.value))} inputMode="decimal" className={inputCls} placeholder="Choose on map" /></label>
+      <label className={labelCls}>Longitude<input value={lng ?? ""} onChange={(e) => setLng(e.target.value === "" ? null : Number(e.target.value))} inputMode="decimal" className={inputCls} placeholder="Choose on map" /></label>
+      <label className={labelCls}>Radius (metres)<input type="number" min={200} max={50000} step={100} required value={radius} onChange={(e) => setRadius(Number(e.target.value))} className={inputCls} /></label>
+    </div>
+    <div className="flex flex-wrap items-center gap-3"><button type="button" className="btn-secondary" disabled={locating} onClick={locate}>{locating ? "Finding location…" : "Use my current location"}</button><button type="submit" className="btn-primary" disabled={busy}>{busy ? "Creating…" : "Create zone (off)"}</button></div>
+    <Msg m={msg} />
+  </form>;
+}
 
 export function ZoneRow({ z, parent, km }: { z: ZoneRowData; parent: string | null; km: number | null }) {
   const [busy, setBusy] = useState(false);
