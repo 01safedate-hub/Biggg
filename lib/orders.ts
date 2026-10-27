@@ -1,10 +1,10 @@
 export const STATUS_LABEL: Record<string, string> = {
   awaiting_fare_payment: "Waiting for your pickup fare",
-  awaiting_dispatch: "Finding your agent",
+  awaiting_dispatch: "Awaiting agent assignment",
   agent_assigned: "Agent on the way",
   agent_arrived: "Agent counting your clothes",
-  counted: "Bill ready: pay on your phone",
-  count_confirmed: "Paid. Agent bringing your clothes to us",
+  counted: "Garment count recorded",
+  count_confirmed: "Confirmed for processing",
   received: "Received and checked at our hub",
   in_house: "Being washed",
   ready: "Ready",
@@ -18,7 +18,7 @@ export const STATUS_LABEL: Record<string, string> = {
 
 /** The steps a customer sees, in order, and which statuses count as having reached each. */
 export const CUSTOMER_STEPS = [
-  { label: "Fare paid", reached: ["awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
+  { label: "Pickup requested", reached: ["awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
   { label: "Agent assigned", reached: ["agent_assigned", "agent_arrived", "counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
   { label: "Agent at your door", reached: ["agent_arrived", "counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
   { label: "Bill sent", reached: ["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed"] },
