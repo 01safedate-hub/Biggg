@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
+import { Logo } from "@/components/brand/Logo";
 
 type Quote = { served: boolean; zone_name?: string; zone_id?: string; reason?: string; total_fare_kobo?: number };
 
@@ -79,5 +79,5 @@ export function LocationOnboarding() {
       {done && <p role="status" className="rounded-md bg-brand-tint p-3 text-sm font-medium">Thanks — your waitlist request has been submitted.</p>}
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     </section>
-  </main>;
+    </div>\n  </main>;
 }
