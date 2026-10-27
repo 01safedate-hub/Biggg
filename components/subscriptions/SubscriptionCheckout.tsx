@@ -14,7 +14,7 @@ function PaystackMark() {
       alt="Paystack"
       width="136"
       height="32"
-      className="h-8 w-[136px] shrink-0 object-contain object-left"
+      className="h-8 w-28 shrink-0 object-contain object-left sm:w-[136px]"
     />
   );
 }
