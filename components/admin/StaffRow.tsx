@@ -48,6 +48,7 @@ export function StaffRow({ s, isMe, onboarding }: { s: StaffRowData; isMe: boole
         <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[s.status]}`}>{STATUS_LABEL[s.status]}</span>
       </div>
       <p className="mt-2 text-sm">{s.roles.map((r) => ROLE_NAME[r] ?? r).join(", ")} · <Link href={`/admin/staff/${s.id}`} className="font-medium text-brand-dark hover:underline">Details and pay</Link> {onboarding === "submitted" ? <span className="ml-1 rounded border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">Submitted: review</span> : <span className="text-xs text-ink-mute">({onboarding})</span>}</p>
+      {s.station_label && <p className="mt-1 text-sm text-ink-soft">Pickup station: <strong className="font-medium text-ink">{s.station_label}</strong></p>}
       {s.status !== "active" && s.status_reason && <p className="mt-1 text-sm text-ink-soft">Reason: {s.status_reason}</p>}
 
       {!isMe && (
