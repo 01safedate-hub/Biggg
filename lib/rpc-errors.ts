@@ -83,7 +83,7 @@ const MESSAGES: Record<string, string> = {
   no_online_money_point: "Online payments are not set up yet.",
   invalid_provider: "Choose how to pay.",
   order_not_found: "That order could not be found.",
-  code_not_issued: "The agent has not shown a code yet.",
+  code_not_issued: "No arrival code has been issued for this order. Ask the agent to open this exact order and tap “I have arrived: show my code”.",
   too_many_attempts: "Too many wrong attempts. Ask the agent to contact the office.",
   already_verified: "This code was already used.",
   account_restricted: "Your account is restricted. Please contact us.",
