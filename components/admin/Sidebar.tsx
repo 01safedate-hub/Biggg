@@ -35,7 +35,7 @@ function Links({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => 
               return (
                 <li key={i.href}>
                   <Link href={i.href} onClick={onNavigate} aria-current={on ? "page" : undefined}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${on ? "bg-brand-tint text-brand-dark" : "text-ink-soft hover:bg-canvas hover:text-ink"}`}>
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${on ? "border-brand/30 bg-brand-tint text-brand-dark shadow-sm ring-1 ring-brand/10" : "border-transparent text-ink-soft hover:border-line hover:bg-canvas hover:text-ink"}`}>
                     <Icon aria-hidden className={`h-4 w-4 shrink-0 ${on ? "text-brand" : "text-ink-mute"}`} />
                     {i.label}
                   </Link>
