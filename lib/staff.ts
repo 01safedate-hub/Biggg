@@ -10,5 +10,5 @@ export const ROLE_NAME: Record<string, string> = Object.fromEntries(STAFF_ROLES.
 
 export type StaffRowData = {
   id: string; full_name: string; email: string | null; phone: string | null; status: "active" | "restricted" | "dismissed";
-  status_reason: string | null; roles: string[]; accepted: boolean; invited_at: string | null; last_sign_in_at: string | null;
+  status_reason: string | null; roles: string[]; accepted: boolean; invited_at: string | null; last_sign_in_at: string | null; station_label?: string | null;
 };
