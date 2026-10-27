@@ -7,11 +7,12 @@ import { NoCashNotice } from "@/components/orders/NoCashNotice";
 export const metadata = { title: "Request a pickup" };
 export const dynamic = "force-dynamic";
 
-export default async function RequestPage() {
+export default async function RequestPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    // Avoid creating duplicate pickups while an existing order is still active.
+  if (user && params.new !== "1") {
+    // Homepage pickup requests return customers with an active order to My Orders.
     const { data: activeOrder } = await supabase
       .from("orders")
       .select("id")
