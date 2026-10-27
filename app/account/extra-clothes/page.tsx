@@ -18,9 +18,9 @@ export default async function ExtraClothesPage() {
     .order("scheduled_for", { ascending: false });
 
   return (
-    <main id="main" className="min-h-screen space-y-6">
+    <main id="main" className="min-h-screen">
       <CustomerSidebar />
-      <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-6">
+      <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-4 sm:pt-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Extra-clothes bills</h1>
         <p className="text-sm text-ink-soft">This page lists extra pieces recorded against your monthly plan. Pay online only; never pay a pickup agent in cash.</p>
