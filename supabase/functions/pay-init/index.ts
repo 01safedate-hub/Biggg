@@ -7,7 +7,13 @@ const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
 const PAYSTACK = Deno.env.get("PAYSTACK_SECRET_KEY");
 const FLW = Deno.env.get("FLUTTERWAVE_SECRET_KEY");
 
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
