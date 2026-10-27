@@ -68,16 +68,29 @@ export function LocationOnboarding() {
     setDone(true);
   }
 
-  return <main id="main" className="container-page max-w-2xl space-y-6 py-10">
-    <Link href="/account" className="text-sm font-medium text-ink-soft">← My account</Link>
-    <div className="space-y-2"><p className="eyebrow">Welcome to LaundryPoint</p><h1 className="text-3xl font-bold tracking-tight">Check if we serve your area</h1><p className="text-sm leading-6 text-ink-soft">Confirm your collection area before choosing a monthly plan. We check your location against our active service zones.</p></div>
-    <section className="card space-y-4 p-5">
-      <button type="button" className="btn-primary" disabled={busy} onClick={locate}>{busy ? "Checking…" : "Use my current location"}</button>
-      {quote && <div className="rounded-lg border border-line bg-canvas p-4"><h2 className="font-semibold">{quote.served ? "Good news — we serve your area" : "We do not serve this area yet"}</h2><p className="mt-1 text-sm text-ink-soft">{quote.served ? "Add your pickup address to continue to monthly plans." : "Join the waitlist and we will let you know when LaundryPoint becomes available near you."}</p></div>}
-      {quote?.served && <div className="space-y-3"><label className="block text-sm font-medium" htmlFor="address">Pickup address / landmark</label><textarea id="address" value={address} onChange={e=>setAddress(e.target.value)} rows={3} placeholder="House number, street, estate or nearby landmark" className="w-full rounded-md border border-line bg-white p-3 text-sm"/><button type="button" disabled={busy||!address.trim()} className="btn-primary w-full" onClick={continueToPlans}>Continue to monthly plans</button></div>}
-      {quote && !quote.served && !done && <div className="space-y-3"><label className="block text-sm font-medium" htmlFor="waitlist-email">Email address for the waitlist</label><input id="waitlist-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-md border border-line p-3 text-sm"/><button type="button" className="btn-primary w-full" disabled={busy||!email.trim()} onClick={joinWaitlist}>Join the waitlist</button></div>}
-      {done && <p role="status" className="rounded-md bg-brand-tint p-3 text-sm font-medium">Thanks — your waitlist request has been submitted.</p>}
-      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-    </section>
-    </div>\n  </main>;
+  return <main id="main" className="min-h-screen">
+    <header className="border-b border-line bg-white">
+      <div className="container-page flex h-16 items-center gap-2">
+        <Link href="/" aria-label="LaundryPoint home" className="flex items-center gap-2 text-lg font-bold tracking-tight text-ink">
+          <Logo size={32} />
+          <span>LaundryPoint</span>
+        </Link>
+      </div>
+    </header>
+    <div className="container-page mx-auto max-w-2xl space-y-6 py-10">
+      <div className="space-y-2">
+        <p className="eyebrow">Welcome to LaundryPoint</p>
+        <h1 className="text-3xl font-bold tracking-tight">Check if we serve your area</h1>
+        <p className="text-sm leading-6 text-ink-soft">Confirm your collection area before choosing a monthly plan. We check your location against our active service zones.</p>
+      </div>
+      <section className="card space-y-4 p-5">
+        <button type="button" className="btn-primary" disabled={busy} onClick={locate}>{busy ? "Checking…" : "Use my current location"}</button>
+        {quote && <div className="rounded-lg border border-line bg-canvas p-4"><h2 className="font-semibold">{quote.served ? "Good news — we serve your area" : "We do not serve this area yet"}</h2><p className="mt-1 text-sm text-ink-soft">{quote.served ? "Add your pickup address to continue to monthly plans." : "Join the waitlist and we will let you know when LaundryPoint becomes available near you."}</p></div>}
+        {quote?.served && <div className="space-y-3"><label className="block text-sm font-medium" htmlFor="address">Pickup address / landmark</label><textarea id="address" value={address} onChange={e=>setAddress(e.target.value)} rows={3} placeholder="House number, street, estate or nearby landmark" className="w-full rounded-md border border-line bg-white p-3 text-sm"/><button type="button" disabled={busy||!address.trim()} className="btn-primary w-full" onClick={continueToPlans}>Continue to monthly plans</button></div>}
+        {quote && !quote.served && !done && <div className="space-y-3"><label className="block text-sm font-medium" htmlFor="waitlist-email">Email address for the waitlist</label><input id="waitlist-email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-md border border-line p-3 text-sm"/><button type="button" className="btn-primary w-full" disabled={busy||!email.trim()} onClick={joinWaitlist}>Join the waitlist</button></div>}
+        {done && <p role="status" className="rounded-md bg-brand-tint p-3 text-sm font-medium">Thanks — your waitlist request has been submitted.</p>}
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+      </section>
+    </div>
+  </main>;
 }
