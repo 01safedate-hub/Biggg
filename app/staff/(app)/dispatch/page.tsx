@@ -11,7 +11,7 @@ export const metadata = { title: "Dispatch" };
 export default async function DispatchPage() {
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const [{ data: orders }, { data: ag }, { data: back }, { data: cb }] = await Promise.all([
-    supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
+    supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,zone_id,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
     supabase.rpc("list_agents"),
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at,instant,instant_target_at,instant_promise_at").in("status", ["out_for_delivery", "failed_delivery"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at"),
     supabase.rpc("callbacks_queue"),
@@ -20,11 +20,18 @@ export default async function DispatchPage() {
   const callbacks = (Array.isArray(cb) ? cb : []) as unknown as CB[];
   const mustCall = new Set(callbacks.filter((c) => c.needs_call).map((c) => c.order_id));
   const OUTCOME: Record<string, string> = { reached: "Spoke to customer", rescheduled: "New time agreed", no_answer: "No answer", wrong_number: "Wrong number" };
-  const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean }[];
+  const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean; station_zone_id?: string | null; station_name?: string | null }[];
   const ids = Array.from(new Set([...(orders ?? []), ...(back ?? [])].map((o) => o.customer_id)));
   const { data: people } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((people ?? []).map((p) => [p.id, p]));
-  const name = new Map(agents.map((a) => [a.id, a.name]));
+  const agentIds = agents.map((a) => a.id);
+  const { data: stationRows } = agentIds.length ? await supabase.from("staff_profiles").select("user_id,station_zone_id").in("user_id", agentIds) : { data: [] };
+  const agentStation = new Map((stationRows ?? []).map((s) => [s.user_id, s.station_zone_id]));
+  const zoneIds = Array.from(new Set((stationRows ?? []).map((s) => s.station_zone_id).filter(Boolean) as string[]));
+  const { data: stationZones } = zoneIds.length ? await supabase.from("zones").select("id,name").in("id", zoneIds) : { data: [] };
+  const zoneName = new Map((stationZones ?? []).map((z) => [z.id, z.name]));
+  const agentsWithStations = agents.map((a) => ({ ...a, station_zone_id: agentStation.get(a.id) ?? null, station_name: zoneName.get(agentStation.get(a.id) ?? "") ?? null }));
+  const name = new Map(agentsWithStations.map((a) => [a.id, a.name]));
   const failedIds = (back ?? []).filter((o) => o.status === "failed_delivery").map((o) => o.id);
   const { data: cases } = failedIds.length ? await supabase.from("demurrage_cases").select("order_id,status,grace_ends_at,accrued_kobo").in("order_id", failedIds) : { data: [] };
   const dcase = new Map((cases ?? []).map((c) => [c.order_id, c]));
@@ -57,7 +64,7 @@ export default async function DispatchPage() {
             <article key={o.id} className="card space-y-3 p-4">
               <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name}</p>{o.scheduled_for && o.status === "awaiting_dispatch" && new Date(o.scheduled_for).getTime() > Date.now() && <p className="mt-1 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-900">Customer chose {new Date(o.scheduled_for).toLocaleString("en-NG", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</p>}<p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>}</p></div>
                 <div className="text-right"><p className="text-xs font-semibold text-brand-dark">{o.status === "awaiting_dispatch" ? "Needs an agent" : `With ${name.get(o.pickup_agent_id ?? "") ?? "agent"}`}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${late(o.updated_at, o.status === "awaiting_dispatch" ? 15 : 60) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
-              {mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <AssignForm orderId={o.id} agents={agents} current={o.pickup_agent_id} />}
+              {mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <AssignForm orderId={o.id} agents={(o.zone_id && agentsWithStations.some((a) => a.station_zone_id === o.zone_id) ? agentsWithStations.filter((a) => !a.station_zone_id || a.station_zone_id === o.zone_id) : agentsWithStations).map((a) => ({ ...a, name: a.station_name ? `${a.name} · ${a.station_name}` : a.name }))} current={o.pickup_agent_id} />}
               <CancelPaidForm orderId={o.id} fareKobo={o.pickup_fare_kobo} />
             </article>
           );
@@ -73,7 +80,7 @@ export default async function DispatchPage() {
               <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={c?.phone} /></p></div>
                 <div className="text-right"><p className={`text-xs font-semibold ${o.status === "failed_delivery" ? "text-red-700" : "text-brand-dark"}`}>{o.status === "failed_delivery" ? "Delivery failed" : o.delivery_agent_id ? `With ${name.get(o.delivery_agent_id) ?? "agent"}` : "Needs an agent"}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${o.status !== "failed_delivery" && late(o.updated_at, o.delivery_agent_id ? 90 : 20) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
               {o.status === "failed_delivery" && (() => { const d = dcase.get(o.id); return d ? <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Storage fee: {d.status === "accruing" ? `running, ${naira(d.accrued_kobo)} so far` : d.status === "paid" ? "paid" : d.status === "waived" ? "waived" : `free until ${new Date(d.grace_ends_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}`}. The customer pays it on their order page.</p> : null; })()}
-              {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agents} current={o.delivery_agent_id} kind="delivery" />}
+              {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agentsWithStations.map((a) => ({ ...a, name: a.station_name ? `${a.name} · ${a.station_name}` : a.name }))} current={o.delivery_agent_id} kind="delivery" />}
             </article>
           );
         })}
