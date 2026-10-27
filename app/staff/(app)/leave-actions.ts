@@ -22,12 +22,12 @@ function msg(error: { message?: string } | null, fallback: string): Result {
     swap_not_accepted: "The swap must be accepted before a manager can approve it.",
     staff_only: "Your account does not have a staff role.",
     not_authenticated: "Your session expired. Sign in again.",
-    delivery_agent_only: "Shift swaps are available to delivery agents only.",
-    swap_target_required: "Choose a delivery agent to receive the shift.",
-    invalid_target_staff: "The selected colleague is not a delivery agent.",
-    swap_overlap: "That agent already has a shift at the same time.",
-    swap_rest_rule: "That agent would have less than 11 hours off between shifts.",
-    swap_weekly_limit: "That agent would exceed the six-day weekly limit.",
+    delivery_agent_only: "Your account role cannot request this shift swap.",\n    staff_role_not_eligible: "Shift swaps are available to delivery agents, cashiers and secretaries.",\n    not_allowed: "Your account is not active or is not permitted to request a shift swap.",\n    invalid_target_staff: "Choose an active colleague with the same staff role.",\n    cannot_swap_with_self: "Choose a colleague other than yourself.",\n    swap_target_missing: "Choose a colleague to receive the shift.",
+    swap_target_required: "Choose a colleague to receive the shift.",
+    
+    swap_overlap: "That colleague already has a shift at the same time.",
+    swap_rest_rule: "That colleague would have less than 11 hours off between shifts.",
+    swap_weekly_limit: "That colleague would exceed the six-day weekly limit.",
     shift_too_long: "Shifts longer than 10 hours cannot be transferred.",
     leave_must_stay_within_year: "A leave request must fall within one calendar year."
   };
