@@ -8,6 +8,7 @@ import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButt
 import { StainFlag } from "@/components/ops/StainFlag";
 import { StainList } from "@/components/orders/StainList";
 import { LocationSharer } from "@/components/ops/LocationSharer";
+import { PickupLocationMap } from "@/components/ops/PickupLocationMap";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 
 export const metadata = { title: "Pickup job" };
@@ -39,9 +40,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       <div className="space-y-6">
         {o.status === "out_for_delivery" && <AutoRefresh seconds={5} />}
         <Link href="/staff/jobs" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Jobs</Link>
-        <div><h1 className="text-2xl font-bold tracking-tight">Delivery · Order #{o.order_no}</h1>
-          <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
-          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>Open in Google Maps</a>}</p></div>
+        <section className="card space-y-4 p-4 sm:p-5">
+          <div><p className="text-xs font-semibold uppercase tracking-wide text-brand">Delivery destination</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
+            <p className="mt-2 text-base font-semibold">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
+            <p className="mt-1 text-sm text-ink-soft">{o.pickup_address || "No address saved"}</p></div>
+          <PickupLocationMap lat={o.pickup_lat == null ? null : Number(o.pickup_lat)} lng={o.pickup_lng == null ? null : Number(o.pickup_lng)} address={o.pickup_address ?? "Customer location"} />
+          {map && <a className="btn-primary inline-flex w-full justify-center sm:w-auto" target="_blank" rel="noopener noreferrer" href={map}>Open directions in Google Maps ↗</a>}
+        </section>
         <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
@@ -56,10 +61,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     <div className="space-y-6">
       {["agent_assigned", "agent_arrived", "counted"].includes(o.status) && <AutoRefresh seconds={5} />}
       <Link href="/staff/jobs" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Jobs</Link>
-      <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
-        <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
-        <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>Open in Google Maps</a>}</p>
-        {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
+      <section className="card space-y-4 p-4 sm:p-5">
+        <div><p className="text-xs font-semibold uppercase tracking-wide text-brand">Customer pickup</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
+          <p className="mt-2 text-base font-semibold">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
+          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address || "No address saved"}</p>
+          {o.notes && <p className="mt-2 rounded-md bg-canvas p-3 text-sm"><span className="font-semibold">Customer note:</span> {o.notes}</p>}</div>
+        <PickupLocationMap lat={o.pickup_lat == null ? null : Number(o.pickup_lat)} lng={o.pickup_lng == null ? null : Number(o.pickup_lng)} address={o.pickup_address ?? "Customer pickup location"} />
+        {map && <a className="btn-primary inline-flex w-full justify-center sm:w-auto" target="_blank" rel="noopener noreferrer" href={map}>Open directions in Google Maps ↗</a>}
+      </section>
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "This pickup is covered by the customer’s monthly plan. Count every garment by category. Covered pieces need no payment; any excess is billed to the customer for online payment after you submit the count. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} /><FailedPickupForm orderId={id} /></section>}
