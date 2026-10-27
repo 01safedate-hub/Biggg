@@ -15,7 +15,7 @@ export default async function SubscriptionCheckoutPage({ searchParams }: { searc
   return (
     <main id="main" className="min-h-screen">
       <CustomerSidebar />
-      <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-5">
+      <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-2 sm:pt-4">
         <Link href="/subscriptions" className="inline-block text-sm font-medium text-ink-soft hover:text-ink">&larr; Monthly plans</Link>
         <div><h1 className="text-3xl font-bold tracking-tight">Choose your monthly plan</h1><p className="mt-2 text-sm text-ink-soft">Payment is verified with the payment provider before your plan is activated. Covered pickup and delivery are included in your allowance.</p></div>
         <SubscriptionCheckout plans={(plans ?? []).map(p => ({ slug: p.slug, name: p.name, priceKobo: Number(p.monthly_price_kobo), pieces: p.pieces_per_month }))} initialPlanSlug={requestedPlan} />
