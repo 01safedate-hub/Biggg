@@ -47,7 +47,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
-        {o.status === "out_for_delivery" && <section className="card space-y-4 p-5"><h2 className="text-lg font-semibold">When you reach the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} step="delivery" label="I am at the door: show my code" /><FailedDeliveryForm orderId={id} /></section>}
+        {o.status === "out_for_delivery" && <section className="card space-y-4 p-5"><h2 className="text-lg font-semibold">When you reach the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} step="delivery" label="I am at the door: show my code" /><FailedDeliveryForm orderId={id} /></section>}
         {o.status === "delivered" && <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950"><h2 className="text-xl font-bold">Delivered ✓</h2><p className="text-sm">The customer confirmed with the code. Well done.</p></section>}
         {o.status === "failed_delivery" && <section className="rounded-xl border border-red-300 bg-red-50 p-5 text-red-950"><h2 className="text-xl font-bold">Logged as not delivered</h2><p className="text-sm">Bring the bag back to the hub. The office will arrange another try.</p></section>}
       </div>
@@ -67,7 +67,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       </section>
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "This pickup is covered by the customer’s monthly plan. Count every garment by category. Covered pieces need no payment; any excess is billed to the customer for online payment after you submit the count. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
-      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} /><FailedPickupForm orderId={id} /></section>}
+      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
       {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
