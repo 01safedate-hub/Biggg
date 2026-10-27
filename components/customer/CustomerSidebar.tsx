@@ -13,7 +13,7 @@ const GROUPS: NavGroup[] = [
   ] },
 ];
 
-export function CustomerSidebar({ onboarding = false }: { onboarding?: boolean }) {
+export function CustomerSidebar({ onboarding = false, name = "Customer account" }: { onboarding?: boolean; name?: string }) {
   const groups = onboarding
     ? [{ label: "Get started", items: [
         { href: "/services", label: "Services", icon: "overview", exact: true },
@@ -21,5 +21,5 @@ export function CustomerSidebar({ onboarding = false }: { onboarding?: boolean }
         { href: "/subscriptions", label: "Monthly plans", icon: "weekly", exact: true },
       ] }]
     : GROUPS;
-  return <Sidebar title="Customer" name="Customer account" groups={groups} />;
+  return <Sidebar title="Customer" name={name} groups={groups} />;
 }
