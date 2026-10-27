@@ -86,3 +86,37 @@ export async function decideSwap(id: string, approve: boolean, note: string): Pr
   revalidatePath("/admin/roster");
   return msg(error, "Could not decide this swap.");
 }
+
+export async function saveHoliday(formData: FormData): Promise<Result> {
+ const supabase = await createClient();
+ const date = String(formData.get("holiday_date") ?? "");
+ const name = String(formData.get("holiday_name") ?? "").trim();
+ const dayInLieu = formData.get("grants_day_in_lieu") === "on";
+ if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || name.length < 2) return {ok:false,message:"Enter a holiday name and valid date."};
+ const {error}=await supabase.rpc("save_public_holiday",{_date:date,_name:name,_day_in_lieu:dayInLieu});
+ revalidatePath("/staff/leave");
+ return msg(error,"Could not save public holiday.");
+}
+export async function deleteHoliday(id: string): Promise<Result> {
+ const supabase = await createClient();
+ const {error}=await supabase.rpc("delete_public_holiday",{_id:id});
+ revalidatePath("/staff/leave");
+ return msg(error,"Could not remove public holiday.");
+}
+export async function saveBlackout(formData: FormData): Promise<Result> {
+ const supabase = await createClient();
+ const date = String(formData.get("blackout_date") ?? "");
+ const reason = String(formData.get("blackout_reason") ?? "").trim();
+ if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || reason.length < 2) return {ok:false,message:"Enter a reason and valid blackout date."};
+ const {error}=await supabase.rpc("save_roster_blackout",{_date:date,_reason:reason,_zone:null});
+ revalidatePath("/staff/leave");
+ revalidatePath("/staff/roster");
+ return msg(error,"Could not save roster blackout.");
+}
+export async function deleteBlackout(id: string): Promise<Result> {
+ const supabase = await createClient();
+ const {error}=await supabase.rpc("delete_roster_blackout",{_id:id});
+ revalidatePath("/staff/leave");
+ revalidatePath("/staff/roster");
+ return msg(error,"Could not remove roster blackout.");
+}
