@@ -76,7 +76,8 @@ export async function requestSwap(shiftId: string, targetStaff: string, reason: 
   const supabase = await createClient();
   const { error } = await supabase.rpc("request_shift_swap", {_shift:shiftId,_target_staff:targetStaff || null,_reason:reason || null});
   revalidatePath("/staff/leave");
-  revalidatePath("/admin/roster");\n  return msg(error, "Could not submit this shift-swap request.");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not submit this shift-swap request.");
 }
 
 export async function respondSwap(id: string, accept: boolean, note: string): Promise<Result> {
@@ -87,7 +88,15 @@ export async function respondSwap(id: string, accept: boolean, note: string): Pr
   return msg(error, "Could not respond to this swap.");
 }
 
-export async function cancelSwap(id: string, reason: string): Promise<Result> {\n  const supabase = await createClient();\n  const { error } = await supabase.rpc("cancel_shift_swap", {_swap:id,_reason:reason});\n  revalidatePath("/staff/leave");\n  revalidatePath("/admin/roster");\n  return msg(error, "Could not cancel this shift-swap request.");\n}\n\nexport async function decideSwap(id: string, approve: boolean, note: string): Promise<Result> {
+export async function cancelSwap(id: string, reason: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_shift_swap", {_swap:id,_reason:reason});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not cancel this shift-swap request.");
+}
+
+export async function decideSwap(id: string, approve: boolean, note: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("decide_shift_swap", {_swap:id,_approve:approve,_note:note || null});
   revalidatePath("/staff/leave");
