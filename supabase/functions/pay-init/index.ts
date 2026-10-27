@@ -15,15 +15,15 @@ Deno.serve(async (req) => {
   if (!auth) return json(401, { error: "not_signed_in" });
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return json(400, { error: "bad_request" }); }
-  const order = String(b.order_id ?? ""), purpose = String(b.purpose ?? ""), provider = String(b.provider ?? ""), planSlug = String(b.plan_slug ?? "");
+  const order = String(b.order_id ?? ""), purpose = String(b.purpose ?? ""), provider = String(b.provider ?? ""), planSlug = String(b.plan_slug ?? ""), pickupId = String(b.pickup_id ?? "");
   if (provider === "paystack" && !PAYSTACK) return json(503, { error: "provider_not_configured" });
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" });
 
   const db = createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-  if (purpose === "subscription") {\n    if (!/^[a-z0-9_]{2,40}$/.test(planSlug)) return json(400, { error: "plan_not_found" });\n  } else if (!/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });\n  const { data, error } = purpose === "subscription"\n    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })\n    : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
+  if (purpose === "subscription" && !/^[a-z0-9_]{2,40}$/.test(planSlug)) return json(400, { error: "plan_not_found" });\n  if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) return json(400, { error: "bad_request" });\n  if (!["subscription", "extra_clothes"].includes(purpose) && !/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });\n  const { data, error } = purpose === "subscription"\n    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })\n    : purpose === "extra_clothes"\n      ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })\n      : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) return json(400, { error: error.message });
   const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no: number };
-  const back = purpose === "subscription" ? `${SITE}/subscriptions?returning=1` : `${SITE}/orders/${order}?returning=1`;
+  const back = purpose === "subscription" ? `${SITE}/subscriptions?returning=1` : purpose === "extra_clothes" ? `${SITE}/account/extra-clothes?returning=1` : `${SITE}/orders/${order}?returning=1`;
 
   if (provider === "paystack") {
     const r = await fetch("https://api.paystack.co/transaction/initialize", {
