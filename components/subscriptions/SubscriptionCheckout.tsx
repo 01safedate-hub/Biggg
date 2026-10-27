@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type Plan = { slug: string; name: string; priceKobo: number; pieces: number | null };
 
@@ -17,9 +18,11 @@ export function SubscriptionCheckout({ plans }: { plans: Plan[] }) {
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/subscription-checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_slug: planSlug, provider }) });
-      const result = await response.json();
-      if (!response.ok || !result.url) throw new Error(result.error ?? "Could not start payment. Please try again.");
+      const supabase = createClient();
+      const { data, error } = await supabase.functions.invoke("pay-init", { body: { purpose: "subscription", plan_slug: planSlug, provider } });
+      if (error) throw new Error(error.message || "Could not start payment. Please try again.");
+      const result = data as { url?: string; error?: string } | null;
+      if (!result?.url) throw new Error(result?.error ?? "Could not start payment. Please try again.");
       window.location.assign(result.url);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Could not start payment. Please try again.");
