@@ -29,7 +29,13 @@ export function LoginForm({ next }: { next: string }) {
       if (err.status === 429 || code.includes("rate_limit")) return setError("Too many attempts. Please wait a few minutes and try again.");
       return setError("Incorrect email or password.");
     }
-    router.replace(safeNext(next));
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { count, error: addressError } = user
+      ? await supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id)
+      : { count: 1, error: null };
+    const destination = !addressError && count === 0 ? "/onboarding/location" : safeNext(next);
+    router.replace(destination);
     router.refresh();
   }
 
