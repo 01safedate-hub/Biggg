@@ -73,7 +73,7 @@ export async function requestSwap(shiftId: string, targetStaff: string, reason: 
   const supabase = await createClient();
   const { error } = await supabase.rpc("request_shift_swap", {_shift:shiftId,_target_staff:targetStaff || null,_reason:reason || null});
   revalidatePath("/staff/leave");
-  return msg(error, "Could not submit this shift-swap request.");
+  return error ? msg(error, `Could not submit this shift-swap request: ${error.message || "Unknown server error"}`) : msg(null, "Could not submit this shift-swap request.");
 }
 
 export async function respondSwap(id: string, accept: boolean, note: string): Promise<Result> {
