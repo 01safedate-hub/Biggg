@@ -8,10 +8,10 @@ type Plan = { slug: string; name: string; priceKobo: number; pieces: number | nu
 const naira = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 
 function PaystackMark() {
-  return <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-md bg-[#00C3F7] text-sm font-black italic text-white">P</span>;
+  return <img src="/payments/paystack.svg" alt="Paystack" width="112" height="28" className="h-7 w-28 shrink-0 object-contain object-left" />;
 }
 function FlutterwaveMark() {
-  return <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-md bg-white text-lg font-black text-[#F5A623] ring-1 ring-line">f</span>;
+  return <img src="/payments/flutterwave.svg" alt="Flutterwave" width="120" height="28" className="h-7 w-[120px] shrink-0 object-contain object-left" />;
 }
 
 export function SubscriptionCheckout({ plans, initialPlanSlug }: { plans: Plan[]; initialPlanSlug?: string }) {
