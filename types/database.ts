@@ -2216,7 +2216,7 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
-          station_zone_id: string | null
+          station_zone_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -2242,7 +2242,7 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
-          station_zone_id: string | null
+          station_zone_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
