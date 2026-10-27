@@ -12,10 +12,10 @@ export default async function ExtraClothesPage() {
   const { supabase, user } = await requireUser("/account/extra-clothes");
   const { data: pickups, error } = await supabase
     .from("subscription_pickups")
-    .select("id,subscription_id,order_id,pieces_counted,overage_pieces,overage_kobo,status,scheduled_for,created_at,subscriptions!inner(customer_id),subscription_invoices(status,subscription_pickup_id)")
+    .select("id,subscription_id,order_id,pieces_counted,overage_pieces,overage_kobo,status,scheduled_for,subscriptions!inner(customer_id),subscription_invoices(status,subscription_pickup_id)")
     .eq("subscriptions.customer_id", user.id)
     .gt("overage_pieces", 0)
-    .order("created_at", { ascending: false });
+    .order("scheduled_for", { ascending: false });
 
   return (
     <main id="main" className="container-page max-w-3xl space-y-6 py-10">
@@ -41,7 +41,7 @@ export default async function ExtraClothesPage() {
               </div>
               <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0))}</p>
             </div>
-            <p className="text-sm text-ink-soft">Recorded {longDate(p.created_at ?? p.scheduled_for ?? "")} · Bill status: {paid ? "Paid" : "Payment due"}</p>
+            <p className="text-sm text-ink-soft">Recorded {longDate(p.scheduled_for ?? "")} · Bill status: {paid ? "Paid" : "Payment due"}</p>
             {p.order_id ? <Link href={`/orders/${p.order_id}`} className="text-sm font-medium text-brand-dark hover:underline">View related order</Link> : null}
             {!paid ? <ExtraClothesPayButton pickupId={p.id} /> : <p className="text-sm font-medium text-green-700">Payment confirmed</p>}
           </section>
