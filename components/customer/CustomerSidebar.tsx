@@ -3,7 +3,7 @@ import Link from "next/link";
 const items = [
   { href: "/orders", label: "My orders" },
   { href: "/subscriptions", label: "Monthly plans" },
-  { href: "/orders/new", label: "Book a pickup" },
+  { href: "/request", label: "Book a pickup" },
   { href: "/account/extra-clothes", label: "Extra-clothes bills" },
 ];
 
