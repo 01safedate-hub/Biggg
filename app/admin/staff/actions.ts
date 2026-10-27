@@ -20,7 +20,7 @@ async function callStaffAdmin(body: Record<string, unknown>): Promise<{ ok: bool
   return { ok: true, data: data as Record<string, unknown> };
 }
 
-export async function inviteStaff(input: { email: string; full_name: string; phone: string; roles: string[] }): Promise<ActionResult> {
+export async function inviteStaff(input: { email: string; full_name: string; phone: string; roles: string[]; station_zone_id?: string | null }): Promise<ActionResult> {
   const r = await callStaffAdmin({ action: "invite", ...input });
   if (!r.ok) return { ok: false, message: r.error ?? "Could not send the invitation." };
   revalidatePath("/admin/staff");
@@ -49,7 +49,7 @@ export async function changeRoles(userId: string, roles: string[]): Promise<Acti
   return { ok: true, message: roles.length ? "Roles saved." : "All staff access removed. They are now a customer." };
 }
 
-export async function createStaff(input: { email: string; full_name: string; phone: string; roles: string[]; password: string }): Promise<ActionResult & { userId?: string }> {
+export async function createStaff(input: { email: string; full_name: string; phone: string; roles: string[]; password: string; station_zone_id?: string | null }): Promise<ActionResult & { userId?: string }> {
   const r = await callStaffAdmin({ action: "create", ...input });
   if (!r.ok) return { ok: false, message: r.error ?? "Could not create the account." };
   revalidatePath("/admin/staff");
