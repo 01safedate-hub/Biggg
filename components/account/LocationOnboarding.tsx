@@ -50,7 +50,13 @@ export function LocationOnboarding() {
   async function joinWaitlist() {
     if (!pos || !email.trim()) return;
     setBusy(true); setError("");
-    const { error: waitlistError } = await createClient().rpc("join_service_waitlist", {
+    // The generated Supabase Database type predates this newly applied RPC.
+    // Keep the cast local until database types are regenerated from the live schema.
+    const rpc = createClient().rpc as unknown as (
+      name: string,
+      args: Record<string, string | number>
+    ) => Promise<{ error: { message: string } | null }>;
+    const { error: waitlistError } = await rpc("join_service_waitlist", {
       _email: email.trim(),
       _lat: pos.lat,
       _lng: pos.lng,
