@@ -4,8 +4,8 @@ import { Sidebar, type NavGroup } from "@/components/admin/Sidebar";
 
 const GROUPS: NavGroup[] = [
   { label: "My LaundryPoint", items: [
-    { href: "/orders", label: "Dashboard", icon: "overview", exact: true },
-    { href: "/services", label: "Services", icon: "hub", exact: true },
+    { href: "/dashboard", label: "Dashboard", icon: "overview", exact: true },
+    { href: "/orders", label: "My orders", icon: "dispatch", exact: true },
     { href: "/subscriptions", label: "Monthly plans", icon: "weekly", exact: true },
     { href: "/request", label: "Book a pickup", icon: "dispatch", exact: true },
     { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
