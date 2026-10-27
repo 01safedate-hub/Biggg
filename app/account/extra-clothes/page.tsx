@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ExtraClothesPage() {
   const { supabase, user } = await requireUser("/account/extra-clothes");
-  const { data: pickups, error } = await supabase
+  const { data: pickups, error } = await (supabase as any)
     .from("subscription_pickups")
     .select("id,subscription_id,order_id,pieces_counted,overage_pieces,overage_kobo,status,scheduled_for,subscriptions!inner(customer_id),subscription_invoices(status,subscription_pickup_id)")
     .eq("subscriptions.customer_id", user.id)
