@@ -24,9 +24,9 @@ export default async function SubscriptionsPage() {
   const remaining = Math.max(0, allowance - usedPieces);
 
   return (
-    <main id="main" className="min-h-screen space-y-6">
+    <main id="main" className="min-h-screen">
       <CustomerSidebar />
-      <div className="container-page mx-auto max-w-4xl space-y-6 pb-10 pt-6">
+      <div className="container-page mx-auto max-w-4xl space-y-6 pb-10 pt-4 sm:pt-6">
       <div className="space-y-2"><p className="text-sm font-medium text-brand-dark"><Link href="/services" className="hover:underline">← Review our services</Link></p><h1 className="text-3xl font-bold tracking-tight">Monthly laundry plans</h1><p className="max-w-2xl text-sm text-ink-soft">One monthly payment covers pickup, laundry and delivery for clothes included in your plan. The allowance counts total pieces, whatever the clothing type, across two pickups during the month.</p><p className="max-w-2xl text-sm text-ink-soft">New to LaundryPoint? <Link href="/services" className="font-medium text-brand-dark underline">See what services we offer</Link> before choosing a plan.</p></div>
       {active && activePlan ? <section className="card space-y-3 p-5"><p className="text-sm font-semibold text-ink-mute">YOUR ACTIVE PLAN</p><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">{activePlan.name}</h2><p className="text-sm text-ink-soft">{new Date(active.current_period_end ?? "").toLocaleDateString("en-NG") ? `Renews/ends ${new Date(active.current_period_end ?? "").toLocaleDateString("en-NG")}` : "Current billing period"}</p></div><p className="text-lg font-bold">{remaining} pieces remaining</p></div><div className="h-2 overflow-hidden rounded-full bg-canvas"><div className="h-full rounded-full bg-brand" style={{ width: `${allowance > 0 ? Math.min(100, usedPieces / allowance * 100) : 0}%` }} /></div><p className="text-sm text-ink-soft">{usedPieces} of {allowance} pieces recorded this period. Extra pieces are billed separately when staff records the count.</p></section> : null}
       <div className="grid gap-4 sm:grid-cols-2">
