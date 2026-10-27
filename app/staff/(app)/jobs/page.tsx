@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
 import { STATUS_LABEL, mapsLink } from "@/lib/orders";
+import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 
 export const metadata = { title: "My jobs" };
 
@@ -15,6 +16,7 @@ export default async function JobsPage() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">My jobs</h1><p className="mt-1 text-sm text-ink-soft">Open a job when you reach the customer. You never take cash: the customer pays on their phone.</p></div>
+      <AgentPickupMap agentId={user.id} />
       <section className="space-y-3">
         {(data ?? []).map((o) => (
           <div key={o.id} className="card"><Link href={`/staff/jobs/${o.id}`} className="block p-4 hover:bg-canvas">
