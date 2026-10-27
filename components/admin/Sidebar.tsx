@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/Logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallApp } from "@/components/brand/InstallApp";
+import { Bell } from "@/components/notifications/Bell";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
   Receipt, Settings, WashingMachine, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
@@ -87,7 +88,7 @@ export function Sidebar({ title, name, groups }: { title: string; name: string; 
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
         {brand}
-        <button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button>
+        <div className="flex items-center gap-2"><Bell /><button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button></div>
       </header>
 
       {open && (
