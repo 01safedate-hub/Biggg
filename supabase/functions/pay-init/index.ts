@@ -20,7 +20,14 @@ Deno.serve(async (req) => {
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" });
 
   const db = createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-  if (purpose === "subscription" && !/^[a-z0-9_]{2,40}$/.test(planSlug)) return json(400, { error: "plan_not_found" });\n  if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) return json(400, { error: "bad_request" });\n  if (!["subscription", "extra_clothes"].includes(purpose) && !/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });\n  const { data, error } = purpose === "subscription"\n    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })\n    : purpose === "extra_clothes"\n      ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })\n      : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
+  if (purpose === "subscription" && !/^[a-z0-9_]{2,40}$/.test(planSlug)) return json(400, { error: "plan_not_found" });
+  if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) return json(400, { error: "bad_request" });
+  if (!["subscription", "extra_clothes"].includes(purpose) && !/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });
+  const { data, error } = purpose === "subscription"
+    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })
+    : purpose === "extra_clothes"
+      ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })
+      : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) return json(400, { error: error.message });
   const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no: number };
   const back = purpose === "subscription" ? `${SITE}/subscriptions?returning=1` : purpose === "extra_clothes" ? `${SITE}/account/extra-clothes?returning=1` : `${SITE}/orders/${order}?returning=1`;
