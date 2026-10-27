@@ -36,7 +36,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <Link href="/staff/jobs" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Jobs</Link>
         <div><h1 className="text-2xl font-bold tracking-tight">Delivery · Order #{o.order_no}</h1>
           <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
-          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>Open in Google Maps</a>}</p></div>
+          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <span className="text-ink-mute">· pinned on the Live pickup map in My jobs</span>}</p></div>
         <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">The delivery fare is already paid online. Do not collect any cash.</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
