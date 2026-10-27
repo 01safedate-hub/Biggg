@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Pickup = { id: string; order_no: number; status: string; pickup_address: string | null; pickup_lat: number | null; pickup_lng: number | null };
 
-export function AgentPickupMap({ agentId }: { agentId: string }) {
+export function AgentPickupMap({ agentId, orderId }: { agentId: string; orderId?: string }) {
   const element = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const markers = useRef<Map<string, import("leaflet").Marker>>(new Map());
@@ -20,8 +20,8 @@ export function AgentPickupMap({ agentId }: { agentId: string }) {
     const refresh = async () => {
       const { data, error } = await supabase.from("orders")
         .select("id,order_no,status,pickup_address,pickup_lat,pickup_lng")
-        .eq("pickup_agent_id", agentId)
-        .in("status", ["agent_assigned", "agent_arrived", "counted", "count_confirmed"])
+        .eq(orderId ? "id" : "pickup_agent_id", orderId ?? agentId)
+        .in("status", orderId ? ["agent_assigned", "agent_arrived", "counted", "count_confirmed", "out_for_delivery"] : ["agent_assigned", "agent_arrived", "counted", "count_confirmed"])
         .order("created_at", { ascending: true });
       if (stopped) return;
       if (!error) { setRows((data ?? []) as Pickup[]); setLastUpdate(new Date()); }
@@ -32,7 +32,7 @@ export function AgentPickupMap({ agentId }: { agentId: string }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => { void refresh(); })
       .subscribe();
     return () => { stopped = true; void supabase.removeChannel(channel); };
-  }, [agentId]);
+  }, [agentId, orderId]);
 
   useEffect(() => {
     let cancelled = false;
