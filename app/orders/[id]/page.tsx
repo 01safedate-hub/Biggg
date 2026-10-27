@@ -50,7 +50,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
   const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
-    ? await supabase.from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
+    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
     : { data: null };
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
@@ -91,7 +91,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "awaiting_dispatch" && (o.source === "subscription" ? <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your monthly plan covers pickup and delivery for included garments. Your request is waiting for an agent to be assigned.</p></section> : <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>)}
+      {o.status === "awaiting_dispatch" && (o.source === "subscription" ? <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your monthly plan covers pickup and delivery for included garments. Your request is waiting for an agent to be assigned.</p><CancelButton orderId={id} /></section> : <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>)}
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
@@ -179,7 +179,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <TrackMap orderId={id} agentName={agent?.full_name} />
               <ArrivalCodeForm orderId={id} step="delivery" button="Confirm delivery" />
             </>
-          ) : <p className="text-sm text-ink-soft">Delivery fare received. We are assigning your delivery agent and will tell you when they set off.</p>}
+          ) : <p className="text-sm text-ink-soft">{o.source === "subscription" ? "Delivery is included in your monthly plan. We are assigning your delivery agent and will tell you when they set off." : "Delivery fare received. We are assigning your delivery agent and will tell you when they set off."}</p>}
         </section>
       )}
       {o.status === "delivered" && (
