@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Bell } from "@/components/notifications/Bell";
 import { InstallApp } from "@/components/brand/InstallApp";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { requireUser } from "@/lib/roles";
@@ -18,7 +17,7 @@ export default async function OrdersPage() {
     <main id="main" className="min-h-screen w-full">
       <CustomerSidebar />
       <div className="container-page mx-auto max-w-2xl space-y-6 py-6 sm:py-8">
-      <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-bold tracking-tight">My orders</h1><div className="flex items-center gap-3"><Bell /><Link href="/request" className="btn-primary">Book a pickup</Link><InstallApp label="Install the app" /></div></div>
+      <div className="flex items-center justify-between gap-3"><h1 className="text-3xl font-bold tracking-tight">My orders</h1><div className="flex items-center gap-3"><Link href="/request" className="btn-primary">Book a pickup</Link><InstallApp label="Install the app" /></div></div>
       {[{ title: "In progress", rows: (data ?? []).filter((o) => !DONE.includes(o.status)) }, { title: "Past orders", rows: (data ?? []).filter((o) => DONE.includes(o.status)) }].map((g) => g.rows.length > 0 && (
         <section key={g.title} className="space-y-2"><h2 className="text-sm font-semibold uppercase tracking-wide text-ink-mute">{g.title}</h2>
           <div className="card divide-y divide-line">
