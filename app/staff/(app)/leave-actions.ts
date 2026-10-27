@@ -77,6 +77,7 @@ export async function requestSwap(shiftId: string, targetStaff: string, reason: 
   const { error } = await supabase.rpc("request_shift_swap", {_shift:shiftId,_target_staff:targetStaff || null,_reason:reason || null});
   revalidatePath("/staff/leave");
   revalidatePath("/admin/roster");
+  revalidatePath("/staff/(app)/leave");
   return msg(error, "Could not submit this shift-swap request.");
 }
 
