@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 
 type Quote = { served: boolean; zone_name?: string; zone_id?: string; reason?: string; total_fare_kobo?: number };
 
