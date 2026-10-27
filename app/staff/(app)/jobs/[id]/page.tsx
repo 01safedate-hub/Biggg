@@ -9,6 +9,7 @@ import { StainFlag } from "@/components/ops/StainFlag";
 import { StainList } from "@/components/orders/StainList";
 import { LocationSharer } from "@/components/ops/LocationSharer";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
+import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 
 export const metadata = { title: "Pickup job" };
 
@@ -36,7 +37,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <Link href="/staff/jobs" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Jobs</Link>
         <div><h1 className="text-2xl font-bold tracking-tight">Delivery · Order #{o.order_no}</h1>
           <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
-          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>Open in Google Maps</a>}</p></div>
+          <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p></div>
+        <AgentPickupMap agentId={user.id} orderId={id} />
         <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">The delivery fare is already paid online. Do not collect any cash.</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
@@ -53,8 +55,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       <Link href="/staff/jobs" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Jobs</Link>
       <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
         <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
-        <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>Open in Google Maps</a>}</p>
+        <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p>
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
+      <AgentPickupMap agentId={user.id} orderId={id} />
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here.</p>
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} /><FailedPickupForm orderId={id} /></section>}

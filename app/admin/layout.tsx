@@ -4,7 +4,6 @@ import { requireRole } from "@/lib/roles";
 import { enforceStaffGate } from "@/lib/staff-gate";
 
 export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = { manifest: "/manifest/admin", appleWebApp: { capable: true, title: "LaundryPoint Admin", statusBarStyle: "default" } };
 
 const GROUPS: NavGroup[] = [
@@ -17,6 +16,8 @@ const GROUPS: NavGroup[] = [
   { label: "Operations", items: [
     { href: "/admin/attention", label: "Needs attention", icon: "admin" },
     { href: "/admin/disputes", label: "Bank disputes", icon: "money" },
+    { href: "/admin/roster", label: "Roster and attendance", icon: "weekly" },
+    { href: "/staff/leave", label: "Leave and shift swaps", icon: "weekly" },
     { href: "/staff/instant", label: "Instant orders", icon: "dispatch" },
     { href: "/staff/speed", label: "Speed analytics", icon: "overview" },
     { href: "/admin/orders", label: "Orders and timelines", icon: "orders" },
@@ -26,7 +27,7 @@ const GROUPS: NavGroup[] = [
     { href: "/staff/hub", label: "Wash queue", icon: "hub" },
   ] },
   { label: "People", items: [
-    { href: "/admin/staff", label: "Staff", icon: "staff" },
+    { href: "/admin/staff", label: "Staff and station assignments", icon: "staff" },
     { href: "/admin/weekly", label: "Weekly units", icon: "weekly" },
     { href: "/admin/customers", label: "Customers and growth", icon: "customers" },
   ] },

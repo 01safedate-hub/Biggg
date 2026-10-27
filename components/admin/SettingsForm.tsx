@@ -37,14 +37,15 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
     if ((s("lat") && Number.isNaN(Number(s("lat")))) || (s("lng") && Number.isNaN(Number(s("lng"))))) return setMsg({ ok: false, text: "Latitude and longitude must be numbers." });
 
     setBusy(true);
-    const { error } = await createClient().rpc("save_business_settings", {
+    const client = createClient();
+    const { error } = await client.rpc("save_business_settings", {
       _patch: {
         contact_phone: s("phone"), whatsapp_number: s("whatsapp"), hub_address: s("address"), hub_lat: num(s("lat")), hub_lng: num(s("lng")),
         demurrage_fee_kobo: fee, demurrage_grace_hours: grace, demurrage_basis: s("basis"), monthly_net_target_kobo: target,
       },
     });
+    if (error) { setBusy(false); return setMsg({ ok: false, text: friendlyError(error.message) }); }
     setBusy(false);
-    if (error) return setMsg({ ok: false, text: friendlyError(error.message) });
     setMsg({ ok: true, text: "Saved. The website picks up phone, WhatsApp and location changes within a few minutes." });
     router.refresh();
   }

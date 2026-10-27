@@ -906,6 +906,48 @@ export type Database = {
           },
         ]
       }
+      leave_balances: {
+        Row: { id: string; staff_id: string; leave_type_id: string; year: number; allowance_days: number; adjustment_days: number; updated_at: string }
+        Insert: { id?: string; staff_id: string; leave_type_id: string; year: number; allowance_days?: number; adjustment_days?: number; updated_at?: string }
+        Update: { id?: string; staff_id?: string; leave_type_id?: string; year?: number; allowance_days?: number; adjustment_days?: number; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: "leave_balances_leave_type_id_fkey"; columns: ["leave_type_id"]; isOneToOne: false; referencedRelation: "leave_types"; referencedColumns: ["id"] },
+          { foreignKeyName: "leave_balances_staff_id_fkey"; columns: ["staff_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }
+        ]
+      }
+      leave_types: {
+        Row: { id: string; name: string; paid: boolean; annual_allowance_days: number; requires_approval: boolean; active: boolean; created_at: string }
+        Insert: { id?: string; name: string; paid?: boolean; annual_allowance_days?: number; requires_approval?: boolean; active?: boolean; created_at?: string }
+        Update: { id?: string; name?: string; paid?: boolean; annual_allowance_days?: number; requires_approval?: boolean; active?: boolean; created_at?: string }
+        Relationships: []
+      }
+      public_holidays: {
+        Row: { id: string; holiday_date: string; name: string; grants_day_in_lieu: boolean; active: boolean; created_by: string | null; created_at: string }
+        Insert: { id?: string; holiday_date: string; name: string; grants_day_in_lieu?: boolean; active?: boolean; created_by?: string | null; created_at?: string }
+        Update: { id?: string; holiday_date?: string; name?: string; grants_day_in_lieu?: boolean; active?: boolean; created_by?: string | null; created_at?: string }
+        Relationships: [{ foreignKeyName: "public_holidays_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }]
+      }
+      roster_blackouts: {
+        Row: { id: string; blackout_date: string; zone_id: string | null; reason: string; created_by: string | null; created_at: string }
+        Insert: { id?: string; blackout_date: string; zone_id?: string | null; reason: string; created_by?: string | null; created_at?: string }
+        Update: { id?: string; blackout_date?: string; zone_id?: string | null; reason?: string; created_by?: string | null; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "roster_blackouts_created_by_fkey"; columns: ["created_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "roster_blackouts_zone_id_fkey"; columns: ["zone_id"]; isOneToOne: false; referencedRelation: "zones"; referencedColumns: ["id"] }
+        ]
+      }
+      shift_swaps: {
+        Row: { id: string; shift_id: string; requester_id: string; target_staff_id: string | null; target_shift_id: string | null; reason: string | null; status: string; decided_by: string | null; decided_at: string | null; decision_note: string | null; created_at: string }
+        Insert: { id?: string; shift_id: string; requester_id: string; target_staff_id?: string | null; target_shift_id?: string | null; reason?: string | null; status?: string; decided_by?: string | null; decided_at?: string | null; decision_note?: string | null; created_at?: string }
+        Update: { id?: string; shift_id?: string; requester_id?: string; target_staff_id?: string | null; target_shift_id?: string | null; reason?: string | null; status?: string; decided_by?: string | null; decided_at?: string | null; decision_note?: string | null; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "shift_swaps_decided_by_fkey"; columns: ["decided_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "shift_swaps_requester_id_fkey"; columns: ["requester_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "shift_swaps_shift_id_fkey"; columns: ["shift_id"]; isOneToOne: false; referencedRelation: "shifts"; referencedColumns: ["id"] },
+          { foreignKeyName: "shift_swaps_target_staff_id_fkey"; columns: ["target_staff_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "shift_swaps_target_shift_id_fkey"; columns: ["target_shift_id"]; isOneToOne: false; referencedRelation: "shifts"; referencedColumns: ["id"] }
+        ]
+      }
       leave_requests: {
         Row: {
           created_at: string
@@ -913,6 +955,10 @@ export type Database = {
           decided_by: string | null
           decision_note: string | null
           end_date: string
+          leave_type_id: string | null
+          days_requested: number | null
+          cancelled_at: string | null
+          cancellation_note: string | null
           id: string
           reason: string | null
           staff_id: string
@@ -925,6 +971,10 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           end_date: string
+          leave_type_id?: string | null
+          days_requested?: number | null
+          cancelled_at?: string | null
+          cancellation_note?: string | null
           id?: string
           reason?: string | null
           staff_id: string
@@ -937,6 +987,10 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           end_date?: string
+          leave_type_id?: string | null
+          days_requested?: number | null
+          cancelled_at?: string | null
+          cancellation_note?: string | null
           id?: string
           reason?: string | null
           staff_id?: string
@@ -2190,6 +2244,7 @@ export type Database = {
       }
       staff_profiles: {
         Row: {
+          station_zone_id: string | null
           bank_account_name: string | null
           bank_account_number: string | null
           bank_name: string | null
@@ -2215,6 +2270,7 @@ export type Database = {
           verified_by: string | null
         }
         Insert: {
+          station_zone_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -2240,6 +2296,7 @@ export type Database = {
           verified_by?: string | null
         }
         Update: {
+          station_zone_id?: string | null
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
@@ -3205,6 +3262,17 @@ export type Database = {
           }
       retry_email: { Args: { _id: string }; Returns: undefined }
       run_dispatch: { Args: never; Returns: Json }
+      cancel_leave_request: { Args: { _note: string | null; _request: string }; Returns: undefined }
+      decide_leave_request: { Args: { _approve: boolean; _note: string | null; _request: string }; Returns: undefined }
+      decide_shift_swap: { Args: { _approve: boolean; _note: string | null; _swap: string }; Returns: undefined }
+      delete_public_holiday: { Args: { _id: string }; Returns: undefined }
+      delete_roster_blackout: { Args: { _id: string }; Returns: undefined }
+      list_delivery_agents_for_swap: { Args: never; Returns: Json }
+      request_shift_swap: { Args: { _reason: string | null; _shift: string; _target_staff: string | null }; Returns: undefined }
+      respond_shift_swap: { Args: { _accept: boolean; _note: string | null; _swap: string }; Returns: undefined }
+      save_public_holiday: { Args: { _date: string; _day_in_lieu: boolean; _name: string }; Returns: undefined }
+      save_roster_blackout: { Args: { _date: string; _reason: string; _zone: string | null }; Returns: undefined }
+      submit_leave_request: { Args: { _end: string; _leave_type: string; _reason: string; _start: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_campaign: {
         Args: {

@@ -31,7 +31,15 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { returning } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase, user } = await requireUser(`/orders/${id}`);
-  const { data: st } = await supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]);
+  const [{ data: st }, { data: paymentProviders, error: providersError }] = await Promise.all([
+    supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]),
+    // The function is added by the PR migration before deployment; cast this RPC
+    // because generated Supabase types are refreshed separately from migrations.
+    (supabase as any).rpc("active_payment_providers") as Promise<{ data: string[] | null; error: { message: string } | null }>,
+  ]);
+  const enabledProviders = providersError
+    ? []
+    : (paymentProviders ?? []).filter((provider: string): provider is "paystack" | "flutterwave" => provider === "paystack" || provider === "flutterwave");
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
@@ -82,7 +90,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
           <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
           <RescheduleControl orderId={id} current={o.scheduled_for} />
-          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} />
+          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} enabledProviders={enabledProviders} />
           <VerifyPayment orderId={id} auto={confirming} />
           <CancelButton orderId={id} />
         </section>
@@ -122,7 +130,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
                   {o.count_auto ? <p className="text-sm text-ink-soft">Your agent counted these for you.</p> : <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>}
                   {quote && <InstantCard orderId={id} q={quote} />}
                   {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
-                  <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
+                  <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} enabledProviders={enabledProviders} />
                   <VerifyPayment orderId={id} />
                 </>
               )}
@@ -134,7 +142,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {o.status === "count_confirmed" && topUp > 0 && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">When we checked your clothes, one item was in a higher-priced category than first counted. The prices above are now corrected. Please pay the difference of <strong>{naira(topUp)}</strong>.</p>
-              <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}`} />
+              <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}`} enabledProviders={enabledProviders} />
             </div>
           )}
         </section>
@@ -152,14 +160,14 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Your clothes are ready</h2>
           <p className="text-sm text-ink-soft">Pay the delivery fare of <strong>{naira(o.delivery_fare_kobo)}</strong> here and we will bring them to you. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo)}`} />
+          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo)}`} enabledProviders={enabledProviders} />
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Pay for delivery</h2>
           <p className="text-sm text-ink-soft">Delivery to {o.pickup_address ?? "your address"}: <strong>{naira(o.delivery_fare_kobo ?? 0)}</strong>. We assign a rider as soon as this is paid. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo ?? 0)}`} />
+          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo ?? 0)}`} enabledProviders={enabledProviders} />
         </section>
       )}
       {o.status === "out_for_delivery" && (
@@ -197,7 +205,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {dm?.has_case && dm.status === "accruing" && (Number(dm.due_kobo) > 0 ? (
             <div className="space-y-3 rounded-md border border-red-200 bg-white p-4 text-ink">
               <p className="text-sm">Your clothes have been with us past the free period. Storage fee due: <strong>{naira(Number(dm.due_kobo))}</strong>. Pay it here and we will arrange your delivery.</p>
-              <PayButtons orderId={id} purpose="demurrage" label={`Pay ${naira(Number(dm.due_kobo))}`} />
+              <PayButtons orderId={id} purpose="demurrage" label={`Pay ${naira(Number(dm.due_kobo))}`} enabledProviders={enabledProviders} />
             </div>
           ) : <p className="text-sm">Storage fee paid up to today. Thank you.</p>)}
           {dm?.has_case && dm.status === "paid" && <p className="text-sm">Storage fee paid. Thank you.</p>}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BookingForm } from "@/components/orders/BookingForm";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
@@ -6,9 +7,22 @@ import { NoCashNotice } from "@/components/orders/NoCashNotice";
 export const metadata = { title: "Request a pickup" };
 export const dynamic = "force-dynamic";
 
-export default async function RequestPage() {
+export default async function RequestPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (user && params.new !== "1") {
+    // Homepage pickup requests return customers with an active order to My Orders.
+    const { data: activeOrder } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("customer_id", user.id)
+      .in("status", ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "failed_delivery"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeOrder) redirect("/orders");
+  }
   return (
     <main id="main" className="container-page max-w-2xl space-y-6 py-10">
       <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>

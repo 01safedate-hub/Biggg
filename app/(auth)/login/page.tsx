@@ -13,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {error === "link" && (
         <div className="mb-4"><FormMessage kind="error">That link has expired or was already used. Sign in, or request a new password reset link.</FormMessage></div>
       )}
-      <LoginForm next={next ?? "/account"} />
+      <LoginForm next={next ?? "/request"} />
     </AuthShell>
   );
 }

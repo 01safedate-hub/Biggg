@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { addExpenseCategory, addItem, addItemCategory, addMoneyPoint, renameExpenseCategory, saveItem, setMoneyPointActive } from "@/app/admin/catalog-actions";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
@@ -29,7 +30,7 @@ export function AddMoneyPoint() {
       <Msg m={msg} />
       <div className="grid gap-4 sm:grid-cols-3">
         <div><label htmlFor="mp-name" className={labelCls}>Name</label><input id="mp-name" name="name" required className={inputCls} placeholder="e.g. Shop POS" /></div>
-        <div><label htmlFor="mp-kind" className={labelCls}>Type</label><select id="mp-kind" name="kind" className={inputCls}><option value="cash">Cash drawer</option><option value="pos">POS</option><option value="bank">Bank account</option><option value="online">Online (Paystack)</option></select></div>
+        <div><label htmlFor="mp-kind" className={labelCls}>Type</label><select id="mp-kind" name="kind" className={inputCls}><option value="cash">Cash drawer</option><option value="pos">POS</option><option value="bank">Bank account</option><option value="online">Online payment provider (Paystack or Flutterwave)</option></select></div>
         <div><label htmlFor="mp-open" className={labelCls}>Opening balance (₦)</label><input id="mp-open" name="opening" inputMode="decimal" defaultValue="0" className={inputCls} /></div>
         <div><label htmlFor="mp-bank" className={labelCls}>Bank (optional)</label><input id="mp-bank" name="bank_name" className={inputCls} /></div>
         <div><label htmlFor="mp-an" className={labelCls}>Account name (optional)</label><input id="mp-an" name="account_name" className={inputCls} /></div>
@@ -41,8 +42,17 @@ export function AddMoneyPoint() {
 }
 
 export function PointToggle({ id, active }: { id: string; active: boolean }) {
+  const router = useRouter();
   const { busy, msg, run } = useRun();
-  return <span><button className="btn-secondary !px-3 !py-1" disabled={busy} onClick={() => run(() => setMoneyPointActive(id, !active))}>{active ? "Turn off" : "Turn on"}</button>{msg && !msg.ok && <span role="alert" className="ml-2 text-xs text-red-700">{msg.message}</span>}</span>;
+  const [enabled, setEnabled] = useState(active);
+  return <span className="inline-flex flex-wrap items-center gap-2">
+    <button type="button" className="btn-secondary !px-3 !py-1" disabled={busy} onClick={async () => {
+      const next = !enabled;
+      const r = await run(() => setMoneyPointActive(id, next));
+      if (r.ok) { setEnabled(next); router.refresh(); }
+    }}>{busy ? "Saving…" : enabled ? "Turn off" : "Turn on"}</button>
+    {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}
+  </span>;
 }
 
 export function AddCategory({ kind }: { kind: "expense" | "item" }) {

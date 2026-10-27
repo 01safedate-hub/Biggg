@@ -30,6 +30,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const keys = (roles ?? []).map((r) => r.role as string);
   const isSuper = keys.includes("super_admin");
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
+  const isStaff = isMoneyStaff || keys.includes("delivery_agent");
 
   return (
     <main id="main" className="container-page max-w-3xl py-12">
@@ -39,6 +40,14 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       </div>
       <h1 className="mt-6 text-3xl font-bold tracking-tight">My account</h1>
       {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
+      {!isStaff && (
+        <section className="card mt-6 space-y-3 p-6">
+          <h2 className="text-lg font-semibold">Ready to do your laundry?</h2>
+          <p className="text-sm text-ink-soft">Start by sharing your pickup location. We will confirm whether your area is covered and show the transport fare before you book.</p>
+          <Link href="/request" className="btn-primary inline-flex">Request a pickup</Link>
+          <Link href="/orders" className="ml-3 inline-flex text-sm font-medium text-brand-dark hover:underline">View my orders</Link>
+        </section>
+      )}
       <div className="card mt-8 divide-y divide-line">
         {[
           ["Name", profile?.full_name || "Not set"],

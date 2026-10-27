@@ -3,7 +3,24 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
+const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.com";
+
+// Keep payment returns on the deployment where checkout started (especially Netlify PR previews).
+// Only accept our production domain or Netlify deploy-preview domains from the browser Origin;
+// never use an arbitrary Origin as a redirect target.
+function callbackSite(req: Request) {
+  const origin = req.headers.get("origin");
+  if (origin) {
+    try {
+      const u = new URL(origin);
+      const host = u.hostname.toLowerCase();
+      if (u.protocol === "https:" && (host === "laundrypoint.com" || host === "www.laundrypoint.com" || host.endsWith(".netlify.app"))) {
+        return u.origin;
+      }
+    } catch { /* fall back to configured site */ }
+  }
+  return SITE.replace(/\\/$/, "");
+}
 const PAYSTACK = Deno.env.get("PAYSTACK_SECRET_KEY");
 const FLW = Deno.env.get("FLUTTERWAVE_SECRET_KEY");
 
@@ -23,7 +40,7 @@ Deno.serve(async (req) => {
   const { data, error } = await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) return json(400, { error: error.message });
   const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no: number };
-  const back = `${SITE}/orders/${order}?returning=1`;
+  const back = `${callbackSite(req)}/orders/${order}?returning=1`;
 
   if (provider === "paystack") {
     const r = await fetch("https://api.paystack.co/transaction/initialize", {

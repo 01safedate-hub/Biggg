@@ -15,6 +15,21 @@ export async function savePricing(patch: Record<string, number | string>): Promi
   return { ok: true, message: "Saved. New bookings use these straight away." };
 }
 
+export async function createZone(v: { name: string; centre_lat: number | null; centre_lng: number | null; radius_m: number }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const name = v.name.trim().slice(0, 80);
+  if (name.length < 2) return { ok: false, message: "Enter a zone name." };
+  if (v.centre_lat == null || v.centre_lng == null || !Number.isFinite(v.centre_lat) || !Number.isFinite(v.centre_lng) || Math.abs(v.centre_lat) > 90 || Math.abs(v.centre_lng) > 180) return { ok: false, message: "Choose a valid centre on the map or use your device location." };
+  if (!Number.isInteger(v.radius_m) || v.radius_m < 200 || v.radius_m > 50000) return { ok: false, message: "Radius must be between 200 and 50,000 metres." };
+  const slug = name.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70);
+  if (!slug) return { ok: false, message: "Enter a valid zone name." };
+  const { error } = await supabase.from("zones").insert({ kind: "area", name, slug, centre_lat: v.centre_lat, centre_lng: v.centre_lng, radius_m: v.radius_m, is_live: false, auto_live: false, coords_approx: false, sort_order: 999 });
+  if (error) return { ok: false, message: error.code === "23505" ? "A zone with that name already exists. Choose a different name." : "Could not create the zone. Check the name and try again." };
+  revalidatePath("/admin/zones");
+  revalidatePath("/", "layout");
+  return { ok: true, message: "Zone created and left switched off. Review it below, then enable it when ready." };
+}
+
 export async function saveZone(id: string, v: { is_live: boolean; radius_m: number | null; centre_lat: number | null; centre_lng: number | null; auto_live: boolean }): Promise<R> {
   const { supabase } = await requireRole(["super_admin"]);
   const hasCentre = v.centre_lat != null && v.centre_lng != null;

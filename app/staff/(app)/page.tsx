@@ -16,6 +16,9 @@ export default async function StaffHome() {
   const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent"]);
   const { data } = await supabase.rpc("my_pay_overview");
   const p = data as unknown as Pay | null;
+  const { data: auth } = await supabase.auth.getUser();
+  const { data: profile } = auth.user ? await supabase.from("staff_profiles").select("station_zone_id").eq("user_id", auth.user.id).maybeSingle() : { data: null };
+  const { data: station } = profile?.station_zone_id ? await supabase.from("zones").select("name").eq("id", profile.station_zone_id).maybeSingle() : { data: null };
   const canExpense = roles.includes("secretary") || roles.includes("super_admin");
   const first = name.split(" ")[0] || "there";
 
@@ -28,7 +31,7 @@ export default async function StaffHome() {
           <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
           <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">{p.job_title || "Team"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">{p.job_title || "Team"}{station?.name ? ` · ${station.name}` : ""}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Hello, {first}</h1>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">

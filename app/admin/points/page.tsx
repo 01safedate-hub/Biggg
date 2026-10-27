@@ -11,7 +11,7 @@ export default async function PointsPage() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">Money points</h1>
-        <p className="mt-1 text-sm text-ink-soft">Every place money sits: drawers, POS machines, bank accounts. Turn one off instead of deleting it so its history stays.</p></div>
+        <p className="mt-1 text-sm text-ink-soft">Manage money locations and online payment availability. For customer checkout, add separate Online entries named Paystack and Flutterwave; switching each entry off hides that provider button. Turn entries off instead of deleting them so their history stays.</p></div>
       <AddMoneyPoint />
       <section className="card divide-y divide-line">
         {(data ?? []).map((m) => (
