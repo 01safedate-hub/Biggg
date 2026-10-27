@@ -9,7 +9,7 @@ import { inputCls, labelCls } from "./ui";
 
 export type SettingsValues = {
   phone: string; whatsapp: string; hubAddress: string; hubLat: string; hubLng: string;
-  demFeeNaira: string; demGraceHours: string; demBasis: string; targetNaira: string; recoveryBasis: string;
+  demFeeNaira: string; demGraceHours: string; demBasis: string; targetNaira: string; recoveryBasis: string; paystackEnabled: string; flutterwaveEnabled: string;
 };
 
 export function SettingsForm({ v }: { v: SettingsValues }) {
@@ -40,7 +40,7 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
     const { error } = await createClient().rpc("save_business_settings", {
       _patch: {
         contact_phone: s("phone"), whatsapp_number: s("whatsapp"), hub_address: s("address"), hub_lat: num(s("lat")), hub_lng: num(s("lng")),
-        demurrage_fee_kobo: fee, demurrage_grace_hours: grace, demurrage_basis: s("basis"), monthly_net_target_kobo: target,
+        demurrage_fee_kobo: fee, demurrage_grace_hours: grace, demurrage_basis: s("basis"), monthly_net_target_kobo: target,\n        paystack_enabled: s("paystackEnabled") === "on", flutterwave_enabled: s("flutterwaveEnabled") === "on",
       },
     });
     setBusy(false);
