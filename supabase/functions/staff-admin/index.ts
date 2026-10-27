@@ -21,7 +21,7 @@ function cleanPhone(v: string) {
 }
 
 
-async function persistStation(userId: string, value: unknown, roles: string[]) {
+async function persistStation(admin: ReturnType<typeof createClient>, userId: string, value: unknown, roles: string[]) {
   const stationId = clean(value);
   if (stationId && !/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
   if (stationId) {
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       // The person already has an account (a customer, or earlier staff): grant the roles instead of inviting again.
       const r = await asCaller.rpc("set_staff_roles", { _user: existing.id, _roles: Array.from(new Set([...existing.roles, ...roles])) });
       if (r.error) return json(400, { error: r.error.message });
-      const stationError = await persistStation(existing.id, b.station_zone_id, Array.from(new Set([...existing.roles, ...roles])));
+      const stationError = await persistStation(admin, existing.id, b.station_zone_id, Array.from(new Set([...existing.roles, ...roles])));
       if (stationError) return json(400, { error: stationError });
       return json(200, { ok: true, mode: "existing_account", name: existing.full_name });
     }
@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(inv.data.user.id); // do not leave an account with no role behind
       return json(400, { error: role.error.message });
     }
-    const stationError = await persistStation(inv.data.user.id, b.station_zone_id, roles);
+    const stationError = await persistStation(admin, inv.data.user.id, b.station_zone_id, roles);
     if (stationError) { await admin.auth.admin.deleteUser(inv.data.user.id); return json(400, { error: stationError }); }
     return json(200, { ok: true, mode: "invited" });
   }
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(uid);
       return json(400, { error: role.error.message });
     }
-    const stationError = await persistStation(uid, b.station_zone_id, roles);
+    const stationError = await persistStation(admin, uid, b.station_zone_id, roles);
     if (stationError) { await admin.auth.admin.deleteUser(uid); return json(400, { error: stationError }); }
     const flag = await admin.rpc("flag_initial_password", { _user: uid });
     if (flag.error) {
@@ -123,6 +123,19 @@ Deno.serve(async (req) => {
     if (row.accepted) return json(400, { error: "already_accepted" });
     const inv = await admin.auth.admin.inviteUserByEmail(row.email, { redirectTo: `${SITE}/auth/confirm` });
     if (inv.error) return json(400, { error: inv.error.message });
+    return json(200, { ok: true });
+  }
+
+  if (action === "set_station") {
+    const id = clean(b.user_id);
+    const stationId = clean(b.station_zone_id);
+    const list = await asCaller.rpc("staff_list");
+    if (list.error) return json(400, { error: list.error.message });
+    const target = ((list.data ?? []) as { id: string; roles: string[] }[]).find((s) => s.id === id);
+    if (!target) return json(404, { error: "user_not_found" });
+    if (!target.roles.includes("delivery_agent") && stationId) return json(400, { error: "station_requires_delivery_agent" });
+    const stationError = await persistStation(admin, id, stationId || null, target.roles);
+    if (stationError) return json(400, { error: stationError });
     return json(200, { ok: true });
   }
 
