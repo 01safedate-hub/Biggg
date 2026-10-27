@@ -27,9 +27,9 @@ export default async function ExtraClothesPage() {
       </div>
       {error ? <p className="card p-5 text-sm text-ink-soft">We could not load your bills right now. Please refresh shortly.</p> : null}
       {!error && (pickups ?? []).length === 0 ? <p className="card p-5 text-sm text-ink-soft">You have no extra-clothes bills.</p> : null}
-      {(pickups ?? []).map((p) => {
+      {(pickups ?? []).map((p: any) => {
         const invoice = Array.isArray(p.subscription_invoices)
-          ? p.subscription_invoices.find((i) => i.subscription_pickup_id === p.id)
+          ? p.subscription_invoices.find((i: any) => i.subscription_pickup_id === p.id)
           : null;
         const paid = invoice?.status === "paid";
         return (
