@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/roles";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { naira } from "@/lib/format";
 import { longDate } from "@/lib/money";
+import { ExtraClothesPayButton } from "@/components/subscriptions/ExtraClothesPayButton";
 
 export const metadata = { title: "Extra-clothes bills" };
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export default async function ExtraClothesPage() {
           </div>
           <p className="text-sm text-ink-soft">Recorded {longDate(p.created_at ?? p.scheduled_for ?? "")} · {p.status.replaceAll("_", " ")}</p>
           {p.order_id ? <Link href={`/orders/${p.order_id}`} className="text-sm font-medium text-brand-dark hover:underline">View related order</Link> : null}
-          <p className="text-xs text-ink-mute">Online payment action will appear here once the overage invoice payment route is connected.</p>
+          <ExtraClothesPayButton pickupId={p.id} />
         </section>
       ))}
     </main>
