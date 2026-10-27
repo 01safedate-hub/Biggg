@@ -91,7 +91,7 @@ export async function respondSwap(id: string, accept: boolean, note: string): Pr
 
 export async function cancelSwap(id: string, reason: string): Promise<Result> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_shift_swap", {_swap:id,_reason:reason});
+  const { error } = await supabase.rpc("cancel_shift_swap" as never, {_swap:id,_reason:reason} as never);
   revalidatePath("/staff/leave");
   revalidatePath("/admin/roster");
   return msg(error, "Could not cancel this shift-swap request.");
