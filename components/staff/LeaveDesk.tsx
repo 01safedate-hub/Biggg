@@ -1,0 +1,33 @@
+"use client";
+import { useState, useTransition } from "react";
+import { cancelLeave, decideLeave, decideSwap, requestSwap, respondSwap, submitLeave } from "@/app/staff/(app)/leave-actions";
+
+type AnyRow = Record<string, any>;
+export function LeaveDesk({isManager,userId,types,leaveRows,shifts,swaps,people,balances}: {isManager:boolean;userId:string;types:AnyRow[];leaveRows:AnyRow[];shifts:AnyRow[];swaps:AnyRow[];people:AnyRow[];balances:AnyRow[]}) {
+ const [busy,startTransition]=useTransition(); const [feedback,setFeedback]=useState(""); const [target,setTarget]=useState(""); const [shiftId,setShiftId]=useState(""); const [reason,setReason]=useState("");
+ const person=(id:string)=>{const p=people.find(x=>x.id===id);return p?.full_name||p?.email||"Staff";};
+ const leaveType=(id:string|null)=>types.find(x=>x.id===id)?.name||"Leave";
+ const run=(fn:()=>Promise<{ok:boolean;message:string}>)=>startTransition(async()=>{const r=await fn();setFeedback(r.message);if(r.ok)window.location.reload();});
+ return <div className="space-y-6">
+ {feedback&&<p role="status" className="rounded border border-line p-3 text-sm">{feedback}</p>}
+ <section className="card space-y-4 p-4"><h2 className="text-lg font-semibold">Request leave</h2><p className="text-sm text-ink-soft">Leave duration is counted in calendar days. Approval is required for the seeded leave types.</p>
+ {balances.map((b,i)=><p key={i} className="text-sm">{leaveType(b.leave_type_id)} allowance: {Number(b.allowance_days)+Number(b.adjustment_days)} days in {b.year}</p>)}
+ <form action={form=>run(()=>submitLeave(form))} className="grid gap-3 sm:grid-cols-2">
+ <label className="text-sm">Leave type<select name="leave_type_id" required className="mt-1 w-full rounded border border-line bg-white p-2">{types.map(t=><option value={t.id} key={t.id}>{t.name}{t.paid?" · paid":" · unpaid"}</option>)}</select></label>
+ <label className="text-sm">Reason<input name="reason" maxLength={500} className="mt-1 w-full rounded border border-line p-2"/></label>
+ <label className="text-sm">Start date<input name="start_date" type="date" required min={new Date().toLocaleDateString("en-CA")} className="mt-1 w-full rounded border border-line p-2"/></label>
+ <label className="text-sm">End date<input name="end_date" type="date" required min={new Date().toLocaleDateString("en-CA")} className="mt-1 w-full rounded border border-line p-2"/></label>
+ <button disabled={busy} className="btn-primary sm:col-span-2">{busy?"Saving…":"Submit leave request"}</button></form></section>
+ <section className="space-y-3"><h2 className="text-lg font-semibold">Leave requests</h2><div className="card divide-y divide-line">{leaveRows.map(l=><article key={l.id} className="space-y-2 p-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><div><strong>{leaveType(l.leave_type_id)} · {l.start_date} to {l.end_date}</strong><p className="text-ink-soft">{l.days_requested??"—"} calendar days{isManager?" · "+person(l.staff_id):""}{l.reason?" · "+l.reason:""}</p></div><span className="rounded border border-line px-2 py-1 text-xs capitalize">{l.status}</span></div>{l.decision_note&&<p className="text-xs text-ink-soft">Note: {l.decision_note}</p>}
+ {isManager&&l.status==="pending"&&<div className="flex gap-2"><button disabled={busy} className="btn-primary" onClick={()=>run(()=>decideLeave(l.id,true,""))}>Approve</button><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>decideLeave(l.id,false,"Declined by manager"))}>Reject</button></div>}
+ {!isManager&&l.staff_id===userId&&["pending","approved"].includes(l.status)&&<button disabled={busy} className="btn-secondary" onClick={()=>run(()=>cancelLeave(l.id))}>Cancel request</button>}</article>)}{leaveRows.length===0&&<p className="p-4 text-sm text-ink-soft">No leave requests yet.</p>}</div></section>
+ <section className="card space-y-4 p-4"><h2 className="text-lg font-semibold">Request a shift swap</h2><p className="text-sm text-ink-soft">A manager must approve the swap after the colleague accepts.</p>
+ <form onSubmit={e=>{e.preventDefault();run(()=>requestSwap(shiftId,target,reason));}} className="grid gap-3 sm:grid-cols-2">
+ <label className="text-sm">Your upcoming shift<select required value={shiftId} onChange={e=>setShiftId(e.target.value)} className="mt-1 w-full rounded border border-line bg-white p-2"><option value="">Choose shift…</option>{shifts.filter(s=>s.staff_id===userId&&new Date(s.starts_at)>new Date()).map(s=><option key={s.id} value={s.id}>{s.shift_date} · {new Date(s.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</option>)}</select></label>
+ <label className="text-sm">Suggested colleague<select value={target} onChange={e=>setTarget(e.target.value)} className="mt-1 w-full rounded border border-line bg-white p-2"><option value="">Open swap request</option>{people.filter(p=>p.id!==userId).map(p=><option key={p.id} value={p.id}>{p.full_name||p.email||"Staff"}</option>)}</select></label>
+ <label className="text-sm sm:col-span-2">Reason<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} className="mt-1 w-full rounded border border-line p-2"/></label><button disabled={busy||!shiftId} className="btn-primary sm:col-span-2">Send swap request</button></form></section>
+ <section className="space-y-3"><h2 className="text-lg font-semibold">Shift-swap requests</h2><div className="card divide-y divide-line">{swaps.map(s=><article key={s.id} className="space-y-2 p-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><div><strong>{person(s.requester_id)} · {s.shift?.shift_date||"Shift"}</strong><p className="text-ink-soft">{s.reason||"No reason provided"}{s.target_staff_id?" · Suggested: "+person(s.target_staff_id):""}</p></div><span className="rounded border border-line px-2 py-1 text-xs capitalize">{s.status}</span></div>
+ {s.status==="pending"&&s.target_staff_id===userId&&<div className="flex gap-2"><button disabled={busy} className="btn-primary" onClick={()=>run(()=>respondSwap(s.id,true,"Accepted"))}>Accept</button><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>respondSwap(s.id,false,"Declined"))}>Decline</button></div>}
+ {isManager&&s.status==="accepted"&&<div className="flex gap-2"><button disabled={busy} className="btn-primary" onClick={()=>run(()=>decideSwap(s.id,true,"Approved"))}>Approve swap</button><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>decideSwap(s.id,false,"Declined by manager"))}>Reject swap</button></div>}</article>)}{swaps.length===0&&<p className="p-4 text-sm text-ink-soft">No shift-swap requests yet.</p>}</div></section>
+ </div>;
+}
