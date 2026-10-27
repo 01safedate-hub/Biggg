@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 
 export const metadata = { title: "Monthly laundry plans" };
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function SubscriptionsPage() {
   return (
     <main id="main" className="container-page max-w-4xl space-y-6 py-10">
       <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
+      <CustomerSidebar />
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Monthly laundry plans</h1>
         <p className="max-w-2xl text-sm text-ink-soft">One monthly payment covers pickup, laundry and delivery for clothes included in your plan. Your allowance is counted by total pieces, whatever the clothing type, across two pickups during the month.</p>
