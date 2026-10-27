@@ -43,9 +43,10 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
 
   return (
-    <main id="main" className="container-page max-w-3xl py-4 sm:py-6">
+    <main id="main" className="min-h-screen w-full">
       <CustomerSidebar name={profile?.full_name || profile?.email || user.email || "Customer"} />
-      <h1 className="mt-6 text-3xl font-bold tracking-tight">My account</h1>
+      <div className="container-page mx-auto max-w-3xl py-4 sm:py-6">
+      <h1 className="text-3xl font-bold tracking-tight">My account</h1>
       {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
       <div className="card mt-8 divide-y divide-line">
         {[
@@ -79,6 +80,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {(isMoneyStaff || keys.includes("delivery_agent")) && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
         </div>
       )}
+      </div>
     </main>
   );
 }
