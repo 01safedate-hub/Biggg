@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/roles";
 import { CUSTOMER_STEPS, STATUS_LABEL, type Timeline } from "@/lib/orders";
@@ -57,8 +58,12 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const confirming = returning === "1" && o.status === "awaiting_fare_payment";
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
 
+  const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
+
   return (
-    <main id="main" className="container-page max-w-2xl space-y-6 py-10">
+    <main id="main" className="min-h-screen w-full bg-canvas">
+      <CustomerSidebar name={displayName} />
+      <div className="container-page mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
       <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{STATUS_LABEL[o.status] ?? o.status}</p></div>
@@ -211,6 +216,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address}</p>}
       {timeline && timeline.steps.length > 0 && <OrderTimeline t={timeline} />}
       <SupportCard whatsapp={sv.whatsapp?.number} phone={sv.contact?.phone} orderNo={o.order_no} />
+      </div>
     </main>
   );
 }
