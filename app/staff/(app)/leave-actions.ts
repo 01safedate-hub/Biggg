@@ -22,7 +22,12 @@ function msg(error: { message?: string } | null, fallback: string): Result {
     swap_not_accepted: "The swap must be accepted before a manager can approve it.",
     staff_only: "Your account does not have a staff role.",
     not_authenticated: "Your session expired. Sign in again.",
-    delivery_agent_only: "Your account role cannot request this shift swap.",\n    staff_role_not_eligible: "Shift swaps are available to delivery agents, cashiers and secretaries.",\n    not_allowed: "Your account is not active or is not permitted to request a shift swap.",\n    invalid_target_staff: "Choose an active colleague with the same staff role.",\n    cannot_swap_with_self: "Choose a colleague other than yourself.",\n    swap_target_missing: "Choose a colleague to receive the shift.",
+    delivery_agent_only: "Your account role cannot request this shift swap.",
+    staff_role_not_eligible: "Shift swaps are available to delivery agents, cashiers and secretaries.",
+    not_allowed: "Your account is not active or is not permitted to request a shift swap.",
+    invalid_target_staff: "Choose an active colleague with the same staff role.",
+    cannot_swap_with_self: "Choose a colleague other than yourself.",
+    swap_target_missing: "Choose a colleague to receive the shift.",
     swap_target_required: "Choose a colleague to receive the shift.",
     
     swap_overlap: "That colleague already has a shift at the same time.",
