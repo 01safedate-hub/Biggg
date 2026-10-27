@@ -955,6 +955,10 @@ export type Database = {
           decided_by: string | null
           decision_note: string | null
           end_date: string
+          leave_type_id: string | null
+          days_requested: number | null
+          cancelled_at: string | null
+          cancellation_note: string | null
           id: string
           reason: string | null
           staff_id: string
@@ -967,6 +971,10 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           end_date: string
+          leave_type_id?: string | null
+          days_requested?: number | null
+          cancelled_at?: string | null
+          cancellation_note?: string | null
           id?: string
           reason?: string | null
           staff_id: string
@@ -979,6 +987,10 @@ export type Database = {
           decided_by?: string | null
           decision_note?: string | null
           end_date?: string
+          leave_type_id?: string | null
+          days_requested?: number | null
+          cancelled_at?: string | null
+          cancellation_note?: string | null
           id?: string
           reason?: string | null
           staff_id?: string
