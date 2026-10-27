@@ -14,8 +14,7 @@ export async function checkInForShift(lat: number, lng: number): Promise<{ ok: b
   ]);
   const roles = (roleRows ?? []).map(r => r.role as string);
   if (profile?.status && profile.status !== "active") return { ok: false, message: "Your staff account is not active yet. Ask an administrator to activate it." };
-  const staffRoles = ["super_admin", "admin", "secretary", "cashier", "delivery_agent"];
-  if (!roles.some(role => staffRoles.includes(role))) return { ok: false, message: "Your account does not have an eligible staff role for attendance check-in." };
+  if (!roles.includes("delivery_agent")) return { ok: false, message: "Only delivery agents can check in for pickup shifts." };
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return { ok: false, message: "Your location could not be validated. Try again." };
   const { error } = await supabase.rpc("check_in", { _lat: lat, _lng: lng });
   if (error) {
