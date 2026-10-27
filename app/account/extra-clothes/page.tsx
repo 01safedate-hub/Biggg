@@ -16,6 +16,7 @@ export default async function ExtraClothesPage() {
     .eq("subscriptions.customer_id", user.id)
     .gt("overage_pieces", 0)
     .order("created_at", { ascending: false });
+
   return (
     <main id="main" className="container-page max-w-3xl space-y-6 py-10">
       <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
@@ -26,17 +27,26 @@ export default async function ExtraClothesPage() {
       </div>
       {error ? <p className="card p-5 text-sm text-ink-soft">We could not load your bills right now. Please refresh shortly.</p> : null}
       {!error && (pickups ?? []).length === 0 ? <p className="card p-5 text-sm text-ink-soft">You have no extra-clothes bills.</p> : null}
-      {(pickups ?? []).map((p) => {\n        const invoice = Array.isArray(p.subscription_invoices) ? p.subscription_invoices.find((i) => i.subscription_pickup_id === p.id) : null;\n        const paid = invoice?.status === "paid";\n        return (
-        <section key={p.id} className="card space-y-3 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="font-semibold">Extra clothes · {p.overage_pieces} piece{p.overage_pieces === 1 ? "" : "s"}</h2><p className="text-sm text-ink-soft">Total counted: {p.pieces_counted ?? "—"} pieces</p></div>
-            <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0) / 100)}</p>
-          </div>
-          <p className="text-sm text-ink-soft">Recorded {longDate(p.created_at ?? p.scheduled_for ?? "")} · Bill status: {paid ? "Paid" : "Payment due"}</p>
-          {p.order_id ? <Link href={`/orders/${p.order_id}`} className="text-sm font-medium text-brand-dark hover:underline">View related order</Link> : null}
-          {!paid ? <ExtraClothesPayButton pickupId={p.id} /> : <p className="text-sm font-medium text-green-700">Payment confirmed</p>}
-        </section>
-      ))}
+      {(pickups ?? []).map((p) => {
+        const invoice = Array.isArray(p.subscription_invoices)
+          ? p.subscription_invoices.find((i) => i.subscription_pickup_id === p.id)
+          : null;
+        const paid = invoice?.status === "paid";
+        return (
+          <section key={p.id} className="card space-y-3 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold">Extra clothes · {p.overage_pieces} piece{p.overage_pieces === 1 ? "" : "s"}</h2>
+                <p className="text-sm text-ink-soft">Total counted: {p.pieces_counted ?? "—"} pieces</p>
+              </div>
+              <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0) / 100)}</p>
+            </div>
+            <p className="text-sm text-ink-soft">Recorded {longDate(p.created_at ?? p.scheduled_for ?? "")} · Bill status: {paid ? "Paid" : "Payment due"}</p>
+            {p.order_id ? <Link href={`/orders/${p.order_id}`} className="text-sm font-medium text-brand-dark hover:underline">View related order</Link> : null}
+            {!paid ? <ExtraClothesPayButton pickupId={p.id} /> : <p className="text-sm font-medium text-green-700">Payment confirmed</p>}
+          </section>
+        );
+      })}
     </main>
   );
 }
