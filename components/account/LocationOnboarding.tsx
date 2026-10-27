@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type Quote = { served: boolean; zone_name?: string; reason?: string };
+type Quote = { served: boolean; zone_name?: string; zone_id?: string; reason?: string; total_fare_kobo?: number };
 
 export function LocationOnboarding() {
   const router = useRouter();
@@ -37,7 +37,11 @@ export function LocationOnboarding() {
     const supabase = createClient();
     const auth = await supabase.auth.getUser();
     if (!auth.data.user) { setBusy(false); router.replace("/login?next=/onboarding/location"); return; }
-    const saved = await supabase.from("addresses").insert({user_id:auth.data.user.id,label:"Home",lat:pos.lat,lng:pos.lng,formatted_address:address.trim()});
+    const existing = await supabase.from("addresses").select("id").eq("user_id",auth.data.user.id).order("created_at",{ascending:true}).limit(1).maybeSingle();
+    const values = {label:"Home",lat:pos.lat,lng:pos.lng,formatted_address:address.trim(),zone_id:quote.zone_id ?? null};
+    const saved = existing.data?.id
+      ? await supabase.from("addresses").update(values).eq("id",existing.data.id).eq("user_id",auth.data.user.id)
+      : await supabase.from("addresses").insert({user_id:auth.data.user.id,...values});
     setBusy(false);
     if (saved.error) { setError("We could not save this address. Please check the address and try again."); return; }
     router.push("/subscriptions"); router.refresh();
@@ -46,15 +50,15 @@ export function LocationOnboarding() {
   async function joinWaitlist() {
     if (!pos || !email.trim()) return;
     setBusy(true); setError("");
-    try {
-      const res = await fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + "/functions/v1/waitlist", {
-        method:"POST", headers:{"Content-Type":"application/json",apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!},
-        body:JSON.stringify({email:email.trim(),lat:pos.lat,lng:pos.lng,detected_area:quote?.zone_name || "Uncovered area"})
-      });
-      if (!res.ok) throw new Error("waitlist");
-      setDone(true);
-    } catch { setError("We could not submit your waitlist request. Please try again."); }
-    finally { setBusy(false); }
+    const { error: waitlistError } = await createClient().rpc("join_service_waitlist", {
+      _email: email.trim(),
+      _lat: pos.lat,
+      _lng: pos.lng,
+      _detected_area: quote?.zone_name || "Uncovered area",
+    });
+    setBusy(false);
+    if (waitlistError) { setError("We could not submit your waitlist request. Please check the email and try again."); return; }
+    setDone(true);
   }
 
   return <main id="main" className="container-page max-w-2xl space-y-6 py-10">
