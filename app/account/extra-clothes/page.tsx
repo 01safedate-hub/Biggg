@@ -39,7 +39,7 @@ export default async function ExtraClothesPage() {
                 <h2 className="font-semibold">Extra clothes · {p.overage_pieces} piece{p.overage_pieces === 1 ? "" : "s"}</h2>
                 <p className="text-sm text-ink-soft">Total counted: {p.pieces_counted ?? "—"} pieces</p>
               </div>
-              <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0) / 100)}</p>
+              <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0))}</p>
             </div>
             <p className="text-sm text-ink-soft">Recorded {longDate(p.created_at ?? p.scheduled_for ?? "")} · Bill status: {paid ? "Paid" : "Payment due"}</p>
             {p.order_id ? <Link href={`/orders/${p.order_id}`} className="text-sm font-medium text-brand-dark hover:underline">View related order</Link> : null}
