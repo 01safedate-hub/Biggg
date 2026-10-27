@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PhoneActions } from "@/components/ops/PhoneActions";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
-import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
 import { StainFlag } from "@/components/ops/StainFlag";
@@ -27,7 +26,6 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
-  const map = mapsLink(o.pickup_lat, o.pickup_lng);
   const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
     ? await (supabase as any).from("subscription_pickups")
         .select("pieces_counted,overage_pieces,overage_kobo")
@@ -45,7 +43,6 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
             <p className="mt-2 text-base font-semibold">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
             <p className="mt-1 text-sm text-ink-soft">{o.pickup_address || "No address saved"}</p></div>
           <PickupLocationMap lat={o.pickup_lat == null ? null : Number(o.pickup_lat)} lng={o.pickup_lng == null ? null : Number(o.pickup_lng)} address={o.pickup_address ?? "Customer location"} />
-          {map && <a className="btn-primary inline-flex w-full justify-center sm:w-auto" target="_blank" rel="noopener noreferrer" href={map}>Open directions in Google Maps ↗</a>}
         </section>
         <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
@@ -67,7 +64,6 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <p className="mt-1 text-sm text-ink-soft">{o.pickup_address || "No address saved"}</p>
           {o.notes && <p className="mt-2 rounded-md bg-canvas p-3 text-sm"><span className="font-semibold">Customer note:</span> {o.notes}</p>}</div>
         <PickupLocationMap lat={o.pickup_lat == null ? null : Number(o.pickup_lat)} lng={o.pickup_lng == null ? null : Number(o.pickup_lng)} address={o.pickup_address ?? "Customer pickup location"} />
-        {map && <a className="btn-primary inline-flex w-full justify-center sm:w-auto" target="_blank" rel="noopener noreferrer" href={map}>Open directions in Google Maps ↗</a>}
       </section>
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "This pickup is covered by the customer’s monthly plan. Count every garment by category. Covered pieces need no payment; any excess is billed to the customer for online payment after you submit the count. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
