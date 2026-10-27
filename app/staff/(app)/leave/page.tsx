@@ -11,10 +11,10 @@ export default async function LeavePage() {
   (isManager ? supabase.from("leave_requests").select("id,staff_id,start_date,end_date,reason,status,decided_by,decided_at,decision_note,leave_type_id,days_requested").order("created_at",{ascending:false}).limit(100) : supabase.from("leave_requests").select("id,staff_id,start_date,end_date,reason,status,decided_by,decided_at,decision_note,leave_type_id,days_requested").eq("staff_id",user.id).order("created_at",{ascending:false}).limit(100)),
   supabase.from("shifts").select("id,staff_id,shift_date,starts_at,ends_at").gte("starts_at",new Date().toISOString()).lte("starts_at",new Date(Date.now()+45*86400000).toISOString()).order("starts_at"),
   isManager ? supabase.from("shift_swaps").select("id,shift_id,requester_id,target_staff_id,status,reason,created_at,shift:shifts(id,shift_date,starts_at,ends_at,staff_id)").order("created_at",{ascending:false}).limit(100) : supabase.from("shift_swaps").select("id,shift_id,requester_id,target_staff_id,status,reason,created_at,shift:shifts(id,shift_date,starts_at,ends_at,staff_id)").or("requester_id.eq."+user.id+",target_staff_id.eq."+user.id).order("created_at",{ascending:false}).limit(100),
-  isManager ? supabase.from("profiles").select("id,full_name,email,status").eq("status","active").order("full_name") : supabase.from("profiles").select("id,full_name,email").eq("id",user.id),
+  isManager ? supabase.from("profiles").select("id,full_name,email,status").eq("status","active").order("full_name") : supabase.rpc("list_agents"),
   supabase.from("leave_balances").select("leave_type_id,year,allowance_days,adjustment_days").eq("staff_id",user.id).eq("year",new Date().getFullYear())
  ]);
- const peopleLite=(people??[]).map((p:any)=>({id:p.id,full_name:p.full_name,email:p.email}));
+ const peopleLite=(people??[]).map((p:any)=>({id:p.id,full_name:p.full_name||p.name||null,email:p.email||null}));
  const shiftRows=(shifts??[]) as any[];
  const swapRows=(swaps??[]).map((s:any)=>({...s,shift:Array.isArray(s.shift)?s.shift[0]??null:s.shift}));
  return <div className="space-y-5"><div><Link href="/staff/my-shifts" className="text-sm underline">← My shifts</Link><h1 className="mt-2 text-2xl font-bold tracking-tight">Leave and shift swaps</h1><p className="mt-1 text-sm text-ink-soft">{isManager?"Review team leave requests and accepted shift swaps.":"Request leave, cancel future requests, and ask colleagues to swap upcoming shifts."}</p></div>
