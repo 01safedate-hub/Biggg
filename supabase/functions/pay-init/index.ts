@@ -16,12 +16,15 @@ const corsHeaders = {
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: corsHeaders });
 
 Deno.serve(async (req) => {
+  // Browsers send a CORS preflight before authenticated JSON POST requests.
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
   const auth = req.headers.get("Authorization");
   if (!auth) return json(401, { error: "not_signed_in" });
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return json(400, { error: "bad_request" }); }
   const order = String(b.order_id ?? ""), purpose = String(b.purpose ?? ""), provider = String(b.provider ?? ""), planSlug = String(b.plan_slug ?? ""), pickupId = String(b.pickup_id ?? "");
+  if (provider !== "paystack" && provider !== "flutterwave") return json(400, { error: "unsupported_provider" });
   if (provider === "paystack" && !PAYSTACK) return json(503, { error: "provider_not_configured" });
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" });
 
