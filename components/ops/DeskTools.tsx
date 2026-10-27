@@ -27,7 +27,7 @@ export function AssignForm({ orderId, agents, current, kind = "pickup" }: { orde
 type Line = { id: string; name: string; category_name: string | null; qty: number; check_state: string; check_note: string | null };
 type Opt = { id: string; name: string; price_kobo: number; category: string };
 
-export function CheckLines({ orderId, lines, options, dueKobo }: { orderId: string; lines: Line[]; options: Opt[]; dueKobo: number }) {
+export function CheckLines({ orderId, lines, options, dueKobo, subscription = false }: { orderId: string; lines: Line[]; options: Opt[]; dueKobo: number; subscription?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -51,7 +51,9 @@ export function CheckLines({ orderId, lines, options, dueKobo }: { orderId: stri
     if (!r.ok) return setErr(r.message);
     setFixing(null); setPick(""); setWhy("");
     const d = r.due ?? 0;
-    setNote(d > 0 ? `Corrected. The customer must now pay ${naira(d)} extra in the app before you can receive this order.` : d < 0 ? `Corrected. The customer is owed ${naira(-d)}; the super admin will refund it.` : "Corrected. The price is unchanged.");
+    setNote(subscription
+      ? "Category corrected. Monthly allowance is based on total garment pieces, not item prices. No per-item payment or refund applies."
+      : d > 0 ? `Corrected. The customer must now pay ${naira(d)} extra in the app before you can receive this order.` : d < 0 ? `Corrected. The customer is owed ${naira(-d)}; the super admin will refund it.` : "Corrected. The price is unchanged.");
     router.refresh();
   }
 
@@ -59,7 +61,7 @@ export function CheckLines({ orderId, lines, options, dueKobo }: { orderId: stri
     <div className="space-y-4">
       {err && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       {note && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">{note}</p>}
-      {dueKobo > 0 && <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Waiting for the customer to pay {naira(dueKobo)} extra. This page does not update by itself, so refresh after they pay.</p>}
+      {!subscription && dueKobo > 0 && <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Waiting for the customer to pay {naira(dueKobo)} extra. This page does not update by itself, so refresh after they pay.</p>}
       <ul className="card divide-y divide-line">
         {lines.map((l) => (
           <li key={l.id} className="space-y-3 p-4">
@@ -76,7 +78,7 @@ export function CheckLines({ orderId, lines, options, dueKobo }: { orderId: stri
                 <label className="block text-sm font-medium" htmlFor={`pick-${l.id}`}>What is it really?</label>
                 <select id={`pick-${l.id}`} value={pick} onChange={(e) => setPick(e.target.value)} className="w-full rounded-md border border-line px-3 py-2 text-sm">
                   <option value="">Choose the right item</option>
-                  {groups.map((g) => <optgroup key={g} label={g}>{options.filter((o) => o.category === g).map((o) => <option key={o.id} value={o.id}>{o.name} ({naira(o.price_kobo)})</option>)}</optgroup>)}
+                  {groups.map((g) => <optgroup key={g} label={g}>{options.filter((o) => o.category === g).map((o) => <option key={o.id} value={o.id}>{subscription ? o.name : `${o.name} (${naira(o.price_kobo)})`}</option>)}</optgroup>)}
                 </select>
                 <input aria-label="Why" value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Short reason, for example: this is a duvet" className="w-full rounded-md border border-line px-3 py-2 text-sm" />
                 <button className="btn-primary !px-4 !py-2" disabled={busy === l.id || !pick || why.trim().length < 3} onClick={() => fix(l.id)}>Fix and re-bill</button>
