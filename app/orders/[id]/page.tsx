@@ -103,11 +103,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "agent_arrived" && <section className="card p-5 text-sm text-ink-soft">Your agent is counting your clothes by category. Your bill will appear here in a moment. Please do not hand over any cash.</section>}
+      {o.status === "agent_arrived" && <section className="card p-5 text-sm text-ink-soft">{o.source === "subscription" ? "Your agent is counting garments by category. The monthly plan covers included pieces; only pieces above your remaining allowance will be billed online. Do not hand over cash." : "Your agent is counting your clothes by category. Your bill will appear here in a moment. Please do not hand over any cash."}</section>}
 
       {["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed", "failed_delivery"].includes(o.status) && (lines ?? []).length > 0 && (
-        <section className="card p-5" aria-label="Your bill">
-          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
+        <section className="card p-5" aria-label={o.source === "subscription" ? "Garments recorded" : "Your bill"}>
+          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
           <table className="mt-3 w-full text-sm">
             <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th>{o.source !== "subscription" && <><th className="py-1 text-right">Each</th><th className="py-1 text-right">Total</th></>}</tr></thead>
             <tbody className="divide-y divide-line">
