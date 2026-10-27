@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/Logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallApp } from "@/components/brand/InstallApp";
+import { CustomerNavBell } from "@/components/notifications/CustomerNavBell";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
   Receipt, Settings, WashingMachine, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
@@ -48,7 +49,7 @@ function Links({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => 
   );
 }
 
-export function Sidebar({ title, name, groups }: { title: string; name: string; groups: NavGroup[] }) {
+export function Sidebar({ title, name, groups, showNotifications = false }: { title: string; name: string; groups: NavGroup[]; showNotifications?: boolean }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
