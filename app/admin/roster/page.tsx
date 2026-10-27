@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 const day = (s: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(new Date(s + "T12:00:00+01:00"));
 const hm = (s: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" }).format(new Date(s));
 export default async function AdminRosterPage() {
- const { supabase } = await requireRole(["super_admin"]); const now = new Date();
+ const { supabase } = await requireRole(["super_admin","admin","secretary"]); const now = new Date();
  const { data: shifts, error } = await supabase.from("shifts").select("id,staff_id,shift_date,starts_at,ends_at").gte("shift_date", now.toISOString().slice(0,10)).lte("shift_date", new Date(now.getTime()+35*86400000).toISOString().slice(0,10)).order("starts_at");
  const { data: swaps, error: swapsError } = await supabase.from("shift_swaps").select("id,requester_id,target_staff_id,status,created_at,shift:shifts!shift_swaps_shift_id_fkey(id,shift_date,starts_at,ends_at)").order("created_at",{ascending:false}).limit(50);
  const ids = (shifts ?? []).map(s=>s.id); const staffIds = Array.from(new Set((shifts ?? []).map(s=>s.staff_id)));
