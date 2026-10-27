@@ -20,6 +20,19 @@ function cleanPhone(v: string) {
   return t.startsWith("+") ? `+${d}` : d;
 }
 
+
+async function persistStation(userId: string, value: unknown, roles: string[]) {
+  const stationId = clean(value);
+  if (stationId && !/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
+  if (stationId) {
+    const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
+    if (zoneError || !zone) return "invalid_station";
+  }
+  if (!roles.includes("delivery_agent") && stationId) return "station_requires_delivery_agent";
+  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId || null }, { onConflict: "user_id" });
+  return error ? "station_save_failed" : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
   const auth = req.headers.get("Authorization");
@@ -51,6 +64,8 @@ Deno.serve(async (req) => {
       // The person already has an account (a customer, or earlier staff): grant the roles instead of inviting again.
       const r = await asCaller.rpc("set_staff_roles", { _user: existing.id, _roles: Array.from(new Set([...existing.roles, ...roles])) });
       if (r.error) return json(400, { error: r.error.message });
+      const stationError = await persistStation(existing.id, b.station_zone_id, Array.from(new Set([...existing.roles, ...roles])));
+      if (stationError) return json(400, { error: stationError });
       return json(200, { ok: true, mode: "existing_account", name: existing.full_name });
     }
 
@@ -61,6 +76,8 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(inv.data.user.id); // do not leave an account with no role behind
       return json(400, { error: role.error.message });
     }
+    const stationError = await persistStation(inv.data.user.id, b.station_zone_id, roles);
+    if (stationError) { await admin.auth.admin.deleteUser(inv.data.user.id); return json(400, { error: stationError }); }
     return json(200, { ok: true, mode: "invited" });
   }
 
@@ -88,6 +105,8 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(uid);
       return json(400, { error: role.error.message });
     }
+    const stationError = await persistStation(uid, b.station_zone_id, roles);
+    if (stationError) { await admin.auth.admin.deleteUser(uid); return json(400, { error: stationError }); }
     const flag = await admin.rpc("flag_initial_password", { _user: uid });
     if (flag.error) {
       await admin.auth.admin.deleteUser(uid);
