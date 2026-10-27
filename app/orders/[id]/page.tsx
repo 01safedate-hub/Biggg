@@ -63,7 +63,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
       <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{STATUS_LABEL[o.status] ?? o.status}</p></div>
-      {showNotice && <NoCashNotice />}
+      {showNotice && <NoCashNotice subscription={o.source === "subscription"} />}
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
         {CUSTOMER_STEPS.map((s) => {
