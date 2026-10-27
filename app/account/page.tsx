@@ -39,7 +39,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
     if (!addressCount) redirect("/onboarding/location");
     if (!activeSubscription) redirect("/subscriptions");
   }
-  const keys = (roles ?? []).map((r) => r.role as string);
   const isSuper = keys.includes("super_admin");
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
 
