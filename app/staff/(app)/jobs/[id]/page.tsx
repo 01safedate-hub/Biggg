@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PhoneActions } from "@/components/ops/PhoneActions";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
-import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
 import { StainFlag } from "@/components/ops/StainFlag";
@@ -27,7 +26,9 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
-  const map = mapsLink(o.pickup_lat, o.pickup_lng);
+  const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
+    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
+    : { data: null };
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
   if (delivering) {
@@ -39,10 +40,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
           <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p></div>
         <AgentPickupMap agentId={user.id} orderId={id} />
-        <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">The delivery fare is already paid online. Do not collect any cash.</p>
+        <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
-        {o.status === "out_for_delivery" && <section className="card space-y-4 p-5"><h2 className="text-lg font-semibold">When you reach the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} step="delivery" label="I am at the door: show my code" /><FailedDeliveryForm orderId={id} /></section>}
+        {o.status === "out_for_delivery" && <section className="card space-y-4 p-5"><h2 className="text-lg font-semibold">When you reach the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} step="delivery" label="I am at the door: show my code" /><FailedDeliveryForm orderId={id} /></section>}
         {o.status === "delivered" && <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950"><h2 className="text-xl font-bold">Delivered ✓</h2><p className="text-sm">The customer confirmed with the code. Well done.</p></section>}
         {o.status === "failed_delivery" && <section className="rounded-xl border border-red-300 bg-red-50 p-5 text-red-950"><h2 className="text-xl font-bold">Logged as not delivered</h2><p className="text-sm">Bring the bag back to the hub. The office will arrange another try.</p></section>}
       </div>
@@ -58,16 +59,16 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p>
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
       <AgentPickupMap agentId={user.id} orderId={id} />
-      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here.</p>
+      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category, regardless of clothing type. The monthly allowance is based on total pieces, and excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
-      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} /><FailedPickupForm orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
+      {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">3. Waiting for the customer to pay</h2>
+          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "3. Garment count submitted" : "3. Waiting for the customer to pay"}</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
-          <p className="text-lg font-bold">Bill: {naira(total)}</p>
-          <p className="text-sm text-ink-soft">{o.source === "online" && !o.count_accepted_at ? "The customer must check and accept this count on their phone first, then pay." : o.count_auto ? "This count is accepted automatically because you brought this client in. They can still pay now." : "The bill is on their phone."} This page updates when they have paid.</p>
+          {o.source === "subscription" ? <p className="text-sm text-ink-soft">Pieces counted: {subscriptionPickup?.pieces_counted ?? (lines ?? []).reduce((n, l) => n + l.qty, 0)} · Excess pieces: {subscriptionPickup?.overage_pieces ?? 0} · Extra-clothes amount: {naira(Number(subscriptionPickup?.overage_kobo ?? 0))}</p> : <p className="text-lg font-bold">Bill: {naira(total)}</p>}
+          <p className="text-sm text-ink-soft">{o.source === "subscription" ? "The system applies the customer’s monthly allowance. Any excess is paid online by the customer; do not collect cash." : o.source === "online" && !o.count_accepted_at ? "The customer must check and accept this count on their phone first, then pay." : o.count_auto ? "This count is accepted automatically because you brought this client in. They can still pay now." : "The bill is on their phone."} This page updates automatically.</p>
           <ReopenButton orderId={id} />
         </section>
       )}
