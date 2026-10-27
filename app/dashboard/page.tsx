@@ -25,15 +25,6 @@ export default async function CustomerDashboardPage() {
     <main id="main" className="min-h-screen w-full bg-canvas">
       <CustomerSidebar name={displayName} />
       <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <header className="flex flex-col justify-between gap-5 border-b border-line pb-7 sm:flex-row sm:items-end">
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-dark">LAUNDRYPOINT · CUSTOMER SPACE</p>
-            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">Good to see you, {displayName}</h1>
-            <p className="max-w-2xl text-base leading-7 text-ink-soft">Everything you need to manage your laundry, in one place.</p>
-          </div>
-          <Link href="/request" className="btn-primary inline-flex min-h-12 items-center justify-center gap-2 self-start whitespace-nowrap px-5 sm:self-auto">Book a pickup <span aria-hidden="true">↗</span></Link>
-        </header>
-
         <section aria-label="Account overview" className="grid gap-4 md:grid-cols-2">
           <article className="relative overflow-hidden rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-7">
             <div className="flex items-start justify-between gap-4">
