@@ -4,13 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createStaff, inviteStaff } from "@/app/admin/staff/actions";
 import { STAFF_ROLES } from "@/lib/staff";
+import type { StationOption } from "@/lib/stations";
 import { inputCls, labelCls } from "./ui";
 
-export function StaffInvite() {
+export function StaffInvite({ stations }: { stations: StationOption[] }) {
   const router = useRouter();
   const [mode, setMode] = useState<"invite" | "password">("invite");
   const [busy, setBusy] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
+  const [stationZoneId, setStationZoneId] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -21,7 +23,7 @@ export function StaffInvite() {
     if (roles.length === 0) return setMsg({ ok: false, text: "Choose at least one role." });
     if (roles.includes("super_admin") && !window.confirm("A super admin has full control, including approving expenses and seeing all money. Continue?")) return;
     setBusy(true);
-    const base = { email: String(f.get("email") ?? ""), full_name: String(f.get("full_name") ?? ""), phone: String(f.get("phone") ?? ""), roles };
+    const base = { email: String(f.get("email") ?? ""), full_name: String(f.get("full_name") ?? ""), phone: String(f.get("phone") ?? ""), roles, station_zone_id: stationZoneId || null };
     if (mode === "password") {
       const r = await createStaff({ ...base, password: String(f.get("password") ?? "") });
       setBusy(false);
@@ -32,7 +34,7 @@ export function StaffInvite() {
     const r = await inviteStaff(base);
     setBusy(false);
     setMsg({ ok: r.ok, text: r.message });
-    if (r.ok) { form.reset(); setRoles([]); }
+    if (r.ok) { form.reset(); setRoles([]); setStationZoneId(""); }
   }
 
   return (
@@ -51,6 +53,7 @@ export function StaffInvite() {
         <div><label htmlFor="inv-phone" className={labelCls}>Phone</label><input id="inv-phone" name="phone" type="tel" required className={inputCls} /></div>
         {mode === "password" && <div><label htmlFor="inv-pw" className={labelCls}>First password</label><input id="inv-pw" name="password" type="text" required minLength={10} autoComplete="off" className={inputCls} placeholder="At least 10 characters, letters and numbers" /></div>}
       </div>
+      <div><label htmlFor="staff-station" className={labelCls}>Pickup station / service area</label><select id="staff-station" value={stationZoneId} onChange={(e) => setStationZoneId(e.target.value)} className={inputCls}><option value="">No station assigned</option>{stations.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><p className="mt-1 text-xs text-ink-mute">Delivery agents will be matched to pickup jobs in this live service area.</p></div>
       <fieldset>
         <legend className={labelCls}>Role</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
