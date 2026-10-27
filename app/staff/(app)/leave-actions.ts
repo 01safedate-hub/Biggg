@@ -1,0 +1,80 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+
+type Result = { ok: boolean; message: string };
+
+function msg(error: { message?: string } | null, fallback: string): Result {
+  const raw = error?.message ?? "";
+  const labels: Record<string,string> = {
+    invalid_leave_dates: "Choose valid future dates.",
+    invalid_leave_type: "Choose an active leave type.",
+    leave_dates_overlap: "Those dates overlap another pending or approved leave request.",
+    insufficient_leave_balance: "There is not enough leave balance for these dates.",
+    manager_only: "Only a roster manager can decide requests.",
+    leave_request_not_pending: "This request has already been decided.",
+    leave_not_cancellable: "This leave request can no longer be cancelled.",
+    leave_already_started: "Approved leave cannot be cancelled after it starts.",
+    shift_not_found_or_started: "That upcoming shift could not be found.",
+    swap_already_pending: "A swap request already exists for this shift.",
+    swap_not_pending: "This swap has already been responded to.",
+    swap_not_accepted: "The swap must be accepted before a manager can approve it.",
+    staff_only: "Your account does not have a staff role.",
+    not_authenticated: "Your session expired. Sign in again."
+  };
+  const key = Object.keys(labels).find(k => raw.includes(k));
+  return { ok: !error, message: error ? (key ? labels[key] : fallback) : "Saved successfully." };
+}
+
+export async function submitLeave(formData: FormData): Promise<Result> {
+  const supabase = await createClient();
+  const type = String(formData.get("leave_type_id") ?? "");
+  const start = String(formData.get("start_date") ?? "");
+  const end = String(formData.get("end_date") ?? "");
+  const reason = String(formData.get("reason") ?? "");
+  if (!type || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return {ok:false,message:"Choose a leave type and valid start/end dates."};
+  const { error } = await supabase.rpc("submit_leave_request", {_leave_type:type,_start:start,_end:end,_reason:reason});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not submit leave request.");
+}
+
+export async function cancelLeave(id: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_leave_request", {_request:id,_note:null});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not cancel this leave request.");
+}
+
+export async function decideLeave(id: string, approve: boolean, note: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_leave_request", {_request:id,_approve:approve,_note:note || null});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not update the leave request.");
+}
+
+export async function requestSwap(shiftId: string, targetStaff: string, reason: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("request_shift_swap", {_shift:shiftId,_target_staff:targetStaff || null,_reason:reason || null});
+  revalidatePath("/staff/leave");
+  return msg(error, "Could not submit this shift-swap request.");
+}
+
+export async function respondSwap(id: string, accept: boolean, note: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("respond_shift_swap", {_swap:id,_accept:accept,_note:note || null});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not respond to this swap.");
+}
+
+export async function decideSwap(id: string, approve: boolean, note: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("decide_shift_swap", {_swap:id,_approve:approve,_note:note || null});
+  revalidatePath("/staff/leave");
+  revalidatePath("/admin/roster");
+  return msg(error, "Could not decide this swap.");
+}
