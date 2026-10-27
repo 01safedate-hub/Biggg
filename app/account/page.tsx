@@ -43,11 +43,8 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
 
   return (
-    <main id="main" className="container-page max-w-3xl py-12">\n      <CustomerSidebar />
-      <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
-        <form action="/auth/signout" method="post"><button className="btn-secondary">Sign out</button></form>
-      </div>
+    <main id="main" className="container-page max-w-3xl py-4 sm:py-6">
+      <CustomerSidebar name={profile?.full_name || profile?.email || user.email || "Customer"} />
       <h1 className="mt-6 text-3xl font-bold tracking-tight">My account</h1>
       {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
       <div className="card mt-8 divide-y divide-line">
