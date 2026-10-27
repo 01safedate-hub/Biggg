@@ -9,6 +9,7 @@ import { naira } from "@/lib/format";
 export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; step?: "arrival" | "delivery"; label?: string }) {
   const [code, setCode] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   return (
     <div className="space-y-3">
       {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
@@ -19,7 +20,7 @@ export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived
           <p className="mt-3 text-xs text-slate-400">They type it on their own phone. This page moves on by itself when they do.</p>
         </div>
       ) : (
-        <button className="btn-primary" onClick={async () => { const r = await showArrivalCode(orderId, step); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>{label}</button>
+        <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); setErr(null); const r = await showArrivalCode(orderId, step); setBusy(false); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>{busy ? "Generating code…" : label}</button>
       )}
     </div>
   );
