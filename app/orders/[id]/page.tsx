@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/roles";
-import { CUSTOMER_STEPS, STATUS_LABEL, mapsLink, type Timeline } from "@/lib/orders";
+import { CUSTOMER_STEPS, STATUS_LABEL, type Timeline } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
 import { PayButtons } from "@/components/orders/PayButtons";
@@ -56,7 +56,6 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const confirming = returning === "1" && o.status === "awaiting_fare_payment";
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
-  const map = mapsLink(o.pickup_lat, o.pickup_lng);
 
   return (
     <main id="main" className="container-page max-w-2xl space-y-6 py-10">
@@ -209,7 +208,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       )}
 
       {(lines ?? []).length > 0 && ["counted","count_confirmed","received","in_house","ready","out_for_delivery","delivered","closed"].includes(o.status) && <p className="text-sm"><Link className="font-medium text-brand-dark underline" href={`/orders/${id}/receipt`}>View receipt</Link></p>}
-      {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>(map)</a>}</p>}
+      {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address}</p>}
       {timeline && timeline.steps.length > 0 && <OrderTimeline t={timeline} />}
       <SupportCard whatsapp={sv.whatsapp?.number} phone={sv.contact?.phone} orderNo={o.order_no} />
     </main>
