@@ -26,13 +26,12 @@ export default async function StaffHome() {
 
   return (
     <div className="space-y-8">
-      <section className="card flex items-start gap-3 p-4" aria-label="Working station"><div className="rounded-lg bg-brand-tint p-2 text-brand-dark" aria-hidden>⌖</div><div><h2 className="font-semibold">Your working station</h2><p className="mt-1 text-sm text-ink-soft">{station?.name ?? "No station assigned yet. Please contact your administrator."}</p></div></section>
       {p && (
         <section aria-label="My pay and progress" className="relative overflow-hidden rounded-2xl bg-slate-950 p-6 text-white shadow-xl sm:p-8">
           <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
           <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">{p.job_title || "Team"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">{p.job_title || "Team"}{station?.name ? ` · ${station.name}` : ""}</p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Hello, {first}</h1>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
