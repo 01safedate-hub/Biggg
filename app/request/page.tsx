@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { BookingForm } from "@/components/orders/BookingForm";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 
 export const metadata = { title: "Request a pickup" };
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export default async function RequestPage() {
   const { data: { user } } = await supabase.auth.getUser();
   return (
     <main id="main" className="container-page max-w-2xl space-y-6 py-10">
-      <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
+      {user ? <CustomerSidebar /> : <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>}
       <h1 className="text-3xl font-bold tracking-tight">Request a pickup</h1>
       <NoCashNotice />
       {user ? <BookingForm /> : (
