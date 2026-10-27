@@ -54,6 +54,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </div>
         ))}
       </div>
+      <section className="card mt-8 p-6 space-y-3">
+        <h2 className="text-lg font-semibold">Pickup location</h2>
+        <p className="text-sm text-ink-soft">Moved or need to change your collection address? Check service coverage and save your updated location.</p>
+        <Link href="/onboarding/location" className="btn-secondary inline-block">Update my location</Link>
+      </section>
       <section className="card mt-8 p-6">
         <h2 className="mb-4 text-lg font-semibold">Your details</h2>
         <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
