@@ -107,11 +107,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed", "failed_delivery"].includes(o.status) && (lines ?? []).length > 0 && (
         <section className="card p-5" aria-label="Your bill">
-          <h2 className="text-lg font-semibold">{o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
+          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
           <table className="mt-3 w-full text-sm">
             <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th>{o.source !== "subscription" && <><th className="py-1 text-right">Each</th><th className="py-1 text-right">Total</th></>}</tr></thead>
             <tbody className="divide-y divide-line">
-              {(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.name}<span className="block text-xs text-ink-mute">{l.category_name}</span></td><td className="py-2 text-right">{l.qty}</td><td className="py-2 text-right">{naira(l.unit_price_kobo)}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></tr>)}
+              {(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.name}<span className="block text-xs text-ink-mute">{l.category_name}</span></td><td className="py-2 text-right">{l.qty}</td>{o.source !== "subscription" && <><td className="py-2 text-right">{naira(l.unit_price_kobo)}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></>}</tr>)}
             </tbody>
             <tfoot className={o.source === "subscription" ? "hidden" : ""}>
               {o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3" colSpan={3}>Discount code</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}
