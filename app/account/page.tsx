@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { FormMessage } from "@/components/auth/AuthShell";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { OffersToggle } from "@/components/account/OffersToggle";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "My account" };
 export const dynamic = "force-dynamic";
@@ -28,11 +30,21 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   ]);
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
   const keys = (roles ?? []).map((r) => r.role as string);
+  const isStaff = keys.some((k) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(k));
+  if (!isStaff) {
+    const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
+      supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").limit(1).maybeSingle(),
+    ]);
+    if (!addressCount) redirect("/onboarding/location");
+    if (!activeSubscription) redirect("/subscriptions");
+  }
+  const keys = (roles ?? []).map((r) => r.role as string);
   const isSuper = keys.includes("super_admin");
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
 
   return (
-    <main id="main" className="container-page max-w-3xl py-12">
+    <main id="main" className="container-page max-w-3xl py-12">\n      <CustomerSidebar />
       <div className="flex items-center justify-between">
         <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
         <form action="/auth/signout" method="post"><button className="btn-secondary">Sign out</button></form>
