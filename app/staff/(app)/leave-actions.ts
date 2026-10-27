@@ -21,7 +21,15 @@ function msg(error: { message?: string } | null, fallback: string): Result {
     swap_not_pending: "This swap has already been responded to.",
     swap_not_accepted: "The swap must be accepted before a manager can approve it.",
     staff_only: "Your account does not have a staff role.",
-    not_authenticated: "Your session expired. Sign in again."
+    not_authenticated: "Your session expired. Sign in again.",
+    delivery_agent_only: "Shift swaps are available to delivery agents only.",
+    swap_target_required: "Choose a delivery agent to receive the shift.",
+    invalid_target_staff: "The selected colleague is not a delivery agent.",
+    swap_overlap: "That agent already has a shift at the same time.",
+    swap_rest_rule: "That agent would have less than 11 hours off between shifts.",
+    swap_weekly_limit: "That agent would exceed the six-day weekly limit.",
+    shift_too_long: "Shifts longer than 10 hours cannot be transferred.",
+    leave_must_stay_within_year: "A leave request must fall within one calendar year."
   };
   const key = Object.keys(labels).find(k => raw.includes(k));
   return { ok: !error, message: error ? (key ? labels[key] : fallback) : "Saved successfully." };
