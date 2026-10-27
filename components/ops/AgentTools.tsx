@@ -6,7 +6,7 @@ import { deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, s
 import { StainFlag } from "@/components/ops/StainFlag";
 import { naira } from "@/lib/format";
 
-export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; step?: "arrival" | "delivery"; label?: string }) {
+export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; orderNo?: number; step?: "arrival" | "delivery"; label?: string }) {
   const [code, setCode] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -16,8 +16,9 @@ export function ArrivalCode({ orderId, step = "arrival", label = "I have arrived
       {code ? (
         <div className="rounded-xl bg-slate-950 p-6 text-center text-white">
           <p className="text-xs uppercase tracking-widest text-slate-400">Show this to the customer</p>
+          {orderNo != null && <p className="mt-2 text-sm font-semibold text-slate-200">Order #{orderNo} · {step === "delivery" ? "Delivery code" : "Pickup code"}</p>}
           <p className="mt-2 text-5xl font-bold tracking-[0.4em]" aria-label={`Code ${code.split("").join(" ")}`}>{code}</p>
-          <p className="mt-3 text-xs text-slate-400">They type it on their own phone. This page moves on by itself when they do.</p>
+          <p className="mt-3 text-xs text-slate-400">They must enter this code on the customer page for the same order number. This page moves on by itself when they do.</p>
         </div>
       ) : (
         <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); setErr(null); const r = await showArrivalCode(orderId, step); setBusy(false); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>{busy ? "Generating code…" : label}</button>
