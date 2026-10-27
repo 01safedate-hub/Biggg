@@ -26,7 +26,7 @@ export function PickupLocationMap({ lat, lng, address }: { lat: number | null; l
   if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     return (
       <div className="flex min-h-36 items-center justify-center rounded-xl border border-line bg-canvas p-5 text-center text-sm text-ink-soft">
-        No saved map coordinates for this pickup. Use the address and Google Maps link above.
+        No saved map coordinates for this pickup. Use the saved pickup address to navigate.
       </div>
     );
   }
