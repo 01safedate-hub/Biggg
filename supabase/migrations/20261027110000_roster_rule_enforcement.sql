@@ -87,6 +87,7 @@ begin
 end;
 $$;
 
+drop function if exists private.record_absences_system();
 create or replace function private.record_absences_system()
 returns void
 language plpgsql
