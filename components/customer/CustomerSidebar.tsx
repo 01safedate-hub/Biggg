@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const items = [
+  { href: "/services", label: "Services" },
   { href: "/orders", label: "My orders" },
   { href: "/subscriptions", label: "Monthly plans" },
   { href: "/request", label: "Book a pickup" },
