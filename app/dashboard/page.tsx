@@ -12,29 +12,60 @@ export default async function CustomerDashboardPage() {
     supabase.from("subscriptions").select("id,status,current_period_end").eq("customer_id", user.id).in("status", ["active", "pending"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
-  const links = [
-    { href: "/orders", title: "My orders", description: "View current and past laundry orders." },
-    { href: "/subscriptions", title: "Monthly plans", description: "View plans and your subscription status." },
-    { href: "/request", title: "Book a pickup", description: "Arrange your next collection." },
-    { href: "/account/extra-clothes", title: "Extra-clothes bills", description: "Review and pay any outstanding extra-piece bills." },
-    { href: "/account", title: "My account", description: "Manage your profile and saved pickup location." },
+  const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
+  const actions = [
+    { number: "01", title: "My orders", description: "Track laundry in progress and revisit previous orders.", href: "/orders", label: "View orders" },
+    { number: "02", title: "Book a pickup", description: "Schedule a collection that fits your day.", href: "/request", label: "Schedule pickup" },
+    { number: "03", title: "Monthly plans", description: "Review your allowance and manage your plan.", href: "/subscriptions", label: "Manage plan" },
+    { number: "04", title: "Extra-clothes bills", description: "See additional pieces and pay outstanding bills online.", href: "/account/extra-clothes", label: "View bills" },
+    { number: "05", title: "My account", description: "Update your profile and collection address.", href: "/account", label: "Account settings" },
   ];
 
   return (
-    <main id="main" className="min-h-screen w-full">
-      <CustomerSidebar name={user.user_metadata?.full_name || user.user_metadata?.name || user.email || "Customer"} />
-      <div className="container-page mx-auto w-full max-w-5xl space-y-6 py-6 sm:py-8">
-        <header className="space-y-2">
-          <p className="text-sm font-medium text-ink-soft">Customer dashboard</p>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back{user.user_metadata?.full_name || user.user_metadata?.name ? `, ${user.user_metadata.full_name || user.user_metadata.name}` : ""}</h1>
-          <p className="text-ink-soft">Manage your laundry, monthly plan, and pickup requests from one place.</p>
+    <main id="main" className="min-h-screen w-full bg-canvas">
+      <CustomerSidebar name={displayName} />
+      <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+        <header className="flex flex-col justify-between gap-5 border-b border-line pb-7 sm:flex-row sm:items-end">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-dark">LAUNDRYPOINT · CUSTOMER SPACE</p>
+            <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">Good to see you, {displayName}</h1>
+            <p className="max-w-2xl text-base leading-7 text-ink-soft">Everything you need to manage your laundry, in one place.</p>
+          </div>
+          <Link href="/request" className="btn-primary inline-flex min-h-12 items-center justify-center gap-2 self-start whitespace-nowrap px-5 sm:self-auto">Book a pickup <span aria-hidden="true">↗</span></Link>
         </header>
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className="card space-y-2 p-5"><p className="text-sm text-ink-soft">Total orders</p><p className="text-3xl font-semibold">{orderCount ?? 0}</p><Link className="text-sm font-medium text-brand-dark hover:underline" href="/orders">View my orders →</Link></div>
-          <div className="card space-y-2 p-5"><p className="text-sm text-ink-soft">Monthly plan</p><p className="text-xl font-semibold">{subscription?.status === "active" ? "Active" : subscription?.status === "pending" ? "Payment pending" : "No active plan"}</p>{subscription?.current_period_end && <p className="text-sm text-ink-soft">Current period ends {new Date(subscription.current_period_end).toLocaleDateString("en-NG")}</p>}<Link className="text-sm font-medium text-brand-dark hover:underline" href="/subscriptions">Manage monthly plan →</Link></div>
+
+        <section aria-label="Account overview" className="grid gap-4 md:grid-cols-2">
+          <article className="relative overflow-hidden rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="text-sm font-medium text-ink-soft">All orders</p><p className="mt-3 text-4xl font-semibold tracking-tight text-ink">{orderCount ?? 0}</p><p className="mt-2 text-sm text-ink-soft">Your laundry order history</p></div>
+              <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-xl text-brand-dark" aria-hidden="true">↗</span>
+            </div>
+            <Link href="/orders" className="mt-6 inline-flex items-center gap-2 border-t border-line pt-4 text-sm font-semibold text-brand-dark hover:underline">Explore orders <span aria-hidden="true">→</span></Link>
+          </article>
+          <article className="relative overflow-hidden rounded-2xl bg-slate-950 p-6 text-white shadow-sm sm:p-7">
+            <div className="absolute -right-10 -top-12 h-44 w-44 rounded-full border-[28px] border-white/5" aria-hidden="true" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-300">Monthly subscription</p>
+                <p className="mt-3 text-2xl font-semibold">{subscription?.status === "active" ? "Your plan is active" : subscription?.status === "pending" ? "Awaiting payment" : "Choose a plan"}</p>
+                <p className="mt-2 text-sm text-slate-300">{subscription?.current_period_end ? `Current period ends ${new Date(subscription.current_period_end).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : subscription?.status === "active" ? "Your monthly laundry allowance is ready." : "Find the right monthly allowance for you."}</p>
+              </div>
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl text-orange-300" aria-hidden="true">✦</span>
+            </div>
+            <Link href="/subscriptions" className="relative mt-6 inline-flex items-center gap-2 border-t border-white/15 pt-4 text-sm font-semibold text-orange-300 hover:underline">{subscription?.status === "active" ? "View subscription" : "Explore monthly plans"} <span aria-hidden="true">→</span></Link>
+          </article>
         </section>
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {links.map((item) => <Link key={item.href} href={item.href} className="card block space-y-2 border border-line p-5 transition hover:border-brand/40 hover:shadow-sm"><h2 className="font-semibold">{item.title} <span aria-hidden="true">→</span></h2><p className="text-sm text-ink-soft">{item.description}</p></Link>)}
+
+        <section className="space-y-4">
+          <div className="flex items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-dark">QUICK ACCESS</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Manage your account</h2></div></div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {actions.map((item) => <Link key={item.href} href={item.href} className="group flex min-h-44 flex-col rounded-2xl border border-line bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-md sm:p-6">
+              <div className="flex items-center justify-between"><span className="text-xs font-semibold tracking-[0.15em] text-ink-mute">{item.number}</span><span className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-soft transition group-hover:border-brand/30 group-hover:bg-orange-50 group-hover:text-brand-dark" aria-hidden="true">↗</span></div>
+              <h3 className="mt-5 text-lg font-semibold text-ink">{item.title}</h3>
+              <p className="mt-2 flex-1 text-sm leading-6 text-ink-soft">{item.description}</p>
+              <span className="mt-4 text-sm font-semibold text-brand-dark">{item.label} <span aria-hidden="true">→</span></span>
+            </Link>)}
+          </div>
         </section>
       </div>
     </main>
