@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { changeRoles, changeStatus, resendInvite } from "@/app/admin/staff/actions";
+import { changeRoles, changeStatus, resendInvite, changeStation } from "@/app/admin/staff/actions";
+import type { StationOption } from "@/lib/stations";
 import { ROLE_NAME, STAFF_ROLES, type StaffRowData } from "@/lib/staff";
 import { longDate } from "@/lib/money";
 import { inputCls } from "./ui";
@@ -14,9 +15,10 @@ const STATUS_STYLE: Record<string, string> = {
 };
 const STATUS_LABEL: Record<string, string> = { active: "Active", restricted: "Suspended", dismissed: "Dismissed" };
 
-export function StaffRow({ s, isMe, onboarding }: { s: StaffRowData; isMe: boolean; onboarding: string }) {
+export function StaffRow({ s, isMe, onboarding, stations }: { s: StaffRowData; isMe: boolean; onboarding: string; stations: StationOption[] }) {
   const [editing, setEditing] = useState(false);
   const [roles, setRoles] = useState<string[]>(s.roles);
+  const [stationId, setStationId] = useState(s.station_zone_id ?? "");
   const [reason, setReason] = useState("");
   const [asking, setAsking] = useState<"restricted" | "dismissed" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +50,7 @@ export function StaffRow({ s, isMe, onboarding }: { s: StaffRowData; isMe: boole
         <span className={`rounded border px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[s.status]}`}>{STATUS_LABEL[s.status]}</span>
       </div>
       <p className="mt-2 text-sm">{s.roles.map((r) => ROLE_NAME[r] ?? r).join(", ")} · <Link href={`/admin/staff/${s.id}`} className="font-medium text-brand-dark hover:underline">Details and pay</Link> {onboarding === "submitted" ? <span className="ml-1 rounded border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">Submitted: review</span> : <span className="text-xs text-ink-mute">({onboarding})</span>}</p>
-      {s.station_label && <p className="mt-1 text-sm text-ink-soft">Pickup station: <strong className="font-medium text-ink">{s.station_label}</strong></p>}
+      <div className="mt-2 flex flex-wrap items-end gap-2"><div className="min-w-56 flex-1"><label htmlFor={`station-${s.id}`} className="mb-1 block text-sm text-ink-soft">Pickup station / service area</label><select id={`station-${s.id}`} className={inputCls} value={stationId} onChange={(e) => setStationId(e.target.value)} disabled={busy || !s.roles.includes("delivery_agent")}><option value="">No station assigned</option>{stations.map((station) => <option key={station.id} value={station.id}>{station.label}</option>)}</select></div><button className="btn-secondary" disabled={busy || !s.roles.includes("delivery_agent") || stationId === (s.station_zone_id ?? "")} onClick={() => run(() => changeStation(s.id, stationId || null))}>{busy ? "Saving…" : "Transfer station"}</button></div><p className="mt-1 text-xs text-ink-mute">{s.roles.includes("delivery_agent") ? (s.station_label ? `Current station: ${s.station_label}` : "No station assigned yet.") : "Station assignment is available for delivery agents."}</p>
       {s.status !== "active" && s.status_reason && <p className="mt-1 text-sm text-ink-soft">Reason: {s.status_reason}</p>}
 
       {!isMe && (
