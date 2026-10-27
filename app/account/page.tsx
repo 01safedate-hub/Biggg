@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { FormMessage } from "@/components/auth/AuthShell";
 import { ProfileForm } from "@/components/account/ProfileForm";
 import { OffersToggle } from "@/components/account/OffersToggle";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
+import { redirect } from "next/navigation";
 
 export const metadata = { title: "My account" };
 export const dynamic = "force-dynamic";
@@ -28,26 +30,24 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   ]);
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
   const keys = (roles ?? []).map((r) => r.role as string);
+  const isStaff = keys.some((k) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(k));
+  if (!isStaff) {
+    const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
+      supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").lte("current_period_start", new Date().toISOString()).gt("current_period_end", new Date().toISOString()).limit(1).maybeSingle(),
+    ]);
+    if (!addressCount) redirect("/onboarding/location");
+    if (!activeSubscription) redirect("/subscriptions");
+  }
   const isSuper = keys.includes("super_admin");
   const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
-  const isStaff = isMoneyStaff || keys.includes("delivery_agent");
 
   return (
-    <main id="main" className="container-page max-w-3xl py-12">
-      <div className="flex items-center justify-between">
-        <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
-        <form action="/auth/signout" method="post"><button className="btn-secondary">Sign out</button></form>
-      </div>
-      <h1 className="mt-6 text-3xl font-bold tracking-tight">My account</h1>
+    <main id="main" className="min-h-screen w-full">
+      <CustomerSidebar name={profile?.full_name || profile?.email || user.email || "Customer"} />
+      <div className="container-page mx-auto max-w-3xl py-4 sm:py-6">
+      <h1 className="text-3xl font-bold tracking-tight">My account</h1>
       {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
-      {!isStaff && (
-        <section className="card mt-6 space-y-3 p-6">
-          <h2 className="text-lg font-semibold">Ready to do your laundry?</h2>
-          <p className="text-sm text-ink-soft">Start by sharing your pickup location. We will confirm whether your area is covered and show the transport fare before you book.</p>
-          <Link href="/request" className="btn-primary inline-flex">Request a pickup</Link>
-          <Link href="/orders" className="ml-3 inline-flex text-sm font-medium text-brand-dark hover:underline">View my orders</Link>
-        </section>
-      )}
       <div className="card mt-8 divide-y divide-line">
         {[
           ["Name", profile?.full_name || "Not set"],
@@ -63,6 +63,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </div>
         ))}
       </div>
+      <section className="card mt-8 p-6 space-y-3">
+        <h2 className="text-lg font-semibold">Pickup location</h2>
+        <p className="text-sm text-ink-soft">Moved or need to change your collection address? Check service coverage and save your updated location.</p>
+        <Link href="/onboarding/location" className="btn-secondary inline-block">Update my location</Link>
+      </section>
       <section className="card mt-8 p-6">
         <h2 className="mb-4 text-lg font-semibold">Your details</h2>
         <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
@@ -75,6 +80,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           {(isMoneyStaff || keys.includes("delivery_agent")) && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
         </div>
       )}
+      </div>
     </main>
   );
 }
