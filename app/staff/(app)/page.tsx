@@ -16,6 +16,9 @@ export default async function StaffHome() {
   const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent"]);
   const { data } = await supabase.rpc("my_pay_overview");
   const p = data as unknown as Pay | null;
+  const { data: auth } = await supabase.auth.getUser();
+  const { data: profile } = auth.user ? await supabase.from("staff_profiles").select("station_zone_id").eq("user_id", auth.user.id).maybeSingle() : { data: null };
+  const { data: station } = profile?.station_zone_id ? await supabase.from("zones").select("name").eq("id", profile.station_zone_id).maybeSingle() : { data: null };
   const canExpense = roles.includes("secretary") || roles.includes("super_admin");
   const first = name.split(" ")[0] || "there";
 
@@ -23,6 +26,7 @@ export default async function StaffHome() {
 
   return (
     <div className="space-y-8">
+      <section className="card flex items-start gap-3 p-4" aria-label="Working station"><div className="rounded-lg bg-brand-tint p-2 text-brand-dark" aria-hidden>⌖</div><div><h2 className="font-semibold">Your working station</h2><p className="mt-1 text-sm text-ink-soft">{station?.name ?? "No station assigned yet. Please contact your administrator."}</p></div></section>
       {p && (
         <section aria-label="My pay and progress" className="relative overflow-hidden rounded-2xl bg-slate-950 p-6 text-white shadow-xl sm:p-8">
           <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl" />
