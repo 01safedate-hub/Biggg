@@ -31,8 +31,8 @@ export default async function HubPage() {
         <div className="card divide-y divide-line">
           {rows.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
-              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{o.source === "walk_in" && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
+              <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.source === "subscription" && <span className="ml-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">Monthly plan · included</span>} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
+              {action ? <HubButton orderId={o.id} step={action.step} label={o.source === "subscription" && action.step === "ready" ? "Send to delivery" : action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{o.source === "walk_in" && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
             </div>
           ))}
           {rows.length === 0 && <p className="p-5 text-sm text-ink-soft">Nothing here.</p>}
@@ -42,7 +42,7 @@ export default async function HubPage() {
   };
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight">Wash queue</h1><p className="mt-1 text-sm text-ink-soft">Move each order forward as the clothes are washed. When you mark one ready, the customer is asked to pay the delivery fare.</p></div>
+      <div><h1 className="text-2xl font-bold tracking-tight">Wash queue</h1><p className="mt-1 text-sm text-ink-soft">Move each order forward as the clothes are washed. Monthly-plan delivery is included; marking a subscription order ready sends it to the delivery-agent queue without a transport charge.</p></div>
       {col("received", "Received, not started", "Checked in at the hub.", { step: "wash", label: "Start washing" })}
       {col("in_house", "Being washed", "Mark ready once folded and packed.", { step: "ready", label: "Mark ready" })}
       {col("ready", "Ready, waiting for the customer", "The customer has been asked to pay for delivery. Call them if it stays here for long.")}
