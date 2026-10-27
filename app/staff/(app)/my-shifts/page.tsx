@@ -11,7 +11,7 @@ export default async function MyShiftsPage() {
   const { supabase, roles } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent"]);
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
-  const canCheckIn = roles.some(role => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(role));
+  const canCheckIn = roles.includes("delivery_agent");
   const now = new Date();
   const { data: shifts, error } = await supabase.from("shifts").select("id,shift_date,starts_at,ends_at").eq("staff_id", auth.user.id).gte("shift_date", new Date(now.getTime() - 86400000).toISOString().slice(0,10)).lte("shift_date", new Date(now.getTime() + 35*86400000).toISOString().slice(0,10)).order("starts_at");
   const ids = (shifts ?? []).map(s => s.id);
