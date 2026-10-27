@@ -3208,6 +3208,17 @@ export type Database = {
           }
       retry_email: { Args: { _id: string }; Returns: undefined }
       run_dispatch: { Args: never; Returns: Json }
+      cancel_leave_request: { Args: { _note: string | null; _request: string }; Returns: undefined }
+      decide_leave_request: { Args: { _approve: boolean; _note: string | null; _request: string }; Returns: undefined }
+      decide_shift_swap: { Args: { _approve: boolean; _note: string | null; _swap: string }; Returns: undefined }
+      delete_public_holiday: { Args: { _id: string }; Returns: undefined }
+      delete_roster_blackout: { Args: { _id: string }; Returns: undefined }
+      list_delivery_agents_for_swap: { Args: never; Returns: Json }
+      request_shift_swap: { Args: { _reason: string | null; _shift: string; _target_staff: string | null }; Returns: undefined }
+      respond_shift_swap: { Args: { _accept: boolean; _note: string | null; _swap: string }; Returns: undefined }
+      save_public_holiday: { Args: { _date: string; _day_in_lieu: boolean; _name: string }; Returns: undefined }
+      save_roster_blackout: { Args: { _date: string; _reason: string; _zone: string | null }; Returns: undefined }
+      submit_leave_request: { Args: { _end: string; _leave_type: string; _reason: string; _start: string }; Returns: undefined }
       save_business_settings: { Args: { _patch: Json }; Returns: undefined }
       save_campaign: {
         Args: {
