@@ -22,7 +22,6 @@ export default async function SettingsPage() {
         phone: str(s.contact?.phone), whatsapp: str(s.whatsapp?.number), hubAddress: str(s.hub?.address), hubLat: str(s.hub?.lat), hubLng: str(s.hub?.lng),
         demFeeNaira: naira(s.demurrage?.fee_kobo), demGraceHours: str(s.demurrage?.grace_hours ?? 48), demBasis: str(s.demurrage?.basis ?? "per_day"),
         targetNaira: naira(s.targets?.monthly_net_kobo), recoveryBasis: str(s.recovery?.basis ?? "profit"),
-        paystackEnabled: str(s.payment_providers?.paystack_enabled ?? true), flutterwaveEnabled: str(s.payment_providers?.flutterwave_enabled ?? true),
       }} />
     </div>
   );
