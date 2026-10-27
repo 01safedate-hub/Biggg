@@ -24,7 +24,7 @@ export default async function StaffPage() {
   const { data: assignments } = staff.length ? await supabase.from("staff_profiles").select("user_id,station_zone_id").in("user_id", staff.map((s) => s.id)) : { data: [] };
   const assignedZone = new Map((assignments ?? []).filter((a) => a.station_zone_id).map((a) => [a.user_id, a.station_zone_id]));
   const stationLabels = new Map(stations.map((s) => [s.id, s.label]));
-  const staffWithStations = staff.map((s) => ({ ...s, station_label: stationLabels.get(assignedZone.get(s.id) ?? "") ?? null }));
+  const staffWithStations = staff.map((s) => ({ ...s, station_zone_id: assignedZone.get(s.id) ?? null, station_label: stationLabels.get(assignedZone.get(s.id) ?? "") ?? null }));
   const waiting = staff.filter((s) => onboarding[s.id] === "submitted");
   return (
     <div className="space-y-8">
@@ -43,7 +43,7 @@ export default async function StaffPage() {
       <section aria-label="Team" className="space-y-3">
         <h2 className="text-lg font-semibold">Team ({staff.length})</h2>
         {error && <p role="alert" className="text-sm text-red-700">The team list could not be loaded. Please refresh.</p>}
-        {staffWithStations.map((s) => <StaffRow key={s.id} s={s} isMe={s.id === user.id} onboarding={onboarding[s.id] ?? "incomplete"} />)}
+        {staffWithStations.map((s) => <StaffRow key={s.id} s={s} isMe={s.id === user.id} onboarding={onboarding[s.id] ?? "incomplete"} stations={stations} />)}
       </section>
     </div>
   );
