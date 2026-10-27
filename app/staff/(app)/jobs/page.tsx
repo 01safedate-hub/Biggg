@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PhoneActions } from "@/components/ops/PhoneActions";
 import { requireRole } from "@/lib/roles";
-import { STATUS_LABEL, mapsLink } from "@/lib/orders";
+import { STATUS_LABEL } from "@/lib/orders";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 
 export const metadata = { title: "My jobs" };
@@ -24,7 +24,7 @@ export default async function JobsPage() {
           </Link>
           <div className="flex gap-3 border-t border-line px-4 py-2 text-sm">
             {phone.get(o.customer_id) && <PhoneActions phone={phone.get(o.customer_id)} label="Call or WhatsApp customer" />}
-            {mapsLink(o.pickup_lat, o.pickup_lng) && <a className="font-medium text-brand-dark underline" target="_blank" rel="noopener noreferrer" href={mapsLink(o.pickup_lat, o.pickup_lng) ?? undefined}>Directions</a>}
+            <Link className="font-medium text-brand-dark underline" href={`/staff/jobs/${o.id}`}>Get code / Open job</Link>
           </div></div>
         ))}
         {(data ?? []).length === 0 && <p className="card p-5 text-sm text-ink-soft">No jobs right now. You will be notified when one is assigned.</p>}
