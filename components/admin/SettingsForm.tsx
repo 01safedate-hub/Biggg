@@ -9,7 +9,7 @@ import { inputCls, labelCls } from "./ui";
 
 export type SettingsValues = {
   phone: string; whatsapp: string; hubAddress: string; hubLat: string; hubLng: string;
-  demFeeNaira: string; demGraceHours: string; demBasis: string; targetNaira: string; recoveryBasis: string; paystackEnabled: string; flutterwaveEnabled: string;
+  demFeeNaira: string; demGraceHours: string; demBasis: string; targetNaira: string; recoveryBasis: string;
 };
 
 export function SettingsForm({ v }: { v: SettingsValues }) {
@@ -45,12 +45,7 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
       },
     });
     if (error) { setBusy(false); return setMsg({ ok: false, text: friendlyError(error.message) }); }
-    const { error: paymentError } = await client.rpc("save_payment_provider_settings", {
-      _paystack_enabled: f.get("paystackEnabled") === "on",
-      _flutterwave_enabled: f.get("flutterwaveEnabled") === "on",
-    });
     setBusy(false);
-    if (paymentError) return setMsg({ ok: false, text: friendlyError(paymentError.message) });
     setMsg({ ok: true, text: "Saved. The website picks up phone, WhatsApp and location changes within a few minutes." });
     router.refresh();
   }
