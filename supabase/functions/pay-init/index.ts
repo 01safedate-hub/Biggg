@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })
       : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) return json(400, { error: error.message });
-  const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no: number };
+  const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no?: number; plan_name?: string };
   const back = purpose === "subscription" ? `${SITE}/subscriptions?returning=1` : purpose === "extra_clothes" ? `${SITE}/account/extra-clothes?returning=1` : `${SITE}/orders/${order}?returning=1`;
 
   if (provider === "paystack") {
