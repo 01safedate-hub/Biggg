@@ -155,7 +155,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <p className="text-sm text-ink-soft">Come and collect them at the hub. If you would rather have them delivered, tell the person at the desk and they will give you the delivery fee to pay.</p>
         </section>
       )}
-      {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}\n      {o.status === "ready" && o.source !== "walk_in" && o.source !== "subscription" && (
+      {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
+      {o.status === "ready" && o.source !== "walk_in" && o.source !== "subscription" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Your clothes are ready</h2>
           <p className="text-sm text-ink-soft">Pay the delivery fare of <strong>{naira(o.delivery_fare_kobo)}</strong> here and we will bring them to you. Never pay the delivery agent in cash.</p>
