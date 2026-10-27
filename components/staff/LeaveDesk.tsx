@@ -1,9 +1,9 @@
 "use client";
 import { useState, useTransition } from "react";
-import { cancelLeave, decideLeave, decideSwap, requestSwap, respondSwap, submitLeave } from "@/app/staff/(app)/leave-actions";
+import { cancelLeave, decideLeave, decideSwap, requestSwap, respondSwap, submitLeave, saveHoliday, deleteHoliday, saveBlackout, deleteBlackout } from "@/app/staff/(app)/leave-actions";
 
 type AnyRow = Record<string, any>;
-export function LeaveDesk({isManager,canRequestSwap,userId,types,leaveRows,shifts,swaps,people,balances}: {isManager:boolean;canRequestSwap:boolean;userId:string;types:AnyRow[];leaveRows:AnyRow[];shifts:AnyRow[];swaps:AnyRow[];people:AnyRow[];balances:AnyRow[]}) {
+export function LeaveDesk({isManager,canRequestSwap,userId,types,leaveRows,shifts,swaps,people,balances,holidays,blackouts}: {isManager:boolean;canRequestSwap:boolean;userId:string;types:AnyRow[];leaveRows:AnyRow[];shifts:AnyRow[];swaps:AnyRow[];people:AnyRow[];balances:AnyRow[];holidays:AnyRow[];blackouts:AnyRow[]}) {
  const [busy,startTransition]=useTransition(); const [feedback,setFeedback]=useState(""); const [target,setTarget]=useState(""); const [shiftId,setShiftId]=useState(""); const [reason,setReason]=useState("");
  const person=(id:string)=>{const p=people.find(x=>x.id===id);return p?.full_name||p?.email||"Staff";};
  const leaveType=(id:string|null)=>types.find(x=>x.id===id)?.name||"Leave";
@@ -26,7 +26,24 @@ export function LeaveDesk({isManager,canRequestSwap,userId,types,leaveRows,shift
  <label className="text-sm">Your upcoming shift<select required value={shiftId} onChange={e=>setShiftId(e.target.value)} className="mt-1 w-full rounded border border-line bg-white p-2"><option value="">Choose shift…</option>{shifts.filter(s=>s.staff_id===userId&&new Date(s.starts_at)>new Date()).map(s=><option key={s.id} value={s.id}>{s.shift_date} · {new Date(s.starts_at).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</option>)}</select></label>
  <label className="text-sm">Suggested delivery agent<select required value={target} onChange={e=>setTarget(e.target.value)} className="mt-1 w-full rounded border border-line bg-white p-2"><option value="">Choose delivery agent…</option>{people.filter(p=>p.id!==userId).map(p=><option key={p.id} value={p.id}>{p.full_name||p.email||"Staff"}</option>)}</select></label>
  <label className="text-sm sm:col-span-2">Reason<input value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} className="mt-1 w-full rounded border border-line p-2"/></label><button disabled={busy||!shiftId} className="btn-primary sm:col-span-2">Send swap request</button></form></section>
- <section className="space-y-3"><h2 className="text-lg font-semibold">Shift-swap requests</h2><div className="card divide-y divide-line">{swaps.map(s=><article key={s.id} className="space-y-2 p-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><div><strong>{person(s.requester_id)} · {s.shift?.shift_date||"Shift"}</strong><p className="text-ink-soft">{s.reason||"No reason provided"}{s.target_staff_id?" · Suggested: "+person(s.target_staff_id):""}</p></div><span className="rounded border border-line px-2 py-1 text-xs capitalize">{s.status}</span></div>
+
+ {isManager && <section className="card space-y-5 p-4">
+  <div><h2 className="text-lg font-semibold">Public holidays and roster blackouts</h2><p className="text-sm text-ink-soft">Holiday dates are recorded for the team. Global blackout dates are excluded from future automatic shift generation; already-created shifts are not deleted.</p></div>
+  <form action={form=>run(()=>saveHoliday(form))} className="grid gap-3 sm:grid-cols-2">
+   <label className="text-sm">Holiday name<input name="holiday_name" required minLength={2} maxLength={120} className="mt-1 w-full rounded border border-line p-2" placeholder="e.g. Public holiday"/></label>
+   <label className="text-sm">Date<input name="holiday_date" type="date" required className="mt-1 w-full rounded border border-line p-2"/></label>
+   <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="grants_day_in_lieu"/> Mark as eligible for day in lieu</label>
+   <button disabled={busy} className="btn-primary sm:col-span-2">Save public holiday</button>
+  </form>
+  <div className="divide-y divide-line rounded border border-line">{holidays.map(h=><div key={h.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"><span><strong>{h.holiday_date} · {h.name}</strong><span className="block text-xs text-ink-soft">{h.grants_day_in_lieu?"Day-in-lieu flag on":"Day-in-lieu flag off"}</span></span><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>deleteHoliday(h.id))}>Remove</button></div>)}{holidays.length===0&&<p className="p-3 text-sm text-ink-soft">No public holidays configured.</p>}</div>
+  <form action={form=>run(()=>saveBlackout(form))} className="grid gap-3 sm:grid-cols-2">
+   <label className="text-sm">Blackout date<input name="blackout_date" type="date" required className="mt-1 w-full rounded border border-line p-2"/></label>
+   <label className="text-sm">Reason<input name="blackout_reason" required minLength={2} maxLength={200} className="mt-1 w-full rounded border border-line p-2" placeholder="e.g. Station closed"/></label>
+   <button disabled={busy} className="btn-primary sm:col-span-2">Save global blackout date</button>
+  </form>
+  <div className="divide-y divide-line rounded border border-line">{blackouts.map(b=><div key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"><span><strong>{b.blackout_date}</strong><span className="block text-xs text-ink-soft">{b.reason}{b.zone_id?" · zone-specific":" · all stations"}</span></span><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>deleteBlackout(b.id))}>Remove</button></div>)}{blackouts.length===0&&<p className="p-3 text-sm text-ink-soft">No blackout dates configured.</p>}</div>
+ </section>}
+\n <section className="space-y-3"><h2 className="text-lg font-semibold">Shift-swap requests</h2><div className="card divide-y divide-line">{swaps.map(s=><article key={s.id} className="space-y-2 p-4 text-sm"><div className="flex flex-wrap justify-between gap-2"><div><strong>{person(s.requester_id)} · {s.shift?.shift_date||"Shift"}</strong><p className="text-ink-soft">{s.reason||"No reason provided"}{s.target_staff_id?" · Suggested: "+person(s.target_staff_id):""}</p></div><span className="rounded border border-line px-2 py-1 text-xs capitalize">{s.status}</span></div>
  {s.status==="pending"&&s.target_staff_id===userId&&<div className="flex gap-2"><button disabled={busy} className="btn-primary" onClick={()=>run(()=>respondSwap(s.id,true,"Accepted"))}>Accept</button><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>respondSwap(s.id,false,"Declined"))}>Decline</button></div>}
  {isManager&&s.status==="accepted"&&<div className="flex gap-2"><button disabled={busy} className="btn-primary" onClick={()=>run(()=>decideSwap(s.id,true,"Approved"))}>Approve swap</button><button disabled={busy} className="btn-secondary" onClick={()=>run(()=>decideSwap(s.id,false,"Declined by manager"))}>Reject swap</button></div>}</article>)}{swaps.length===0&&<p className="p-4 text-sm text-ink-soft">No shift-swap requests yet.</p>}</div></section>
  </div>;
