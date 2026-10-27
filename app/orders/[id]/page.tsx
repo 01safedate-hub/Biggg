@@ -107,7 +107,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed", "failed_delivery"].includes(o.status) && (lines ?? []).length > 0 && (
         <section className="card p-5" aria-label="Your bill">
-          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
+          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
           <table className="mt-3 w-full text-sm">
             <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th>{o.source !== "subscription" && <><th className="py-1 text-right">Each</th><th className="py-1 text-right">Total</th></>}</tr></thead>
             <tbody className="divide-y divide-line">
