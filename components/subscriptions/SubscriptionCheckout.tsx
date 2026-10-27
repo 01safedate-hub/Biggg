@@ -7,9 +7,9 @@ type Plan = { slug: string; name: string; priceKobo: number; pieces: number | nu
 
 const naira = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 
-export function SubscriptionCheckout({ plans }: { plans: Plan[] }) {
+export function SubscriptionCheckout({ plans, initialPlanSlug }: { plans: Plan[]; initialPlanSlug?: string }) {
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
-  const [planSlug, setPlanSlug] = useState(plans[0]?.slug ?? "");
+  const [planSlug, setPlanSlug] = useState(plans.some((plan) => plan.slug === initialPlanSlug) ? initialPlanSlug! : plans[0]?.slug ?? "");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
