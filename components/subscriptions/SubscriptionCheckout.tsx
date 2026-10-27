@@ -7,15 +7,21 @@ type Plan = { slug: string; name: string; priceKobo: number; pieces: number | nu
 
 const naira = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 
+function PaystackMark() {
+  return <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-md bg-[#00C3F7] text-sm font-black italic text-white">P</span>;
+}
+function FlutterwaveMark() {
+  return <span aria-hidden="true" className="grid h-8 w-8 place-items-center rounded-md bg-white text-lg font-black text-[#F5A623] ring-1 ring-line">f</span>;
+}
+
 export function SubscriptionCheckout({ plans, initialPlanSlug }: { plans: Plan[]; initialPlanSlug?: string }) {
-  const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
   const [planSlug, setPlanSlug] = useState(plans.some((plan) => plan.slug === initialPlanSlug) ? initialPlanSlug! : plans[0]?.slug ?? "");
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busyProvider, setBusyProvider] = useState<"paystack" | "flutterwave" | null>(null);
 
-  async function pay() {
-    if (!planSlug || busy) return;
-    setBusy(true);
+  async function pay(provider: "paystack" | "flutterwave") {
+    if (!planSlug || busyProvider) return;
+    setBusyProvider(provider);
     setMessage("");
     try {
       const supabase = createClient();
@@ -26,16 +32,27 @@ export function SubscriptionCheckout({ plans, initialPlanSlug }: { plans: Plan[]
       window.location.assign(result.url);
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Could not start payment. Please try again.");
-      setBusy(false);
+      setBusyProvider(null);
     }
   }
 
   if (!plans.length) return <p className="card p-5">No monthly plans are available right now. Please try again later.</p>;
   return (
     <section className="card space-y-5 p-5">
-      <div className="space-y-2"><label htmlFor="plan" className="block text-sm font-medium">Monthly plan</label><select id="plan" value={planSlug} onChange={e => setPlanSlug(e.target.value)} className="w-full rounded-lg border border-line bg-white p-3">{plans.map(p => <option key={p.slug} value={p.slug}>{p.name} — {naira(p.priceKobo)} / month · {p.pieces ?? "Plan"} pieces</option>)}</select></div>
-      <div className="space-y-2"><p className="text-sm font-medium">Payment provider</p><div className="flex flex-wrap gap-4"><label className="flex items-center gap-2 text-sm"><input type="radio" name="provider" checked={provider === "paystack"} onChange={() => setProvider("paystack")} /> Paystack</label><label className="flex items-center gap-2 text-sm"><input type="radio" name="provider" checked={provider === "flutterwave"} onChange={() => setProvider("flutterwave")} /> Flutterwave</label></div></div>
-      <button type="button" disabled={busy || !planSlug} onClick={pay} className="btn-primary w-full disabled:opacity-60">{busy ? "Opening secure checkout…" : "Pay securely and activate plan"}</button>
+      <div className="space-y-2"><label htmlFor="plan" className="block text-sm font-medium">Monthly plan</label><select id="plan" value={planSlug} onChange={e => setPlanSlug(e.target.value)} disabled={!!busyProvider} className="w-full rounded-lg border border-line bg-white p-3 disabled:opacity-60">{plans.map(p => <option key={p.slug} value={p.slug}>{p.name} — {naira(p.priceKobo)} / month · {p.pieces ?? "Plan"} pieces</option>)}</select></div>
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Choose how you want to pay</p>
+        <button type="button" disabled={!!busyProvider || !planSlug} onClick={() => pay("paystack")} className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left shadow-sm transition hover:border-[#00C3F7] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+          <PaystackMark />
+          <span className="min-w-0 flex-1"><span className="block font-semibold text-ink">Pay with Paystack</span><span className="block text-xs text-ink-soft">Secure online checkout</span></span>
+          <span className="text-sm font-semibold text-ink-soft">{busyProvider === "paystack" ? "Opening…" : "Continue →"}</span>
+        </button>
+        <button type="button" disabled={!!busyProvider || !planSlug} onClick={() => pay("flutterwave")} className="flex min-h-16 w-full items-center gap-3 rounded-xl border border-line bg-white px-4 py-3 text-left shadow-sm transition hover:border-[#F5A623] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60">
+          <FlutterwaveMark />
+          <span className="min-w-0 flex-1"><span className="block font-semibold text-ink">Pay with Flutterwave</span><span className="block text-xs text-ink-soft">Secure online checkout</span></span>
+          <span className="text-sm font-semibold text-ink-soft">{busyProvider === "flutterwave" ? "Opening…" : "Continue →"}</span>
+        </button>
+      </div>
       {message ? <p role="alert" className="text-sm text-red-700">{message}</p> : null}
       <p className="text-xs text-ink-mute">The server sets the amount from the active plan. Your plan only activates after provider verification.</p>
     </section>
