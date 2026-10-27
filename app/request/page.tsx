@@ -41,7 +41,6 @@ export default async function RequestPage() {
       {user ? <CustomerSidebar /> : <Link href="/login?next=/request" className="text-sm font-medium text-ink-soft hover:text-ink">Sign in to request a pickup</Link>}
       <div className="container-page mx-auto max-w-2xl space-y-6 py-6 sm:py-8">
         <h1 className="text-3xl font-bold tracking-tight">Request a pickup</h1>
-        <NoCashNotice />
         {!user ? (
           <div className="card space-y-4 p-6">
             <p className="text-sm text-ink-soft">Sign in or create an account to request a pickup through a monthly plan.</p>
@@ -55,6 +54,7 @@ export default async function RequestPage() {
           </div>
         ) : (
           <>
+            <NoCashNotice subscription />
             <section className="card space-y-2 p-5">
               <p className="text-sm text-ink-soft">Your monthly plan</p>
               <h2 className="text-xl font-semibold">{plan?.name ?? "Active plan"}</h2>
