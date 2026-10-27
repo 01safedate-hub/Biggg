@@ -26,8 +26,8 @@ export default async function ReceiveOrder({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       <Link href="/staff/receiving" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Receiving</Link>
-      <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-sm text-ink-soft">Paid {naira(Math.max(0, o.items_total_kobo - o.discount_kobo))} · {o.status === "received" ? "Already received" : "Open the bag and check each line"}</p></div>
-      {o.status === "count_confirmed" ? <CheckLines orderId={id} lines={(lines ?? []) as never} options={options} dueKobo={Math.max(0, Number(bal ?? 0))} /> : (
+      <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-sm text-ink-soft">{o.source === "subscription" ? "Monthly plan pickup · check garment categories and quantities. Allowance is based on total pieces, not item prices." : `Paid ${naira(Math.max(0, o.items_total_kobo - o.discount_kobo))}`} · {o.status === "received" ? "Already received" : "Open the bag and check each line"}</p></div>
+      {o.status === "count_confirmed" ? <CheckLines orderId={id} lines={(lines ?? []) as never} options={options} dueKobo={Math.max(0, Number(bal ?? 0))} subscription={o.source === "subscription"} /> : (
         <ul className="card divide-y divide-line">{(lines ?? []).map((l) => <li key={l.id} className="p-4 text-sm">{l.qty} × {l.name} <span className="text-ink-mute">({l.category_name})</span></li>)}</ul>
       )}
       {tl && <OrderTimeline t={tl as unknown as Timeline} showPeople />}
