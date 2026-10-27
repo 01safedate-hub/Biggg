@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Bell } from "@/components/notifications/Bell";
+import { InstallApp } from "@/components/brand/InstallApp";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { requireUser } from "@/lib/roles";
 import { STATUS_LABEL } from "@/lib/orders";
@@ -30,7 +32,6 @@ export default async function OrdersPage() {
         </section>
       ))}
       {(data ?? []).length === 0 && <p className="card p-5 text-sm text-ink-soft">You have no orders yet.</p>}
-      </div>
     </main>
   );
 }
