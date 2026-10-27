@@ -86,9 +86,12 @@ export function Sidebar({ title, name, groups, showNotifications = false }: { ti
         {footer}
       </aside>
 
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-line bg-white px-4 lg:hidden">
         {brand}
-        <button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button>
+        <div className="flex shrink-0 items-center gap-2">
+          {showNotifications ? <CustomerNavBell /> : null}
+          <button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button>
+        </div>
       </header>
 
       {open && (
