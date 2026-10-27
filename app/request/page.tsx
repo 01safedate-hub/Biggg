@@ -20,7 +20,7 @@ export default async function RequestPage() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (activeOrder) redirect(`/orders/${activeOrder.id}`);
+    if (activeOrder) redirect("/orders");
   }
   return (
     <main id="main" className="container-page max-w-2xl space-y-6 py-10">
