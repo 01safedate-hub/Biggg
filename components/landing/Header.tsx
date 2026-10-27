@@ -2,6 +2,7 @@ import { Logo } from "@/components/brand/Logo";
 import Link from "next/link";
 
 const links = [
+  { href: "/services", label: "Services" },
   { href: "#how-it-works", label: "How it works" },
   { href: "#security", label: "Security" },
   { href: "#pricing", label: "Plans" },
