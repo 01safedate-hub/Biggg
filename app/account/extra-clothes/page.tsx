@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireUser } from "@/lib/roles";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { naira } from "@/lib/format";
@@ -18,9 +17,9 @@ export default async function ExtraClothesPage() {
     .order("scheduled_for", { ascending: false });
 
   return (
-    <main id="main" className="container-page max-w-3xl space-y-6 py-10">
-      <Link href="/" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Home</Link>
+    <main id="main" className="min-h-screen space-y-6">
       <CustomerSidebar />
+      <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-6">
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Extra-clothes bills</h1>
         <p className="text-sm text-ink-soft">This page lists extra pieces recorded against your monthly plan. Pay online only; never pay a pickup agent in cash.</p>
@@ -47,6 +46,7 @@ export default async function ExtraClothesPage() {
           </section>
         );
       })}
+      </div>
     </main>
   );
 }
