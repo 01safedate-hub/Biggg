@@ -80,17 +80,12 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       )}
 
       {o.status === "awaiting_fare_payment" && (
-        <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Pay transport to confirm your booking</h2>
-          {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
-          <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
-          <RescheduleControl orderId={id} current={o.scheduled_for} />
-          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} />
-          <VerifyPayment orderId={id} auto={confirming} />
-          <CancelButton orderId={id} />
+        <section className="card space-y-3 p-5">
+          <h2 className="text-lg font-semibold">One-time pickup checkout is no longer available</h2>
+          <p className="text-sm text-ink-soft">LaundryPoint now accepts pickup requests through active monthly plans only. This older order remains in your history, but its transport checkout is retired. Choose a monthly plan for new pickups, or cancel this old request.</p>
+          <div className="flex flex-wrap gap-3"><Link href="/subscriptions" className="btn-primary">View monthly plans</Link><CancelButton orderId={id} /></div>
         </section>
       )}
-
       {o.status === "awaiting_dispatch" && (o.source === "subscription" ? <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your monthly plan covers pickup and delivery for included garments. Your request is waiting for an agent to be assigned.</p><CancelButton orderId={id} /></section> : <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>)}
 
       {o.status === "agent_assigned" && (
