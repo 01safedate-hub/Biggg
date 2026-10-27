@@ -29,8 +29,8 @@ type Item = { id: string; name: string; price_kobo: number; category_id: string;
 type Cat = { id: string; name: string };
 type InstantCfg = { perItemKobo: number };
 
-function ConfirmCountModal({ lines, total, count, instantFee, desk, busy, onCancel, onOk }: {
-  lines: { id: string; name: string; qty: number; instant: number; stain: boolean }[]; total: number; count: number; instantFee: number; desk: boolean; busy: boolean; onCancel: () => void; onOk: () => void;
+function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription, busy, onCancel, onOk }: {
+  lines: { id: string; name: string; qty: number; instant: number; stain: boolean }[]; total: number; count: number; instantFee: number; desk: boolean; subscription: boolean; busy: boolean; onCancel: () => void; onOk: () => void;
 }) {
   const stains = lines.filter((l) => l.stain).length;
   useEffect(() => {
@@ -42,8 +42,8 @@ function ConfirmCountModal({ lines, total, count, instantFee, desk, busy, onCanc
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-3 sm:items-center" onClick={() => { if (!busy) onCancel(); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="cc-title" className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-line p-5">
-          <h2 id="cc-title" className="text-lg font-semibold">{desk ? "Confirm the count with the customer" : "Send this bill to the customer?"}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
+          <h2 id="cc-title" className="text-lg font-semibold">{subscription ? "Confirm garment count" : desk ? "Confirm the count with the customer" : "Send this bill to the customer?"}</h2>
+          <p className="mt-1 text-sm text-ink-soft">{subscription ? "Record every garment, whatever its type. The monthly allowance is applied automatically; any excess pieces are billed to the customer online." : desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
         </div>
         <ul className="divide-y divide-line overflow-y-auto px-5 text-sm">
           {lines.map((l) => (
@@ -60,11 +60,11 @@ function ConfirmCountModal({ lines, total, count, instantFee, desk, busy, onCanc
         <div className="space-y-1 border-t border-line p-5 text-sm">
           <p className="flex justify-between"><span>Total items</span><strong>{count}</strong></p>
           {stains > 0 && <p className="flex justify-between text-amber-900"><span>Items with hard stains</span><strong>{stains}</strong></p>}
-          {instantFee > 0 && <p className="flex justify-between"><span>Instant delivery</span><strong>{naira(instantFee)}</strong></p>}
-          <p className="flex justify-between text-base"><span>Clothes</span><strong>{naira(total)}</strong></p>
+          {!subscription && instantFee > 0 && <p className="flex justify-between"><span>Instant delivery</span><strong>{naira(instantFee)}</strong></p>}
+          {!subscription && <p className="flex justify-between text-base"><span>Clothes</span><strong>{naira(total)}</strong></p>}
           <div className="flex flex-wrap justify-end gap-2 pt-3">
             <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>Go back and change</button>
-            <button type="button" className="btn-primary" autoFocus disabled={busy} onClick={onOk}>{busy ? "Saving" : desk ? "Yes, this is correct" : "Send bill"}</button>
+            <button type="button" className="btn-primary" autoFocus disabled={busy} onClick={onOk}>{busy ? "Saving" : subscription ? "Save garment count" : desk ? "Yes, this is correct" : "Send bill"}</button>
           </div>
         </div>
       </div>
@@ -104,8 +104,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -147,7 +147,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
               {list.map((i) => (
                 <li key={i.id} className="py-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{naira(Number(i.price_kobo))} each</p></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? "Garment count · included in monthly allowance" : `${naira(Number(i.price_kobo))} each`}</p></div>
                     <div className="flex items-center gap-2">
                       <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>
                       <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{qty[i.id] ?? 0}</span>
@@ -155,7 +155,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
                     </div>
                   </div>
                   {i.description && <details className="mt-1 text-xs text-ink-soft"><summary className="cursor-pointer font-medium text-brand-dark">View description</summary><p className="mt-1">{i.description}</p></details>}
-                  {instant && (qty[i.id] ?? 0) > 0 && (
+                  {!subscription && instant && (qty[i.id] ?? 0) > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-brand-tint px-3 py-2 text-xs">
                       <span className="font-medium text-brand-dark">Instant ({naira(instant.perItemKobo)} each):</span>
                       <button type="button" aria-label={`Fewer instant ${i.name}`} className="h-7 w-7 rounded border border-line bg-white" onClick={() => setI(i.id, (inst[i.id] ?? 0) - 1)}>−</button>
@@ -177,11 +177,11 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
       <div className="sticky bottom-3 rounded-xl bg-slate-950 p-4 text-white shadow-xl">
         {err && <p role="alert" className="mb-2 text-sm text-red-300">{err}</p>}
         <div className="flex items-center justify-between gap-3">
-          <div><p className="text-xs text-slate-400">{count} item{count === 1 ? "" : "s"}{instCount > 0 ? ` · ${instCount} instant` : ""}</p><p className="text-xl font-bold">{naira(total + instantFee)}</p></div>
-          <button className="btn-primary" disabled={busy || count === 0} onClick={() => { setErr(null); setConfirming(true); }}>{desk ? "Confirm the count" : "Send bill to customer"}</button>
+          <div><p className="text-xs text-slate-400">{count} piece{count === 1 ? "" : "s"} recorded{!subscription && instCount > 0 ? ` · ${instCount} instant` : ""}</p>{!subscription && <p className="text-xl font-bold">{naira(total + instantFee)}</p>}</div>
+          <button className="btn-primary" disabled={busy || count === 0} onClick={() => { setErr(null); setConfirming(true); }}>{subscription ? "Review garment count" : desk ? "Confirm the count" : "Send bill to customer"}</button>
         </div>
       </div>
-      {confirming && <ConfirmCountModal lines={chosen} total={total} count={count} instantFee={instantFee} desk={desk} busy={busy} onCancel={() => setConfirming(false)} onOk={send} />}
+      {confirming && <ConfirmCountModal lines={chosen} total={total} count={count} instantFee={instantFee} desk={desk} subscription={subscription} busy={busy} onCancel={() => setConfirming(false)} onOk={send} />}
     </div>
   );
 }
