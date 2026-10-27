@@ -15,15 +15,15 @@ Deno.serve(async (req) => {
   if (!auth) return json(401, { error: "not_signed_in" });
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return json(400, { error: "bad_request" }); }
-  const order = String(b.order_id ?? ""), purpose = String(b.purpose ?? ""), provider = String(b.provider ?? "");
+  const order = String(b.order_id ?? ""), purpose = String(b.purpose ?? ""), provider = String(b.provider ?? ""), planSlug = String(b.plan_slug ?? "");
   if (provider === "paystack" && !PAYSTACK) return json(503, { error: "provider_not_configured" });
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" });
 
   const db = createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-  const { data, error } = await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
+  if (purpose === "subscription") {\n    if (!/^[a-z0-9_]{2,40}$/.test(planSlug)) return json(400, { error: "plan_not_found" });\n  } else if (!/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });\n  const { data, error } = purpose === "subscription"\n    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })\n    : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) return json(400, { error: error.message });
   const i = data as { reference: string; amount_kobo: number; email: string; name: string; phone: string | null; order_no: number };
-  const back = `${SITE}/orders/${order}?returning=1`;
+  const back = purpose === "subscription" ? `${SITE}/subscriptions?returning=1` : `${SITE}/orders/${order}?returning=1`;
 
   if (provider === "paystack") {
     const r = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       tx_ref: i.reference, amount: i.amount_kobo / 100, currency: "NGN", redirect_url: back,
       customer: { email: i.email, name: i.name, phonenumber: i.phone ?? undefined },
-      customizations: { title: "LaundryPoint", description: `Order #${i.order_no}` }, meta: { order_id: order, purpose },
+      customizations: { title: "LaundryPoint", description: purpose === "subscription" ? `Monthly plan: ${i.plan_name}` : `Order #${i.order_no}` }, meta: { order_id: order, purpose },
     }),
   });
   const j = await r.json().catch(() => null);
