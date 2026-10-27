@@ -74,8 +74,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       )}
       {o.status === "count_confirmed" && (
         <section className="space-y-3 rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950">
-          <h2 className="text-xl font-bold">Paid ✓ {naira(total)}</h2>
-          <p className="text-sm">The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary.</p>
+          <h2 className="text-xl font-bold">{o.source === "subscription" ? "Garment count confirmed ✓" : `Paid ✓ ${naira(total)}`}</h2>
+          <p className="text-sm">{o.source === "subscription"
+            ? Number(subscriptionPickup?.overage_pieces ?? 0) > 0
+              ? "The customer has paid the excess-piece bill online. No transport payment is due. Take the clothes to the hub and hand them to the secretary."
+              : "These garments are within the monthly plan allowance. No payment is due for this pickup. Take the clothes to the hub and hand them to the secretary."
+            : "The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary."}</p>
         </section>
       )}
       {["agent_arrived", "counted", "count_confirmed"].includes(o.status) && (
