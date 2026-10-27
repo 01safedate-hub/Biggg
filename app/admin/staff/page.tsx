@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/roles";
 import { StaffInvite } from "@/components/admin/StaffInvite";
 import { StaffRow } from "@/components/admin/StaffRow";
 import type { StaffRowData } from "@/lib/staff";
+import type { StationOption } from "@/lib/stations";
 
 export const metadata = { title: "Staff" };
 
@@ -10,9 +11,16 @@ export default async function StaffPage() {
   const { supabase, user } = await requireRole(["super_admin"]);
   const { data, error } = await supabase.rpc("staff_list");
   const staff = (Array.isArray(data) ? data : []) as unknown as StaffRowData[];
-  const { data: ob } = await supabase.rpc("staff_onboarding_status");
+  const [{ data: ob }, { data: zones }] = await Promise.all([
+    supabase.rpc("staff_onboarding_status"),
+    supabase.from("zones").select("id,name,parent_id").eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).order("name"),
+  ]);
   const onboarding = (ob ?? {}) as unknown as Record<string, string>;
 
+  const parentIds = Array.from(new Set((zones ?? []).map((z) => z.parent_id).filter(Boolean) as string[]));
+  const { data: parents } = parentIds.length ? await supabase.from("zones").select("id,name").in("id", parentIds) : { data: [] };
+  const parentNames = new Map((parents ?? []).map((z) => [z.id, z.name]));
+  const stations = (zones ?? []).map((z) => ({ id: z.id, label: `${z.name}${z.parent_id && parentNames.has(z.parent_id) ? ` · ${parentNames.get(z.parent_id)}` : ""}` })) as StationOption[];
   const waiting = staff.filter((s) => onboarding[s.id] === "submitted");
   return (
     <div className="space-y-8">
@@ -27,7 +35,7 @@ export default async function StaffPage() {
           <ul className="mt-2 space-y-1 text-sm">{waiting.map((s) => <li key={s.id}><Link className="font-medium text-brand-dark underline" href={`/admin/staff/${s.id}`}>{s.full_name || s.email}</Link></li>)}</ul>
         </section>
       )}
-      <StaffInvite />
+      <StaffInvite stations={stations} />
       <section aria-label="Team" className="space-y-3">
         <h2 className="text-lg font-semibold">Team ({staff.length})</h2>
         {error && <p role="alert" className="text-sm text-red-700">The team list could not be loaded. Please refresh.</p>}
