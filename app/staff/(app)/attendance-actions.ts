@@ -1,11 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireRole } from "@/lib/roles";
+import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/rpc-errors";
 
 export async function checkInForShift(lat: number, lng: number): Promise<{ ok: boolean; message: string }> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { ok: false, message: "Your session has expired. Sign in again, then retry check-in." };
+  const [{ data: roleRows }, { data: profile }] = await Promise.all([
+    supabase.from("user_roles").select("role").eq("user_id", user.id),
+    supabase.from("profiles").select("status").eq("id", user.id).maybeSingle(),
+  ]);
+  const roles = (roleRows ?? []).map(r => r.role as string);
+  if (profile?.status && profile.status !== "active") return { ok: false, message: "Your staff account is not active yet. Ask an administrator to activate it." };
+  if (!roles.includes("delivery_agent")) return { ok: false, message: "GPS check-in is available only to delivery agents. Sign in with an active delivery-agent account to test this." };
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return { ok: false, message: "Your location could not be validated. Try again." };
   const { error } = await supabase.rpc("check_in", { _lat: lat, _lng: lng });
   if (error) {
