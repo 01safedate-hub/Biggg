@@ -21,5 +21,5 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         { href: "/subscriptions", label: "Monthly plans", icon: "weekly", exact: true },
       ] }]
     : GROUPS;
-  return <Sidebar title="Customer" name={name} groups={groups} showNotifications />;
+  return <Sidebar title="Customer" name={name} groups={groups} showNotifications={false} />;
 }
