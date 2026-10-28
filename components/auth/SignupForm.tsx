@@ -18,6 +18,7 @@ export function SignupForm() {
     const email = String(f.get("email") ?? "").trim().toLowerCase();
     const phone = cleanPhone(String(f.get("phone") ?? ""));
     const password = String(f.get("password") ?? "");
+    const whatsappOptIn = f.get("whatsapp_updates") === "on";
 
     if (fullName.length < 2) return setError("Please enter your full name.");
     if (!phone) return setError("Please enter a valid phone number, for example 08012345678.");
@@ -30,7 +31,7 @@ export function SignupForm() {
     const { data, error: err } = await createClient().auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false" } },
+      options: { data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false", whatsapp_opt_in: whatsappOptIn } },
     });
     setBusy(false);
     if (err) return setError(err.message.toLowerCase().includes("rate") ? "Too many attempts. Please wait a few minutes and try again." : err.message);
@@ -54,6 +55,7 @@ export function SignupForm() {
       <Field id="password" label="Password" type="password" autoComplete="new-password" required minLength={MIN_PASSWORD} hint={`At least ${MIN_PASSWORD} characters.`} />
       <Field id="confirm" label="Confirm password" type="password" autoComplete="new-password" required />
       <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="offers" className="mt-1" /><span className="text-ink-soft">Send me offers and reminders by email. I can unsubscribe at any time. Order updates are sent either way.</span></label>
+      <label className="flex items-start gap-3 text-sm"><input type="checkbox" name="whatsapp_updates" className="mt-1" /><span className="text-ink-soft">Send me order updates on WhatsApp, including pickup, payment and delivery messages. I can reply STOP to opt out.</span></label>
       <button className="btn-primary w-full" disabled={busy}>{busy ? "Creating account" : "Create account"}</button>
     </form>
   );
