@@ -1,7 +1,7 @@
 -- RECONSTRUCTED SOURCE — not byte-for-byte recovery of the lost original migration.
--- The current live catalog confirms these plan checks and invoice foreign keys.
--- This source baseline documents the constraints in use; do not apply on production
--- without comparing the full target schema and checking for duplicate constraint names.
+-- Reconstructed from live production constraint definitions on 2026-10-28.
+-- This documents constraints already present in production; do not replay on production.
+-- DROP is not used here: this file represents the initial create-only migration form.
 
 alter table public.plans
   add constraint plans_monthly_price_kobo_check
