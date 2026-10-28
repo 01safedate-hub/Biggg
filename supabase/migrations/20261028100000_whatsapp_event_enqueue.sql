@@ -181,7 +181,7 @@ set search_path = ''
 as $$
 declare evt text; vars jsonb; onum bigint;
 begin
-  if new.status <> 'success' or old.status = 'success' then return null; end if;
+  if new.status <> 'success' or (tg_op = 'UPDATE' and old.status = 'success') then return null; end if;
   if new.order_id is null then return null; end if;
   select order_no into onum from public.orders where id = new.order_id;
   evt := 'payment_receipt';
@@ -195,7 +195,7 @@ $$;
 
 drop trigger if exists payments_whatsapp_outbox on public.payments;
 create trigger payments_whatsapp_outbox
-after update of status on public.payments
+after insert or update of status on public.payments
 for each row execute function private.enqueue_payment_whatsapp();
 
 -- Stains are a separate event: insert after flag_stain records the photo and notice.
