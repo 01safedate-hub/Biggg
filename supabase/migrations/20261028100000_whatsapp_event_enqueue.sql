@@ -23,7 +23,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if auth.role() <> 'service_role' and current_user <> 'postgres' then
+  if current_user <> 'service_role' and current_user <> 'postgres' then
     raise exception 'not_allowed' using errcode = 'P0001';
   end if;
   return query
