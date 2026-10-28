@@ -102,6 +102,7 @@ begin
     when 'agent_assigned' then 'agent_assigned'
     when 'agent_arrived' then 'agent_arrived'
     when 'counted' then 'count_ready'
+    when 'awaiting_delivery_fare' then 'delivery_payment_link'
     when 'received' then 'hub_received'
     when 'in_house' then case when new.instant then 'instant_started' else null end
     when 'ready' then 'order_ready'
@@ -121,6 +122,18 @@ begin
   );
   if evt = 'pickup_confirmed' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl, vars, now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
+  elsif evt = 'delivery_payment_link' then
+    perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl,
+      jsonb_build_object('template_params', jsonb_build_array(new.order_no::text,
+        to_char(new.delivery_fare_kobo / 100.0, 'FM999999990.00'),
+        'https://laundrypoint.app/orders/'||new.id::text)),
+      now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
+    perform private.enqueue_whatsapp(new.customer_id, new.id, 'delivery_payment_reminder', 'delivery_payment_reminder',
+      jsonb_build_object('template_params', jsonb_build_array(new.order_no::text,
+        'https://laundrypoint.app/orders/'||new.id::text)),
+      now() + interval '15 minutes',
+      jsonb_build_object('status','awaiting_delivery_fare','delivered_at',null),
+      'wa-'||new.id||'-delivery-payment-reminder');
   elsif evt = 'count_ready' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl, vars, now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
     perform private.enqueue_whatsapp(new.customer_id, new.id, 'count_reminder', 'count_reminder',
@@ -177,12 +190,6 @@ begin
     onum::text, coalesce(new.purpose,''), to_char(new.amount_kobo / 100.0, 'FM999999990.00')));
   perform private.enqueue_whatsapp(new.customer_id, new.order_id, evt, evt, vars, now(), '{}'::jsonb,
     'wa-payment-' || new.id::text);
-  if new.purpose = 'delivery_fare' then
-    perform private.enqueue_whatsapp(new.customer_id, new.order_id, 'delivery_payment_reminder', 'delivery_payment_reminder',
-      jsonb_build_object('template_params', jsonb_build_array(onum::text)),
-      now() + interval '15 minutes', jsonb_build_object('status','awaiting_delivery_fare','delivered_at',null),
-      'wa-'||new.order_id||'-delivery-payment-reminder');
-  end if;
   return null;
 end;
 $$;
