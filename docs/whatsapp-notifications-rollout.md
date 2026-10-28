@@ -20,6 +20,7 @@ Worker:
 - `WA_TEMPLATE_PICKUP_CONFIRMED`
 - `WA_TEMPLATE_AGENT_ASSIGNED`
 - `WA_TEMPLATE_AGENT_ARRIVED`
+- `WA_TEMPLATE_PICKUP_FAILED`
 - `WA_TEMPLATE_COUNT_READY`
 - `WA_TEMPLATE_COUNT_REMINDER`
 - `WA_TEMPLATE_STAIN_NOTICE`
@@ -67,6 +68,10 @@ The database creates a separate random Vault secret, `whatsapp_worker_secret`, f
 - Reminders are held from 21:00 to 07:00 Africa/Lagos. Transactional messages are not suppressed by this reminder-only quiet-hours policy.
 - Failed sends use bounded exponential retry; provider delivery/read receipts update the outbox row.
 - Review template variable ordering and URL/button requirements against the exact approved Meta templates before go-live.
-- Customer sign-up has an unchecked WhatsApp order-updates checkbox and submits `whatsapp_opt_in` in auth metadata. The `desk-walkin` Edge Function now persists explicit `whatsapp_opt_in` and `whatsapp_opt_in_at` values for newly created walk-in profiles; missing/false values remain opted out.\n- **Walk-in UI integration remains unverified/incomplete:** locate the front-desk caller of `desk-walkin`, add an unchecked consent checkbox, and send the boolean `whatsapp_opt_in` in the request. Existing-customer and upgrade flows must not silently change consent. Do not mark this item complete until tested end-to-end.\n- A customer profile-settings consent control is not included in this PR; do not claim it is implemented.
+- Customer sign-up has an unchecked WhatsApp order-updates checkbox and submits `whatsapp_opt_in` in auth metadata. The `desk-walkin` Edge Function now persists explicit `whatsapp_opt_in` and `whatsapp_opt_in_at` values for newly created walk-in profiles; missing/false values remain opted out.
+- **Walk-in UI integration remains unverified/incomplete:** locate the front-desk caller of `desk-walkin`, add an unchecked consent checkbox, and send the boolean `whatsapp_opt_in` in the request. Existing-customer and upgrade flows must not silently change consent. Do not mark this item complete until tested end-to-end.
+- A customer profile-settings consent control is not included in this PR; do not claim it is implemented.
 - A read-only check of the connected production schema confirmed `public.order_ratings` exists. The WhatsApp outbox, consent columns, and WhatsApp-specific RPCs were not present in the live schema at the time of the check, consistent with the feature migrations not yet being applied.
-- Extend flow tests to assert one outbox entry per idempotency key, opt-out behaviour, status updates, retry/backoff, and that delayed reminders cancel after customer action.\n- Latest inspected feature commit `ea5d8cccc51ce4f4c18cb5c2f0b2bb1df5fb494f` has a successful CI workflow run, but this does not replace disposable-database migration testing or Meta provider tests.\n- Do not merge or deploy until the walk-in caller is wired and verified, migrations pass in a disposable Supabase environment, the application typecheck/build and flow tests pass, and approved Meta template names/parameter ordering are verified with a dedicated test recipient.
+- Extend flow tests to assert one outbox entry per idempotency key, opt-out behaviour, status updates, retry/backoff, and that delayed reminders cancel after customer action.
+- Latest inspected feature commit `ea5d8cccc51ce4f4c18cb5c2f0b2bb1df5fb494f` has a successful CI workflow run, but this does not replace disposable-database migration testing or Meta provider tests.
+- Do not merge or deploy until the walk-in caller is wired and verified, migrations pass in a disposable Supabase environment, the application typecheck/build and flow tests pass, and approved Meta template names/parameter ordering are verified with a dedicated test recipient.
