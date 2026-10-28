@@ -46,7 +46,7 @@ returns text
 language plpgsql immutable
 set search_path = ''
 as $$
-declare d text := regexp_replace(coalesce(_phone, ''), '\\D', '', 'g');
+declare d text := regexp_replace(coalesce(_phone, ''), '[^0-9]', '', 'g');
 begin
   if d = '' then return null; end if;
   if left(d, 1) = '0' and length(d) = 11 then
