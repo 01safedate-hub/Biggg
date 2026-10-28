@@ -10,7 +10,12 @@ export async function bookPickup(v: { lat: number; lng: number; address: string;
   const { supabase } = await requireUser("/request");
   const { data, error } = await supabase.rpc("book_pickup_scheduled", { _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes, _slot: (v.slot || null) as string });
   if (error) return { ok: false, message: friendlyError(error.message) };
-  return { ok: true, message: "Booked.", id: String(data) };
+  const id = String(data);
+  revalidatePath("/request");
+  revalidatePath("/orders");
+  revalidatePath("/dashboard");
+  revalidatePath(`/orders/${id}`);
+  return { ok: true, message: "Pickup request submitted. It is awaiting agent assignment; no payment is due at booking.", id };
 }
 
 export async function cancelOrder(id: string): Promise<R> {

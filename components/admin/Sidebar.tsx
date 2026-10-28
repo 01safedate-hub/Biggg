@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/Logo";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { InstallApp } from "@/components/brand/InstallApp";
+import { CustomerNavBell } from "@/components/notifications/CustomerNavBell";
 import { Bell } from "@/components/notifications/Bell";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
@@ -49,7 +50,7 @@ function Links({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => 
   );
 }
 
-export function Sidebar({ title, name, groups }: { title: string; name: string; groups: NavGroup[] }) {
+export function Sidebar({ title, name, groups, showNotifications = false }: { title: string; name: string; groups: NavGroup[]; showNotifications?: boolean }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
@@ -88,7 +89,7 @@ export function Sidebar({ title, name, groups }: { title: string; name: string; 
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
         {brand}
-        <div className="flex items-center gap-2"><Bell /><button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button></div>
+        <div className="flex items-center gap-2"><Bell /><div className="flex shrink-0 items-center gap-2">{showNotifications ? <CustomerNavBell /> : null}<button type="button" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)} className="rounded-md p-2 text-ink-soft hover:bg-canvas"><Menu className="h-5 w-5" /></button></div></div>
       </header>
 
       {open && (

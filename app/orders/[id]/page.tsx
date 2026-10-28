@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/roles";
-import { CUSTOMER_STEPS, STATUS_LABEL, mapsLink, type Timeline } from "@/lib/orders";
+import { CUSTOMER_STEPS, STATUS_LABEL, type Timeline } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
 import { PayButtons } from "@/components/orders/PayButtons";
@@ -31,15 +32,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { returning } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase, user } = await requireUser(`/orders/${id}`);
-  const [{ data: st }, { data: paymentProviders, error: providersError }] = await Promise.all([
-    supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]),
-    // The function is added by the PR migration before deployment; cast this RPC
-    // because generated Supabase types are refreshed separately from migrations.
-    (supabase as any).rpc("active_payment_providers") as Promise<{ data: string[] | null; error: { message: string } | null }>,
-  ]);
-  const enabledProviders = providersError
-    ? []
-    : (paymentProviders ?? []).filter((provider: string): provider is "paystack" | "flutterwave" => provider === "paystack" || provider === "flutterwave");
+  const { data: st } = await supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp"]);
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
@@ -57,18 +50,24 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const quote = iq as unknown as InstantQuote | null;
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
+  const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
+    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
+    : { data: null };
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const confirming = returning === "1" && o.status === "awaiting_fare_payment";
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
-  const map = mapsLink(o.pickup_lat, o.pickup_lng);
+
+  const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
 
   return (
-    <main id="main" className="container-page max-w-2xl space-y-6 py-10">
+    <main id="main" className="min-h-screen w-full bg-canvas">
+      <CustomerSidebar name={displayName} />
+      <div className="container-page mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
       <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{STATUS_LABEL[o.status] ?? o.status}</p></div>
-      {showNotice && <NoCashNotice />}
+      {showNotice && <NoCashNotice subscription={o.source === "subscription"} />}
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
         {CUSTOMER_STEPS.map((s) => {
@@ -85,18 +84,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       )}
 
       {o.status === "awaiting_fare_payment" && (
-        <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Pay transport to confirm your booking</h2>
-          {confirming && <p role="status" className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">Confirming your payment. This page updates by itself.</p>}
-          <p className="text-sm text-ink-soft">Pickup {naira(o.pickup_fare_kobo)} + delivery of your clean clothes {naira(o.delivery_fare_kobo ?? 0)} = <strong>{naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}</strong>, paid once. You will not pay for delivery later{o.after_hours && o.scheduled_for ? " · we are closed now, so the pickup is scheduled for our next opening time" : ""}.</p>
-          <RescheduleControl orderId={id} current={o.scheduled_for} />
-          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(o.pickup_fare_kobo + (o.delivery_fare_kobo ?? 0))}`} enabledProviders={enabledProviders} />
-          <VerifyPayment orderId={id} auto={confirming} />
-          <CancelButton orderId={id} />
+        <section className="card space-y-3 p-5">
+          <h2 className="text-lg font-semibold">One-time pickup checkout is no longer available</h2>
+          <p className="text-sm text-ink-soft">LaundryPoint now accepts pickup requests through active monthly plans only. This older order remains in your history, but its transport checkout is retired. Choose a monthly plan for new pickups, or cancel this old request.</p>
+          <div className="flex flex-wrap gap-3"><Link href="/subscriptions" className="btn-primary">View monthly plans</Link><CancelButton orderId={id} /></div>
         </section>
       )}
-
-      {o.status === "awaiting_dispatch" && <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>}
+      {o.status === "awaiting_dispatch" && (o.source === "subscription" ? <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your monthly plan covers pickup and delivery for included garments. Your request is waiting for an agent to be assigned.</p><CancelButton orderId={id} /></section> : <section className="card space-y-3 p-5 text-sm text-ink-soft"><p>Your transport is paid, for pickup and delivery. We are assigning an agent and will tell you the moment one is on the way.</p><RescheduleControl orderId={id} current={o.scheduled_for} /><CancelButton orderId={id} refund /></section>)}
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
@@ -108,29 +102,33 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "agent_arrived" && <section className="card p-5 text-sm text-ink-soft">Your agent is counting your clothes by category. Your bill will appear here in a moment. Please do not hand over any cash.</section>}
+      {o.status === "agent_arrived" && <section className="card p-5 text-sm text-ink-soft">{o.source === "subscription" ? "Your agent is counting garments by category. The monthly plan covers included pieces; only pieces above your remaining allowance will be billed online. Do not hand over cash." : "Your agent is counting your clothes by category. Your bill will appear here in a moment. Please do not hand over any cash."}</section>}
 
       {["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed", "failed_delivery"].includes(o.status) && (lines ?? []).length > 0 && (
-        <section className="card p-5" aria-label="Your bill">
-          <h2 className="text-lg font-semibold">{o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
+        <section className="card p-5" aria-label={o.source === "subscription" ? "Garments recorded" : "Your bill"}>
+          <h2 className="text-lg font-semibold">{o.source === "subscription" ? "Garments recorded" : o.status === "counted" ? "Your bill" : "Your clothes"}</h2>
           <table className="mt-3 w-full text-sm">
-            <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Each</th><th className="py-1 text-right">Total</th></tr></thead>
+            <thead><tr className="text-left text-xs uppercase tracking-wide text-ink-mute"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th>{o.source !== "subscription" && <><th className="py-1 text-right">Each</th><th className="py-1 text-right">Total</th></>}</tr></thead>
             <tbody className="divide-y divide-line">
-              {(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.name}<span className="block text-xs text-ink-mute">{l.category_name}</span></td><td className="py-2 text-right">{l.qty}</td><td className="py-2 text-right">{naira(l.unit_price_kobo)}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></tr>)}
+              {(lines ?? []).map((l) => <tr key={l.id}><td className="py-2">{l.name}<span className="block text-xs text-ink-mute">{l.category_name}</span></td><td className="py-2 text-right">{l.qty}</td>{o.source !== "subscription" && <><td className="py-2 text-right">{naira(l.unit_price_kobo)}</td><td className="py-2 text-right">{naira(l.line_total_kobo ?? 0)}</td></>}</tr>)}
             </tbody>
-            <tfoot>
+            <tfoot className={o.source === "subscription" ? "hidden" : ""}>
               {o.discount_kobo > 0 && <tr className="text-emerald-700"><td className="pt-3" colSpan={3}>Discount code</td><td className="pt-3 text-right">-{naira(o.discount_kobo)}</td></tr>}
               {o.instant_fee_kobo > 0 && <tr><td className="pt-3" colSpan={3}>Instant delivery ({o.instant_items ?? (lines ?? []).reduce((n, l) => n + l.qty, 0)} items)</td><td className="pt-3 text-right">{naira(o.instant_fee_kobo)}</td></tr>}
               <tr className="font-semibold"><td className="pt-3" colSpan={3}>Total</td><td className="pt-3 text-right">{naira(due)}</td></tr></tfoot>
           </table>
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
-              {o.source === "online" && !o.count_accepted_at ? <AcceptCount orderId={id} /> : (
+              {o.source === "subscription" ? (
+                Number(subscriptionPickup?.overage_pieces ?? 0) > 0
+                  ? <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Your garments exceed the remaining monthly allowance by {subscriptionPickup?.overage_pieces} piece(s). Review and pay the separate online bill under <Link className="font-semibold underline" href="/account/extra-clothes">Extra-clothes bills</Link>. Your clothes proceed once that bill is paid. Never pay the agent in cash.</p>
+                  : <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">The recorded garments are covered by your monthly plan. No laundry or transport payment is due for this pickup.</p>
+              ) : o.source === "online" && !o.count_accepted_at ? <AcceptCount orderId={id} /> : (
                 <>
                   {o.count_auto ? <p className="text-sm text-ink-soft">Your agent counted these for you.</p> : <p className="text-sm text-ink-soft">Check this against your clothes. If it is wrong, tell your agent before you pay.</p>}
                   {quote && <InstantCard orderId={id} q={quote} />}
                   {!o.promo_code_id ? <PromoForm orderId={id} /> : o.discount_kobo > 0 && <p className="text-sm text-ink-soft">Discount code applied. <RemovePromo orderId={id} /></p>}
-                  <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} enabledProviders={enabledProviders} />
+                  <PayButtons orderId={id} purpose="items" label={`Pay ${naira(due)}`} />
                   <VerifyPayment orderId={id} />
                 </>
               )}
@@ -138,11 +136,11 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
           {o.count_auto && o.count_accepted_at && !o.count_disputed_at && ["counted", "count_confirmed", "received"].includes(o.status) && Date.now() - new Date(o.count_accepted_at).getTime() < 86_400_000 && <div className="mt-4"><ReportCount orderId={id} /></div>}
           {o.count_disputed_at && <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">You told us the count looks wrong. Our team has been told and will contact you.</p>}
-          {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Paid. Your agent is taking your clothes to our hub, where they are checked again.</p>}
-          {o.status === "count_confirmed" && topUp > 0 && (
+          {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{o.source === "subscription" ? (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 ? "Your extra-clothes bill has been paid online. Your order is confirmed for processing. No transport payment is due." : "These garments are covered by your monthly allowance. Your clothes are moving to our hub for checking and processing. No transport payment is due.") : "Paid. Your agent is taking your clothes to our hub, where they are checked again."}</p>}
+          {o.source !== "subscription" && o.status === "count_confirmed" && topUp > 0 && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">When we checked your clothes, one item was in a higher-priced category than first counted. The prices above are now corrected. Please pay the difference of <strong>{naira(topUp)}</strong>.</p>
-              <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}`} enabledProviders={enabledProviders} />
+              <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}`} />
             </div>
           )}
         </section>
@@ -156,18 +154,19 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <p className="text-sm text-ink-soft">Come and collect them at the hub. If you would rather have them delivered, tell the person at the desk and they will give you the delivery fee to pay.</p>
         </section>
       )}
-      {o.status === "ready" && o.source !== "walk_in" && (
+      {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
+      {o.status === "ready" && o.source !== "walk_in" && o.source !== "subscription" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Your clothes are ready</h2>
           <p className="text-sm text-ink-soft">Pay the delivery fare of <strong>{naira(o.delivery_fare_kobo)}</strong> here and we will bring them to you. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo)}`} enabledProviders={enabledProviders} />
+          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo)}`} />
         </section>
       )}
-      {o.status === "awaiting_delivery_fare" && (
+      {o.status === "awaiting_delivery_fare" && o.source !== "subscription" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">Pay for delivery</h2>
           <p className="text-sm text-ink-soft">Delivery to {o.pickup_address ?? "your address"}: <strong>{naira(o.delivery_fare_kobo ?? 0)}</strong>. We assign a rider as soon as this is paid. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo ?? 0)}`} enabledProviders={enabledProviders} />
+          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo ?? 0)}`} />
         </section>
       )}
       {o.status === "out_for_delivery" && (
@@ -180,7 +179,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
               <TrackMap orderId={id} agentName={agent?.full_name} />
               <ArrivalCodeForm orderId={id} step="delivery" button="Confirm delivery" />
             </>
-          ) : <p className="text-sm text-ink-soft">Delivery fare received. We are assigning your delivery agent and will tell you when they set off.</p>}
+          ) : <p className="text-sm text-ink-soft">{o.source === "subscription" ? "Delivery is included in your monthly plan. We are assigning your delivery agent and will tell you when they set off." : "Delivery fare received. We are assigning your delivery agent and will tell you when they set off."}</p>}
         </section>
       )}
       {o.status === "delivered" && (
@@ -205,7 +204,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {dm?.has_case && dm.status === "accruing" && (Number(dm.due_kobo) > 0 ? (
             <div className="space-y-3 rounded-md border border-red-200 bg-white p-4 text-ink">
               <p className="text-sm">Your clothes have been with us past the free period. Storage fee due: <strong>{naira(Number(dm.due_kobo))}</strong>. Pay it here and we will arrange your delivery.</p>
-              <PayButtons orderId={id} purpose="demurrage" label={`Pay ${naira(Number(dm.due_kobo))}`} enabledProviders={enabledProviders} />
+              <PayButtons orderId={id} purpose="demurrage" label={`Pay ${naira(Number(dm.due_kobo))}`} />
             </div>
           ) : <p className="text-sm">Storage fee paid up to today. Thank you.</p>)}
           {dm?.has_case && dm.status === "paid" && <p className="text-sm">Storage fee paid. Thank you.</p>}
@@ -214,9 +213,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       )}
 
       {(lines ?? []).length > 0 && ["counted","count_confirmed","received","in_house","ready","out_for_delivery","delivered","closed"].includes(o.status) && <p className="text-sm"><Link className="font-medium text-brand-dark underline" href={`/orders/${id}/receipt`}>View receipt</Link></p>}
-      {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>(map)</a>}</p>}
+      {o.pickup_address && <p className="text-sm text-ink-soft">Pickup: {o.pickup_address}</p>}
       {timeline && timeline.steps.length > 0 && <OrderTimeline t={timeline} />}
       <SupportCard whatsapp={sv.whatsapp?.number} phone={sv.contact?.phone} orderNo={o.order_no} />
+      </div>
     </main>
   );
 }

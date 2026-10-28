@@ -17,7 +17,8 @@ export function LoginForm({ next }: { next: string }) {
     setError(null);
     const f = new FormData(e.currentTarget);
     setBusy(true);
-    const { error: err } = await createClient().auth.signInWithPassword({
+    const supabase = createClient();
+    const { error: err } = await supabase.auth.signInWithPassword({
       email: String(f.get("email") ?? "").trim().toLowerCase(),
       password: String(f.get("password") ?? ""),
     });
@@ -29,7 +30,25 @@ export function LoginForm({ next }: { next: string }) {
       if (err.status === 429 || code.includes("rate_limit")) return setError("Too many attempts. Please wait a few minutes and try again.");
       return setError("Incorrect email or password.");
     }
-    router.replace(safeNext(next));
+    const destination = safeNext(next);
+    // Only send first-time customers to location setup from the default account landing.
+    // Preserve explicit return destinations and never send staff into customer onboarding.
+    if (destination === "/account") {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const [{ count: addressCount, error: addressError }, { data: roles, error: rolesError }] = await Promise.all([
+          supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+          supabase.from("user_roles").select("role").eq("user_id", user.id),
+        ]);
+        const isStaff = (roles ?? []).some((r) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(r.role));
+        if (!rolesError && !isStaff && !addressError && addressCount === 0) {
+          router.replace("/onboarding/location");
+          router.refresh();
+          return;
+        }
+      }
+    }
+    router.replace(destination);
     router.refresh();
   }
 
