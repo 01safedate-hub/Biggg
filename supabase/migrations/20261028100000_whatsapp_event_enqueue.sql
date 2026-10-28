@@ -103,6 +103,7 @@ begin
     when 'agent_arrived' then 'agent_arrived'
     when 'counted' then 'count_ready'
     when 'awaiting_delivery_fare' then 'delivery_payment_link'
+    when 'awaiting_delivery_fare' then 'delivery_payment_link'
     when 'received' then 'hub_received'
     when 'in_house' then case when new.instant then 'instant_started' else null end
     when 'ready' then 'order_ready'
