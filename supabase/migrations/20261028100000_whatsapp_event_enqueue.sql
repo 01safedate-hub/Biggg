@@ -111,13 +111,22 @@ begin
   end;
   if evt is null then return null; end if;
   tmpl := evt;
-  vars := jsonb_build_object(
-    'order_no', new.order_no,
-    'status', new.status::text,
-    'scheduled_for', new.scheduled_for,
-    'instant', new.instant,
-    'order_url', 'https://laundrypoint.app/orders/' || new.id::text
-  );
+  -- Every event carries an explicit, ordered body-parameter contract for the
+  -- matching Meta-approved Utility template. Keep each approved template's
+  -- placeholder count/order aligned with docs/whatsapp-notifications-rollout.md.
+  vars := case evt
+    when 'pickup_confirmed' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, coalesce(new.scheduled_for::text, 'to be confirmed'), 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'agent_assigned' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'agent_arrived' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'count_ready' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'hub_received' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'instant_started' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'order_ready' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'rider_assigned' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'delivered' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    when 'delivery_failed' then jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, 'https://laundrypoint.app/orders/' || new.id::text))
+    else '{}'::jsonb
+  end;
   if evt = 'pickup_confirmed' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl, vars, now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
 
