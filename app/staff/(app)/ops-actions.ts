@@ -186,12 +186,12 @@ export async function findDeskCustomers(q: string): Promise<{ ok: boolean; messa
   return { ok: true, message: "", rows: (data ?? []) as never };
 }
 
-export async function addWalkinCustomer(name: string, phone: string, email = ""): Promise<R & { id?: string }> {
+export async function addWalkinCustomer(name: string, phone: string, email = "", whatsappOptIn = false): Promise<R & { id?: string }> {
   const { supabase } = await requireRole([...DESK]);
   const n = name.trim(); const digits = phone.replace(/\D/g, "");
   if (n.length < 2 || n.length > 80) return { ok: false, message: "Enter the customer's name." };
   if (digits.length < 10 || digits.length > 15) return { ok: false, message: "Enter a phone number with 10 to 15 digits." };
-  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { full_name: n, phone: phone.trim(), ...(email.trim() ? { email: email.trim() } : {}) } });
+  const { data, error } = await supabase.functions.invoke("desk-walkin", { body: { full_name: n, phone: phone.trim(), whatsapp_opt_in: whatsappOptIn === true, ...(email.trim() ? { email: email.trim() } : {}) } });
   if (error) {
     let code = error.message;
     const ctx = (error as { context?: Response }).context;
