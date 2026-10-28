@@ -30,7 +30,9 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/staff", label: "Staff and station assignments", icon: "staff" },
     { href: "/admin/weekly", label: "Weekly units", icon: "weekly" },
     { href: "/admin/customers", label: "Customers and growth", icon: "customers" },
-    { href: "/admin/subscriptions", label: "Subscriptions", icon: "customers" },
+    { href: "/admin/subscriptions", label: "Subscribers", icon: "customers" },
+    { href: "/admin/subscription-plans", label: "Subscription plans", icon: "prices" },
+    { href: "/admin/subscription-reports", label: "Subscription reports", icon: "reports" },
   ] },
   { label: "Catalogue", items: [
     { href: "/admin/prices", label: "Price list", icon: "prices" },
