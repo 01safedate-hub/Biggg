@@ -23,9 +23,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  if current_user <> 'service_role' and current_user <> 'postgres' and not pg_has_role(current_user, 'service_role', 'member') then
-    raise exception 'not_allowed' using errcode = 'P0001';
-  end if;
+  -- Function EXECUTE is granted to service_role only; rely on that ACL rather than
+  -- current_user, which is changed by SECURITY DEFINER execution.
   return query
   with picked as (
     select w.id
@@ -54,9 +53,8 @@ set search_path = ''
 as $$
 declare w public.whatsapp_outbox; p public.profiles; o public.orders; st text;
 begin
-  if current_user <> 'service_role' and current_user <> 'postgres' and not pg_has_role(current_user, 'service_role', 'member') then
-    raise exception 'not_allowed' using errcode = 'P0001';
-  end if;
+  -- Function EXECUTE is granted to service_role only; rely on that ACL rather than
+  -- current_user, which is changed by SECURITY DEFINER execution.
   select * into w from public.whatsapp_outbox where id = _id;
   if not found or w.status <> 'processing' then return false; end if;
   select * into p from public.profiles where id = w.user_id;
