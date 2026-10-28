@@ -11,7 +11,10 @@ type Subscriber = {
   price_kobo: number; current_period_start: string | null; current_period_end: string | null;
   created_at: string; plans: Plan | Plan[] | null;
 };
-type Pickup = { subscription_id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number | null };\n\ntype AllowanceState = "not_applicable" | "remaining" | "exhausted" | "overage";\nconst allowanceState = (used: number, allowance: number): AllowanceState => allowance <= 0 ? "not_applicable" : used >= allowance ? used > allowance ? "overage" : "exhausted" : "remaining";
+type Pickup = { subscription_id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number | null };
+
+type AllowanceState = "not_applicable" | "remaining" | "exhausted" | "overage";
+const allowanceState = (used: number, allowance: number): AllowanceState => allowance <= 0 ? "not_applicable" : used >= allowance ? used > allowance ? "overage" : "exhausted" : "remaining";
 
 const date = (value: string | null) => value ? new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeZone: "Africa/Lagos" }).format(new Date(value)) : "—";
 
@@ -47,7 +50,11 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
         const plan = Array.isArray(row.plans) ? row.plans[0] : row.plans;
         const periodPickups = pickupRows.filter((pickup) => pickup.subscription_id === row.id && (!row.current_period_start || pickup.scheduled_for >= row.current_period_start.slice(0, 10)) && (!row.current_period_end || pickup.scheduled_for <= row.current_period_end.slice(0, 10)));
         const used = periodPickups.reduce((sum, pickup) => sum + Number(pickup.pieces_counted ?? 0), 0);
-        const allowance = Number(plan?.pieces_per_month ?? 0);\n        const state = allowanceState(used, allowance);\n        const remaining = Math.max(0, allowance - used);\n        const stateLabel = state === "exhausted" ? "Exhausted" : state === "overage" ? "Over allowance" : state === "remaining" ? "Within allowance" : "Allowance unavailable";\n        const stateClasses = state === "exhausted" || state === "overage" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-line bg-surface text-ink-soft";
+        const allowance = Number(plan?.pieces_per_month ?? 0);
+        const state = allowanceState(used, allowance);
+        const remaining = Math.max(0, allowance - used);
+        const stateLabel = state === "exhausted" ? "Exhausted" : state === "overage" ? "Over allowance" : state === "remaining" ? "Within allowance" : "Allowance unavailable";
+        const stateClasses = state === "exhausted" || state === "overage" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-line bg-surface text-ink-soft";
         const next = pickupRows.filter((pickup) => pickup.subscription_id === row.id && pickup.scheduled_for >= todayIso && ["scheduled", "dispatched"].includes(pickup.status)).sort((a, b) => a.scheduled_for.localeCompare(b.scheduled_for))[0];
         return <article key={row.id} className="card space-y-3 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">{profile?.full_name || "Customer name unavailable"}</h2><p className="text-sm text-ink-soft">{profile?.email || profile?.phone || row.customer_id}</p></div><span className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold capitalize">{row.status.replace("_", " ")}</span></div>
