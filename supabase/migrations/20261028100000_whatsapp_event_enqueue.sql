@@ -10,6 +10,7 @@ as $$
     when 'count_reminder' then jsonb_build_object('status', 'counted', 'count_accepted_at', null)
     when 'ready_reminder' then jsonb_build_object('status', 'ready', 'delivered_at', null)
     when 'delivery_payment_reminder' then jsonb_build_object('status', 'awaiting_delivery_fare', 'delivered_at', null)
+    when 'ready_reminder' then jsonb_build_object('status', 'ready', 'delivered_at', null)
     when 'rate_reminder' then jsonb_build_object('status', 'delivered', 'rated', false)
     else '{}'::jsonb
   end;
