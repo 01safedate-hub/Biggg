@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
       const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
       const localHour = Number(values.hour);
       const lagosMidnightUtc = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 0, 0, 0) - 60 * 60 * 1000;
-      const target = new Date(lagosMidnightUtc + (localHour >= 21 ? 30 : 6) * 60 * 60 * 1000);
+      const target = new Date(lagosMidnightUtc + (localHour >= 21 ? 31 : 7) * 60 * 60 * 1000);
       await postpone("quiet_hours_lagos", target.toISOString());
       continue;
     }
