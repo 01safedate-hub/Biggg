@@ -125,12 +125,15 @@ Deno.serve(async (req) => {
       row.event === "subscription_pickup_reminder";
     if (isReminder && inLagosQuietHours()) {
       const now = new Date();
-      const local = new Intl.DateTimeFormat("en-GB", {
-        timeZone: "Africa/Lagos", hour: "2-digit", hourCycle: "h23",
-      }).format(now);
-      const localHour = Number(local);
-      const delayHours = localHour >= 21 ? 24 - localHour + 7 : 7 - localHour;
-      await postpone("quiet_hours_lagos", new Date(now.getTime() + Math.max(1, delayHours) * 60 * 60 * 1000).toISOString());
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", hourCycle: "h23",
+      }).formatToParts(now);
+      const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      const localHour = Number(values.hour);
+      const lagosMidnightUtc = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 0, 0, 0) - 60 * 60 * 1000;
+      const target = new Date(lagosMidnightUtc + (localHour >= 21 ? 30 : 6) * 60 * 60 * 1000);
+      await postpone("quiet_hours_lagos", target.toISOString());
       continue;
     }
 
