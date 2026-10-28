@@ -71,7 +71,7 @@ begin
   if w.condition ? 'count_accepted_at' and o.count_accepted_at is not null then return false; end if;
   if w.condition ? 'delivered_at' and o.delivered_at is not null and st <> 'delivered' then return false; end if;
   if st = 'delivered' and o.delivered_at is null then return false; end if;
-  if coalesce((w.condition->>'rated')::boolean, false) and exists (
+  if w.condition ? 'rated' and exists (
     select 1 from public.order_ratings r where r.order_id = o.id
   ) then return false; end if;
   return true;
@@ -100,7 +100,6 @@ begin
     when 'agent_assigned' then 'agent_assigned'
     when 'agent_arrived' then 'agent_arrived'
     when 'counted' then 'count_ready'
-    when 'awaiting_delivery_fare' then 'delivery_payment_link'
     when 'awaiting_delivery_fare' then 'delivery_payment_link'
     when 'received' then 'hub_received'
     when 'in_house' then case when new.instant then 'instant_started' else null end
