@@ -119,19 +119,17 @@ Deno.serve(async (req) => {
     };
 
     // Quiet hours apply to reminders only; transactional status notices can pass.
-    const isReminder = row.event.endsWith("_reminder") ||
-      row.event === "count_reminder" ||
+    const isReminder = row.event.includes("reminder") ||
       row.event === "subscription_invoice_due" ||
       row.event === "subscription_pickup_reminder";
     if (isReminder && inLagosQuietHours()) {
-      const next = new Date();
-      const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit",
-      }).formatToParts(next);
-      const p = Object.fromEntries(parts.map(x => [x.type, x.value]));
-      const target = new Date(`${p.year}-${p.month}-${p.day}T07:00:00+01:00`);
-      if (next.getTime() >= target.getTime()) target.setDate(target.getDate() + 1);
-      await postpone("quiet_hours_lagos", target.toISOString());
+      const now = new Date();
+      const local = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Lagos", hour: "2-digit", hourCycle: "h23",
+      }).format(now);
+      const localHour = Number(local);
+      const delayHours = localHour >= 21 ? 24 - localHour + 7 : 7 - localHour;
+      await postpone("quiet_hours_lagos", new Date(now.getTime() + Math.max(1, delayHours) * 60 * 60 * 1000).toISOString());
       continue;
     }
 
