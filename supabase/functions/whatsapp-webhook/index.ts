@@ -82,24 +82,8 @@ Deno.serve(async (req) => {
       // Only accept an explicit exact STOP command. Do not opt out on ordinary messages.
       for (const message of value.messages ?? []) {
         if (!message.from || message.type !== "text" || !/^\s*STOP\s*$/i.test(message.text?.body ?? "")) continue;
-        const phone = message.from.replace(/\D/g, "");
-        const { data: profile } = await db.from("profiles").select("id")
-          .eq("phone", phone).limit(1).maybeSingle();
-        if (profile?.id) {
-          const { error } = await db.from("profiles").update({
-            whatsapp_opt_in: false,
-            whatsapp_opt_out_at: new Date().toISOString(),
-          }).eq("id", profile.id);
-          if (!error) {
-            optOuts++;
-            // Cancel waiting reminders. Do not mutate in-flight provider requests.
-            await db.from("whatsapp_outbox").update({
-              status: "cancelled",
-              last_error: "customer_stop_opt_out",
-              updated_at: new Date().toISOString(),
-            }).eq("user_id", profile.id).in("status", ["queued", "processing"]);
-          }
-        }
+        const { data, error } = await db.rpc("whatsapp_opt_out_by_phone", { _phone: message.from });
+        if (!error && data === true) optOuts++;
       }
     }
   }
