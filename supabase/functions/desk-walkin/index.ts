@@ -40,6 +40,8 @@ Deno.serve(async (req) => {
   }
   const name = clean(b.full_name).replace(/\s+/g, " ");
   const digits = clean(b.phone).replace(/\D/g, "");
+  // Only an explicit true from the staff form records WhatsApp consent. Missing/false stays opted out.
+  const whatsappOptIn = b.whatsapp_opt_in === true;
   if (name.length < 2 || name.length > 80) return json(400, { error: "invalid_name" });
   if (digits.length < 10 || digits.length > 15) return json(400, { error: "invalid_phone" });
   const tail = digits.slice(-10);
@@ -52,17 +54,17 @@ Deno.serve(async (req) => {
     const { data: taken } = await admin.from("profiles").select("id").ilike("email", mail).limit(1);
     if (taken && taken.length) return json(409, { error: "client_exists" });
     const phoneFull = digits.startsWith("234") ? `+${digits}` : digits.length === 10 ? `0${digits}` : digits;
-    const inv = await admin.auth.admin.inviteUserByEmail(mail, { data: { full_name: name, phone: phoneFull }, redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(mail, { data: { full_name: name, phone: phoneFull, whatsapp_opt_in: whatsappOptIn }, redirectTo: `${SITE}/auth/confirm` });
     if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "create_failed" });
-    await admin.from("profiles").update({ full_name: name }).eq("id", inv.data.user.id);
+    await admin.from("profiles").update({ full_name: name, whatsapp_opt_in: whatsappOptIn, whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null }).eq("id", inv.data.user.id);
     return json(200, { ok: true, existing: false, id: inv.data.user.id, name, phone: digits });
   }
   const email = `walkin-${tail}@walkin.laundrypoint.invalid`;
   const pw = crypto.randomUUID() + crypto.randomUUID();
-  const created = await admin.auth.admin.createUser({ email, password: pw, email_confirm: true, user_metadata: { full_name: name, phone: digits.startsWith("234") ? `+${digits}` : digits.length === 10 ? `0${digits}` : digits } });
+  const created = await admin.auth.admin.createUser({ email, password: pw, email_confirm: true, user_metadata: { full_name: name, phone: digits.startsWith("234") ? `+${digits}` : digits.length === 10 ? `0${digits}` : digits, whatsapp_opt_in: whatsappOptIn } });
   if (created.error || !created.data.user) return json(400, { error: created.error?.message ?? "create_failed" });
   const id = created.data.user.id;
-  const up = await admin.from("profiles").update({ is_walk_in: true, full_name: name }).eq("id", id);
+  const up = await admin.from("profiles").update({ is_walk_in: true, full_name: name, whatsapp_opt_in: whatsappOptIn, whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null }).eq("id", id);
   if (up.error) return json(500, { error: "profile_failed" });
   return json(200, { ok: true, existing: false, id, name, phone: digits });
 });
