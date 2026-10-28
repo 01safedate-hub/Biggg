@@ -20,7 +20,7 @@ begin
     select o.order_no, o.customer_id into onum, customer from public.orders o where o.id = new.order_id;
     if not found then return null; end if;
     evt := case new.event
-      when 'pickup_failed' then 'delivery_failed'
+      when 'pickup_failed' then 'pickup_failed'
       when 'delivery_failed' then 'delivery_failed'
       when 'instant_late' then 'instant_late'
     end;
