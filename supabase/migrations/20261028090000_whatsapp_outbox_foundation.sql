@@ -51,8 +51,6 @@ begin
   if d = '' then return null; end if;
   if left(d, 1) = '0' and length(d) = 11 then
     d := '234' || substr(d, 2);
-  elsif left(d, 1) = '+'" then
-    d := substr(d, 2);
   elsif length(d) = 10 then
     d := '234' || d;
   end if;
