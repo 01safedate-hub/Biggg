@@ -131,13 +131,15 @@ begin
   elsif evt = 'order_ready' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl, vars, now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
     if new.source <> 'walk_in' then
-      perform private.enqueue_whatsapp(new.customer_id, new.id, 'ready_reminder_24h', 'ready_reminder',
+      perform private.enqueue_whatsapp(new.customer_id, new.id, 'ready_reminder', 'ready_reminder',
         jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, '24 hours')),
-        now() + interval '24 hours', jsonb_build_object('status','ready','delivered_at',null),
+        now() + interval '24 hours',
+        jsonb_build_object('status','ready','delivered_at',null),
         'wa-'||new.id||'-ready-reminder-24h');
-      perform private.enqueue_whatsapp(new.customer_id, new.id, 'ready_reminder_72h', 'ready_reminder',
+      perform private.enqueue_whatsapp(new.customer_id, new.id, 'ready_reminder', 'ready_reminder',
         jsonb_build_object('template_params', jsonb_build_array(new.order_no::text, '72 hours')),
-        now() + interval '72 hours', jsonb_build_object('status','ready','delivered_at',null),
+        now() + interval '72 hours',
+        jsonb_build_object('status','ready','delivered_at',null),
         'wa-'||new.id||'-ready-reminder-72h');
     end if;
   elsif evt = 'delivered' then
