@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
     pickup_confirmed: Deno.env.get("WA_TEMPLATE_PICKUP_CONFIRMED"),
     agent_assigned: Deno.env.get("WA_TEMPLATE_AGENT_ASSIGNED"),
     agent_arrived: Deno.env.get("WA_TEMPLATE_AGENT_ARRIVED"),
+    pickup_failed: Deno.env.get("WA_TEMPLATE_PICKUP_FAILED"),
     count_ready: Deno.env.get("WA_TEMPLATE_COUNT_READY"),
     count_reminder: Deno.env.get("WA_TEMPLATE_COUNT_REMINDER"),
     stain_notice: Deno.env.get("WA_TEMPLATE_STAIN_NOTICE"),
