@@ -16,6 +16,7 @@ export function WalkinStart() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -36,7 +37,7 @@ export function WalkinStart() {
   }
   async function addAndBegin(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr(null);
-    const c = await addWalkinCustomer(name, phone, email);
+    const c = await addWalkinCustomer(name, phone, email, whatsappOptIn);
     if (!c.ok || !c.id) { setBusy(false); return setErr(c.message); }
     await begin(c.id);
   }
@@ -67,6 +68,7 @@ export function WalkinStart() {
             <div><label htmlFor="an" className={labelCls}>Full name</label><input id="an" value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} className={inputCls} /></div>
             <div><label htmlFor="ap" className={labelCls}>Phone number</label><input id="ap" value={phone} onChange={(e) => setPhone(e.target.value)} required inputMode="tel" className={inputCls} /></div>
             <div className="sm:col-span-2"><label htmlFor="ae" className={labelCls}>Email (so they can track their orders)</label><input id="ae" type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={120} className={inputCls} placeholder="name@example.com" autoComplete="off" /></div>
+            <div className="sm:col-span-2"><label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} className="mt-1" /><span>Customer agrees to receive WhatsApp order updates from LaundryPoint (optional).</span></label></div>
           </div>
           <button className="btn-primary" disabled={busy}>{busy ? "Starting" : "Add customer and start order"}</button>
         </form>
