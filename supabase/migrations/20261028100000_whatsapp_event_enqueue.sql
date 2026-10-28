@@ -123,6 +123,7 @@ begin
   );
   if evt = 'pickup_confirmed' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl, vars, now(), '{}'::jsonb, 'wa-'||new.id||'-'||evt);
+
   elsif evt = 'delivery_payment_link' then
     perform private.enqueue_whatsapp(new.customer_id, new.id, evt, tmpl,
       jsonb_build_object('template_params', jsonb_build_array(new.order_no::text,
