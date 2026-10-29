@@ -320,10 +320,16 @@ export async function deskTakePayment(orderId: string, mode: "cash" | "transfer"
 
 export async function deskHandover(orderId: string): Promise<R> {
   const { supabase } = await requireRole([...DESK]);
-  const { error } = await supabase.rpc("desk_handover", { _order: orderId });
+  const { data: order, error: lookupError } = await supabase.from("orders").select("source").eq("id", orderId).maybeSingle();
+  if (lookupError || !order) return { ok: false, message: "This order could not be found. Refresh the page and try again." };
+  const { error } = order.source === "one_time"
+    ? await supabase.rpc("confirm_one_time_collection" as never, { _order: orderId } as never)
+    : await supabase.rpc("desk_handover", { _order: orderId });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath(`/staff/walkin/${orderId}`);
-  return { ok: true, message: "Handed over." };
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/staff/walkin");
+  return { ok: true, message: "Collection handover confirmed." };
 }
 
 export async function deskCancelWalkin(orderId: string, note: string): Promise<R> {

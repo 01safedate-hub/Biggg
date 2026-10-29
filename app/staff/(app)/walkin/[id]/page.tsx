@@ -19,6 +19,11 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
+  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;
+  const returnRow = o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null };
+  const returnDestination = returnRow.return_delivery_address ?? null;
+  const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
+  const returnDeliveryReady = o.source === "one_time" && o.status === "ready" && fulfillmentChoice === "deliver" && Boolean(returnFeePayment);
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
@@ -29,7 +34,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
     supabase.from("orders").select("id,order_no,status,instant,parent_order_id").or(`parent_order_id.eq.${id},id.eq.${o.parent_order_id ?? id},parent_order_id.eq.${o.parent_order_id ?? id}`).neq("id", id),
     supabase.from("settings").select("value").eq("key", "instant").maybeSingle(),
     supabase.from("order_photos").select("note").eq("order_id", id).eq("kind", "stain"),
-    o.status === "out_for_delivery" ? supabase.rpc("list_agents") : Promise.resolve({ data: [] }),
+    (o.status === "out_for_delivery" || returnDeliveryReady) ? supabase.rpc("list_agents") : Promise.resolve({ data: [] }),
   ]);
   const icv = (icfg?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number };
   const stainedNames = Array.from(new Set((stainRows ?? []).map((r) => (r.note ?? "").split(": ")[0]).filter(Boolean)));
@@ -42,7 +47,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const paidLabel = pay ? (pay.mode === "cash" ? "Cash" : pay.mode === "transfer" ? "Bank transfer" : "POS card") : "";
   return (
     <div className="space-y-5">
-      {moving && <AutoRefresh seconds={20} />}
+      {(moving || (o.source === "one_time" && o.status === "ready")) && <AutoRefresh seconds={20} />}
       <div className="flex items-center justify-between print:hidden"><Link href="/staff/walkin" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Walk-in orders</Link>{pay && <PrintButton />}</div>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no} <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-medium text-ink-soft print:hidden">{STATUS_LABEL[o.status] ?? o.status}</span></h1>
@@ -72,21 +77,44 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
       )}
 
       {moving && <p className="card p-5 text-sm text-ink-soft print:hidden">Paid. {o.status === "count_confirmed" ? "Next: mark it received on the Receiving page, then it joins the wash queue." : "It is in the wash queue. It will show as ready here when washing is done."}</p>}
+      {o.source === "one_time" && o.status === "ready" && (
+        <section className="card space-y-2 border-brand/30 p-5">
+          <h2 className="text-lg font-semibold">Customer fulfillment choice</h2>
+          {fulfillmentChoice === "collect" ? (
+            <><p className="font-medium text-emerald-700">Collection requested by customer</p><p className="text-sm text-ink-soft">No delivery fee is due. Keep this order at the hub and confirm handover after the customer collects the clothes.</p></>
+          ) : fulfillmentChoice === "deliver" ? (
+            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Return address: {returnDestination || "Not provided"}</p><p className="text-sm">Return distance: {(o as typeof o & { return_delivery_distance_km?: number | null }).return_delivery_distance_km ?? "—"} km · Delivery fare: {naira(o.delivery_fare_kobo ?? 0)} · {returnFeePayment ? "PAID" : "PAYMENT PENDING"}</p></>
+          ) : (
+            <p className="text-sm text-ink-soft">The customer has not saved a collection or delivery choice yet. Contact them before arranging fulfillment.</p>
+          )}
+        </section>
+      )}
+
       {o.status === "ready" && (
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
-          <WalkinActions orderId={id} kind="handover" />
-          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
+          {fulfillmentChoice !== "deliver" && <WalkinActions orderId={id} kind="handover" />}
+          <div className="border-t border-line pt-4">{returnDeliveryReady ? (
+            <div className="space-y-3">
+              <p className="font-medium text-emerald-700">Delivery fee paid. Assign a delivery agent.</p>
+              <p className="text-sm text-ink-soft">Deliver to: {returnDestination || "Customer delivery address not found"}</p>
+              <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
+            </div>
+          ) : fulfillmentChoice === "deliver" ? (
+            <p className="text-sm text-ink-soft">Delivery is selected. Waiting for the customer to pay the delivery fee before an agent can be assigned.</p>
+          ) : (
+            <DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} />
+          )}</div>
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (
-        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
+        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><p className="text-sm text-ink-soft">Customer destination: {returnDestination || "Not provided"} · {naira(o.delivery_fare_kobo ?? 0)}</p><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={returnDestination ?? o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={returnRow.return_delivery_lat ?? o.pickup_lat} pickupLng={returnRow.return_delivery_lng ?? o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-3 p-5 print:hidden">
           <h2 className="text-lg font-semibold">Delivery fee paid: assign a rider</h2>
-          <p className="text-sm text-ink-soft">Deliver to: {o.pickup_address}</p>
+          <p className="text-sm text-ink-soft">Deliver to: {returnDestination ?? o.pickup_address}</p>
           <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
         </section>
       )}

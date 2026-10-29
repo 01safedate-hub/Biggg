@@ -86,6 +86,8 @@ export async function chooseFulfillment(
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath(`/orders/${orderId}`);
   revalidatePath("/orders");
+  revalidatePath(`/staff/walkin/${orderId}`);
+  revalidatePath("/staff/walkin");
   return {
     ok: true,
     message: "",

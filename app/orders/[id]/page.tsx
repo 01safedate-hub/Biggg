@@ -37,6 +37,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
+  const { data: deliveryPayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
   const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
   const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
@@ -59,7 +60,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const confirming = returning === "1" && ["awaiting_fare_payment", "awaiting_dispatch"].includes(o.status);
-  const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
+  const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "awaiting_delivery_fare", "out_for_delivery"].includes(o.status);
 
   const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
 
@@ -69,12 +70,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       <div className="container-page mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
-      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{agentAtDoor ? "Agent at your door — confirm the pickup code" : STATUS_LABEL[o.status] ?? o.status}</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{agentAtDoor ? "Agent at your door — confirm the pickup code" : o.status === "awaiting_delivery_fare" ? "Clothes ready · delivery payment pending" : STATUS_LABEL[o.status] ?? o.status}</p></div>
       {showNotice && <NoCashNotice subscription={o.source === "subscription"} />}
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
         {CUSTOMER_STEPS.map((s) => {
-          const on = s.label === "Agent at your door" && agentAtDoor ? true : s.reached.includes(o.status);
+          const lifecycleStatus = o.status === "awaiting_delivery_fare" ? "ready" : o.status;
+          const on = s.label === "Agent at your door" && agentAtDoor ? true : s.reached.includes(lifecycleStatus);
           return <li key={s.label} className={`rounded-md border px-1 py-2 ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line text-ink-mute"}`}>{s.label}</li>;
         })}
       </ol>
@@ -164,24 +166,26 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {o.status === "ready" && o.source !== "subscription" && (
         <FulfillmentChoice
           orderId={id}
-          address={o.pickup_address}
-          lat={o.pickup_lat}
-          lng={o.pickup_lng}
+          address={(o as typeof o & { return_delivery_address?: string | null }).return_delivery_address ?? o.pickup_address}
+          lat={(o as typeof o & { return_delivery_lat?: number | null }).return_delivery_lat ?? o.pickup_lat}
+          lng={(o as typeof o & { return_delivery_lng?: number | null }).return_delivery_lng ?? o.pickup_lng}
           fareKobo={o.delivery_fare_kobo}
           status={o.status}
           choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
+          deliveryPaid={Boolean(deliveryPayment)}
         />
       )}
       {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
       {o.status === "awaiting_delivery_fare" && o.source !== "subscription" && (
         <FulfillmentChoice
           orderId={id}
-          address={o.pickup_address}
-          lat={o.pickup_lat}
-          lng={o.pickup_lng}
+          address={(o as typeof o & { return_delivery_address?: string | null }).return_delivery_address ?? o.pickup_address}
+          lat={(o as typeof o & { return_delivery_lat?: number | null }).return_delivery_lat ?? o.pickup_lat}
+          lng={(o as typeof o & { return_delivery_lng?: number | null }).return_delivery_lng ?? o.pickup_lng}
           fareKobo={o.delivery_fare_kobo}
           status={o.status}
-          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? "deliver"}
+          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
+          deliveryPaid={Boolean(deliveryPayment)}
         />
       )}
       {o.status === "out_for_delivery" && (
