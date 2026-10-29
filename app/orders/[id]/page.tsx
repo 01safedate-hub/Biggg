@@ -179,12 +179,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {o.status === "awaiting_delivery_fare" && o.source !== "subscription" && (
         <FulfillmentChoice
           orderId={id}
-          address={o.pickup_address}
-          lat={o.pickup_lat}
-          lng={o.pickup_lng}
+          address={(o as typeof o & { return_delivery_address?: string | null }).return_delivery_address ?? o.pickup_address}
+          lat={(o as typeof o & { return_delivery_lat?: number | null }).return_delivery_lat ?? o.pickup_lat}
+          lng={(o as typeof o & { return_delivery_lng?: number | null }).return_delivery_lng ?? o.pickup_lng}
           fareKobo={o.delivery_fare_kobo}
           status={o.status}
           choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
+          deliveryPaid={Boolean(deliveryPayment)}
         />
       )}
       {o.status === "out_for_delivery" && (
