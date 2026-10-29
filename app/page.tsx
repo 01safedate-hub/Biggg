@@ -9,6 +9,7 @@ import { Faq } from "@/components/landing/Faq";
 import { VisitBar } from "@/components/landing/VisitBar";
 import { FloatingContact } from "@/components/landing/FloatingContact";
 import { Footer } from "@/components/landing/Footer";
+import { ScrollBubbles } from "@/components/landing/ScrollBubbles";
 
 export const revalidate = 300;
 
@@ -30,6 +31,7 @@ export default async function Home() {
         <Faq />
       </main>
       <Footer name={b.name} mapsUrl={visitUrl} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />
+      <ScrollBubbles />
       <FloatingContact phone={settings.contact.phone} whatsapp={settings.whatsapp.number} name={b.name} />
     </>
   );
