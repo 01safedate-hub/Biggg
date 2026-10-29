@@ -1,0 +1,1 @@
+-- In-person hub identity verification is required before approval.
