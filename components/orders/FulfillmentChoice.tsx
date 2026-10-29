@@ -20,6 +20,9 @@ export function FulfillmentChoice({ orderId, address, lat, lng, fareKobo, status
 
   async function submit(next: "collect" | "deliver") {
     setBusy(true); setError(""); setNotice("");
+    if (next === "deliver" && quote !== null && mode === "deliver" && (coords?.lat !== lat || coords?.lng !== lng || addr.trim() !== (address ?? "").trim())) {
+      setQuote(null);
+    }
     if (next === "deliver" && (!coords || !addr.trim())) {
       setBusy(false); setError("Choose a saved or current location and enter the delivery address."); return;
     }
@@ -44,14 +47,14 @@ export function FulfillmentChoice({ orderId, address, lat, lng, fareKobo, status
     <p className="text-sm text-ink-soft">Choose collection or delivery. Delivery pricing is recalculated from the latest fare rules before you pay.</p>
     <div className="grid gap-3 sm:grid-cols-2">
       <button type="button" disabled={busy} onClick={()=>submit("collect")} className={`rounded-xl border p-4 text-left ${mode==="collect"?"border-brand bg-brand-tint":"border-line"}`}><strong>Collect my clothes</strong><span className="mt-1 block text-sm text-ink-soft">No delivery fee</span></button>
-      <button type="button" disabled={busy} onClick={()=>{setMode("deliver");setError("");}} className={`rounded-xl border p-4 text-left ${mode==="deliver"?"border-brand bg-brand-tint":"border-line"}`}><strong>Deliver to my address</strong><span className="mt-1 block text-sm text-ink-soft">Fare confirmed before payment</span></button>
+      <button type="button" disabled={busy} onClick={()=>{setMode("deliver");setError("");setQuote(null);}} className={`rounded-xl border p-4 text-left ${mode==="deliver"?"border-brand bg-brand-tint":"border-line"}`}><strong>Deliver to my address</strong><span className="mt-1 block text-sm text-ink-soft">Fare confirmed before payment</span></button>
     </div>
     {mode==="deliver" && <>
-      <label className="block text-sm font-medium">Delivery address<textarea value={addr} onChange={e=>setAddr(e.target.value)} maxLength={300} rows={2} className="mt-1 w-full rounded-lg border border-line p-3" placeholder="Enter your delivery address"/></label>
+      <label className="block text-sm font-medium">Delivery address<textarea value={addr} onChange={e=>{setAddr(e.target.value);setQuote(null);}} maxLength={300} rows={2} className="mt-1 w-full rounded-lg border border-line p-3" placeholder="Enter your delivery address"/></label>
       <p className="text-sm text-ink-soft">Saved address: {address || "No saved address."}</p>
       <div className="flex flex-wrap gap-2">
-        <button type="button" className="btn-secondary" disabled={busy || lat==null || lng==null} onClick={()=>{setCoords({lat:lat!,lng:lng!});setUseNew(false);}}>Use saved GPS</button>
-        <button type="button" className="btn-secondary" disabled={busy} onClick={locate}>Use current GPS</button>
+        <button type="button" className="btn-secondary" disabled={busy || lat==null || lng==null} onClick={()=>{setCoords({lat:lat!,lng:lng!});setUseNew(false);setQuote(null);}}>Use saved GPS</button>
+        <button type="button" className="btn-secondary" disabled={busy} onClick={()=>{setQuote(null);locate();}}>Use current GPS</button>
       </div>
       {coords && <p className="text-xs text-ink-soft">{useNew?"Using updated device location.":"Using saved order location."}</p>}
       <button type="button" disabled={busy} onClick={()=>submit("deliver")} className="btn-primary w-full">{busy?"Checking latest fare…":"Confirm address and refresh fare"}</button>
