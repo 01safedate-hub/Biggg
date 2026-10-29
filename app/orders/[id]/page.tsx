@@ -36,6 +36,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
+  const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
+  const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
   const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }, { data: iq }] = await Promise.all([
     supabase.from("order_items").select("id,name,category_name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null).order("created_at"),
@@ -55,7 +57,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     : { data: null };
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
-  const confirming = returning === "1" && o.status === "awaiting_fare_payment";
+  const confirming = returning === "1" && ["awaiting_fare_payment", "awaiting_dispatch"].includes(o.status);
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
 
   const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
@@ -66,12 +68,12 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       <div className="container-page mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
-      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{STATUS_LABEL[o.status] ?? o.status}</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{agentAtDoor ? "Agent at your door — confirm the pickup code" : STATUS_LABEL[o.status] ?? o.status}</p></div>
       {showNotice && <NoCashNotice subscription={o.source === "subscription"} />}
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
         {CUSTOMER_STEPS.map((s) => {
-          const on = s.reached.includes(o.status);
+          const on = s.label === "Agent at your door" && agentAtDoor ? true : s.reached.includes(o.status);
           return <li key={s.label} className={`rounded-md border px-1 py-2 ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line text-ink-mute"}`}>{s.label}</li>;
         })}
       </ol>
@@ -83,10 +85,20 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "awaiting_fare_payment" && (
+      {o.status === "awaiting_fare_payment" && o.source === "one_time" && (
         <section className="card space-y-3 p-5">
-          <h2 className="text-lg font-semibold">One-time pickup checkout is no longer available</h2>
-          <p className="text-sm text-ink-soft">LaundryPoint now accepts pickup requests through active monthly plans only. This older order remains in your history, but its transport checkout is retired. Choose a monthly plan for new pickups, or cancel this old request.</p>
+          <h2 className="text-lg font-semibold">Pay transport to confirm your pickup</h2>
+          <p className="text-sm text-ink-soft">Your one-time transport total is {naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))}. Your booking remains unconfirmed until payment is verified. Laundry charges are counted and billed separately after collection.</p>
+          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))} transport`} />
+          {returning === "1" && <VerifyPayment orderId={id} auto />}
+          <CancelButton orderId={id} />
+          <p className="text-xs text-ink-mute">Use a payment provider only once per attempt. Duplicate provider callbacks do not create duplicate payment credits.</p>
+        </section>
+      )}
+      {o.status === "awaiting_fare_payment" && o.source !== "one_time" && (
+        <section className="card space-y-3 p-5">
+          <h2 className="text-lg font-semibold">This older pickup request needs attention</h2>
+          <p className="text-sm text-ink-soft">This request predates the current booking flow. Use an active monthly plan for future pickups.</p>
           <div className="flex flex-wrap gap-3"><Link href="/subscriptions" className="btn-primary">View monthly plans</Link><CancelButton orderId={id} /></div>
         </section>
       )}
@@ -94,9 +106,9 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {o.status === "agent_assigned" && (
         <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Your agent{agent?.full_name ? `, ${agent.full_name},` : ""} is on the way</h2>
+          <h2 className="text-lg font-semibold">{agentAtDoor ? `Your agent${agent?.full_name ? `, ${agent.full_name},` : ""} has arrived` : `Your agent${agent?.full_name ? `, ${agent.full_name},` : ""} is on the way`}</h2>
           {agent?.phone && <p className="text-sm">Call: <a className="font-medium text-brand-dark underline" href={`tel:${agent.phone}`}>{agent.phone}</a></p>}
-          <p className="text-sm text-ink-soft">When the agent arrives, they will show you a 4 digit code on their phone. Enter it here so we know it is really them.</p>
+          <p className="text-sm text-ink-soft">{agentAtDoor ? "Your agent has generated the pickup code. Ask them to show it on their phone and enter it below to confirm their arrival." : "When the agent arrives, they will show you a 4 digit code on their phone. Enter it here so we know it is really them."}</p>
           <TrackMap orderId={id} agentName={agent?.full_name} />
           <ArrivalCodeForm orderId={id} />
         </section>

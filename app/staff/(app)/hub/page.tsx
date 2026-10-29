@@ -32,7 +32,7 @@ export default async function HubPage() {
           {rows.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
               <div><p className="font-medium">Order #{o.order_no} · {who.get(o.customer_id)?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
-              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{o.source === "walk_in" && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
+              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{(o.source === "walk_in" || o.source === "one_time") && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
             </div>
           ))}
           {rows.length === 0 && <p className="p-5 text-sm text-ink-soft">Nothing here.</p>}

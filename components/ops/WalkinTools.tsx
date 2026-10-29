@@ -151,12 +151,13 @@ export function WalkinInstant({ orderId, on, perItemKobo, items, feeKobo, target
   );
 }
 
-export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, hasAccount, points }: {
-  orderId: string; customerId: string; status: "ready" | "awaiting_delivery_fare"; address: string | null; fareKobo: number; hasAccount: boolean; points: { id: string; name: string }[];
+export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, hasAccount, pickupLat, pickupLng, points }: {
+  orderId: string; customerId: string; status: "ready" | "awaiting_delivery_fare"; address: string | null; fareKobo: number; hasAccount: boolean; pickupLat?: number | null; pickupLng?: number | null; points: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [addr, setAddr] = useState(address ?? "");
-  const [where, setWhere] = useState("");
+  const hasSavedLocation = pickupLat != null && pickupLng != null && Number.isFinite(Number(pickupLat)) && Number.isFinite(Number(pickupLng));
+  const [where, setWhere] = useState(hasSavedLocation ? `${pickupLat}, ${pickupLng}` : "");
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<"cash" | "transfer" | "pos">("cash");
   const [point, setPoint] = useState(points[0]?.id ?? "");
@@ -189,7 +190,7 @@ export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, 
       <form className="space-y-3 rounded-lg border border-line p-4" onSubmit={(e) => { e.preventDefault(); void run("req", async () => { const r = await deskRequestDelivery(orderId, addr, where); return r; }); }}>
         <p className="text-sm font-semibold">Customer wants delivery instead of collecting</p>
         <div><label htmlFor="da" className={labelCls}>Delivery address</label><input id="da" value={addr} onChange={(e) => setAddr(e.target.value)} required minLength={5} maxLength={300} className={inputCls} /></div>
-        <div><label htmlFor="dl" className={labelCls}>Location the customer sent on WhatsApp</label><input id="dl" value={where} onChange={(e) => setWhere(e.target.value)} required className={inputCls} placeholder="Paste the Google Maps link, or 6.2510, 7.1003" /></div>
+        <div><label htmlFor="dl" className={labelCls}>{hasSavedLocation ? "Saved customer GPS location" : "Customer GPS location or Google Maps link"}</label><input id="dl" value={where} onChange={(e) => setWhere(e.target.value)} required className={inputCls} placeholder="Paste Google Maps link or latitude, longitude" />{hasSavedLocation && <p className="mt-1 text-xs text-ink-soft">We prefilled the coordinates saved when the pickup was requested. Change this only if the customer wants delivery somewhere else.</p>}</div>
         <button className="btn-primary" disabled={!!busy}>{busy === "req" ? "Working out the fee" : "Work out the delivery fee"}</button>
         {msg && <p role="alert" className="text-sm text-red-700">{msg.text}</p>}
       </form>

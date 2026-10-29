@@ -17,7 +17,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("source", "walk_in").maybeSingle();
+  const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
@@ -46,7 +46,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
       <div className="flex items-center justify-between print:hidden"><Link href="/staff/walkin" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Walk-in orders</Link>{pay && <PrintButton />}</div>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no} <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-medium text-ink-soft print:hidden">{STATUS_LABEL[o.status] ?? o.status}</span></h1>
-        <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} message={o.status === "ready" ? `Hello ${(cust?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.` : undefined} /> · walk-in at the hub</p>
+        <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} message={o.status === "ready" ? `Hello ${(cust?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.` : undefined} /> · {o.source === "one_time" ? "one-time pickup" : "walk-in at the hub"}</p>
         {(related ?? []).length > 0 && <p className="mt-1 text-sm">Linked orders: {(related ?? []).map((r) => <Link key={r.id} href={`/staff/walkin/${r.id}`} className="mr-2 font-medium text-brand-dark underline">#{r.order_no}{r.instant ? " (instant)" : ""}</Link>)}</p>}
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
       </div>
@@ -77,11 +77,11 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
           <WalkinActions orderId={id} kind="handover" />
-          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
+          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (
-        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
+        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-3 p-5 print:hidden">
