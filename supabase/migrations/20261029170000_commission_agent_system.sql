@@ -87,11 +87,11 @@ begin
   if _agent is null or not exists (
     select 1 from public.user_roles ur where ur.user_id = _agent and ur.role = 'commission_agent'
   ) then return new; end if;
-  select count(*)::integer into _sequence
+  select count(distinct o.id)::integer into _sequence
     from public.orders o
     join public.payments p on p.order_id = o.id and p.status = 'success' and p.kind = 'payment'
       and p.purpose in ('items','extra_clothes') and p.id <> new.id
-    where o.customer_id = new.customer_id;
+    where o.customer_id = new.customer_id and o.id <> new.order_id;
   _sequence := _sequence + 1;
   select * into _rules from public.commission_rules where active order by updated_at desc limit 1;
   if not found then return new; end if;
@@ -132,9 +132,11 @@ begin
   if _to < _from then raise exception 'invalid_period'; end if;
   perform 1 from public.user_roles where user_id = _agent and role = 'commission_agent';
   if not found then raise exception 'not_commission_agent'; end if;
+  perform id from public.commissions where agent_id = _agent and status = 'approved' and payout_id is null
+    and created_at::date between _from and _to for update;
   select coalesce(sum(amount_kobo),0)::bigint into _amount from public.commissions
     where agent_id = _agent and status = 'approved' and payout_id is null
-      and created_at::date between _from and _to for update;
+      and created_at::date between _from and _to;
   if _amount <= 0 then raise exception 'no_approved_commissions'; end if;
   insert into public.commission_payouts(agent_id,period_start,period_end,amount_kobo,note,created_by)
     values (_agent,_from,_to,_amount,nullif(btrim(_note),''),auth.uid()) returning id into _id;
@@ -167,3 +169,16 @@ revoke all on function public.update_commission_payout(uuid,text,text,text,text)
 grant execute on function public.review_commission(uuid,text,text) to authenticated;
 grant execute on function public.create_commission_payout(uuid,date,date,text) to authenticated;
 grant execute on function public.update_commission_payout(uuid,text,text,text,text) to authenticated;
+
+-- Permit commission agents to use the same safe client-onboarding gate.
+create or replace function public.agent_gate()
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select auth.uid() is not null and private.is_active()
+    and (private.has_role('delivery_agent'::public.staff_role)
+      or private.has_role('commission_agent'::public.staff_role)
+      or private.has_role('admin'::public.staff_role)
+      or private.has_role('super_admin'::public.staff_role));
+$$;
+revoke all on function public.agent_gate() from public, anon;
+grant execute on function public.agent_gate() to authenticated;
