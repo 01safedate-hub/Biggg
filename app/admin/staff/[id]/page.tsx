@@ -7,6 +7,7 @@ import { longDate } from "@/lib/money";
 import { ProfileForm, type ProfileData } from "@/components/staff/ProfileForm";
 import { PayForm } from "@/components/admin/PayForm";
 import { ReviewPanel } from "@/components/admin/ReviewPanel";
+import { HubVerificationPanel } from "@/components/admin/HubVerificationPanel";
 import { adminSaveProfile } from "./actions";
 
 export const metadata = { title: "Staff member" };
@@ -18,6 +19,7 @@ type Detail = {
   pay: { job_title: string | null; base_salary_kobo: number; boosted_salary_kobo: number; monthly_target_kobo: number | null; earns_weekly_bonus: boolean; active: boolean } | null;
   profile: (ProfileData & { onboarding_status: string; photo_path: string | null; review_note: string | null; must_change_password: boolean }) | null;
   payouts: { id: string; week_start: string; units: number; target_units: number; amount_kobo: number; status: string }[];
+  hub_verification: { outcome: string; person_present: boolean; nin_document_checked: boolean; nin_matches_profile: boolean; photo_matches_person: boolean; referee_checked: boolean; hub_location: string; notes: string | null; verified_at: string } | null;
 };
 
 export default async function StaffDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -40,6 +42,7 @@ export default async function StaffDetail({ params }: { params: Promise<{ id: st
         {d.profile?.review_note && <p className="mt-1 text-sm text-ink-soft">Last note: {d.profile.review_note}</p>}
       </div>
       <PayForm userId={id} pay={d.pay} />
+      <HubVerificationPanel userId={id} record={d.hub_verification ?? null} />
       <ReviewPanel userId={id} status={status} />
       <div>
         <h2 className="mb-3 text-lg font-semibold">Personal details</h2>
