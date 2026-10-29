@@ -72,6 +72,19 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
       )}
 
       {moving && <p className="card p-5 text-sm text-ink-soft print:hidden">Paid. {o.status === "count_confirmed" ? "Next: mark it received on the Receiving page, then it joins the wash queue." : "It is in the wash queue. It will show as ready here when washing is done."}</p>}
+      {o.source === "one_time" && o.status === "ready" && (
+        <section className="card space-y-2 border-brand/30 p-5">
+          <h2 className="text-lg font-semibold">Customer fulfillment choice</h2>
+          {o.fulfillment_choice === "collect" ? (
+            <><p className="font-medium text-emerald-700">Collection requested by customer</p><p className="text-sm text-ink-soft">No delivery fee is due. Keep this order at the hub and confirm handover after the customer collects the clothes.</p></>
+          ) : o.fulfillment_choice === "deliver" ? (
+            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Address: {o.pickup_address || "Not provided"}</p><p className="text-sm">Current delivery fare: {naira(o.delivery_fare_kobo ?? 0)}</p></>
+          ) : (
+            <p className="text-sm text-ink-soft">The customer has not saved a collection or delivery choice yet. Contact them before arranging fulfillment.</p>
+          )}
+        </section>
+      )}
+
       {o.status === "ready" && (
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
