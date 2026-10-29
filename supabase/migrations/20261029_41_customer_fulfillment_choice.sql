@@ -43,9 +43,9 @@ begin
   end if;
   _a := nullif(trim(coalesce(_address,'')),'');
   if _a is null or length(_a)<5 or length(_a)>300 then raise exception 'address_required' using errcode='P0001'; end if;
-  _q := public.quote_pickup(_lat,_lng);
+  _q := public.quote_one_time_pickup(_lat,_lng);
   if not coalesce((_q->>'served')::boolean,false) then raise exception 'not_served' using errcode='P0001'; end if;
-  if _q->>'delivery_fare_kobo' is null then raise exception 'hub_not_set' using errcode='P0001'; end if;
+  if _q->>'delivery_fare_kobo' is null or _q->>'zone_id' is null then raise exception 'hub_not_set' using errcode='P0001'; end if;
   _fare := coalesce((_q->>'delivery_fare_kobo')::bigint,0);
   if _fare<=0 then raise exception 'nothing_to_pay' using errcode='P0001'; end if;
   update public.payments set status='failed'
