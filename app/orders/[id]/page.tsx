@@ -37,7 +37,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
-  const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
+  const { data: deliveryPayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();\n  const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
   const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
   const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }, { data: iq }] = await Promise.all([
