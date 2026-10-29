@@ -42,7 +42,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const paidLabel = pay ? (pay.mode === "cash" ? "Cash" : pay.mode === "transfer" ? "Bank transfer" : "POS card") : "";
   return (
     <div className="space-y-5">
-      {moving && <AutoRefresh seconds={20} />}
+      {(moving || (o.source === "one_time" && o.status === "ready")) && <AutoRefresh seconds={20} />}
       <div className="flex items-center justify-between print:hidden"><Link href="/staff/walkin" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Walk-in orders</Link>{pay && <PrintButton />}</div>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no} <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-medium text-ink-soft print:hidden">{STATUS_LABEL[o.status] ?? o.status}</span></h1>
