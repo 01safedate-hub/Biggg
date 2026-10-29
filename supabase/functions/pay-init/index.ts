@@ -103,7 +103,9 @@ Deno.serve(async (req) => {
     ? `Monthly plan: ${i.plan_name ?? planSlug}`
     : purpose === "extra_clothes"
       ? "Extra-clothes bill"
-      : `Order #${i.order_no ?? ""}`;
+      : purpose === "pickup_fare"
+        ? `One-time pickup and delivery transport for order #${i.order_no ?? ""}`
+        : `Order #${i.order_no ?? ""}`;
   const metadata = {
     order_id: order || null,
     purpose,
