@@ -6,6 +6,7 @@ import { CUSTOMER_STEPS, STATUS_LABEL, type Timeline } from "@/lib/orders";
 import { naira } from "@/lib/format";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
 import { PayButtons } from "@/components/orders/PayButtons";
+import { FulfillmentChoice } from "@/components/orders/FulfillmentChoice";
 import { ArrivalCodeForm } from "@/components/orders/ArrivalCodeForm";
 import { CancelButton } from "@/components/orders/CancelButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
@@ -160,26 +161,28 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       {o.status === "received" && <section className="card p-5 text-sm text-ink-soft">We have checked your clothes at our hub. Washing starts shortly.</section>}
       {o.status === "in_house" && <section className="card p-5 text-sm text-ink-soft">Your clothes are being washed. We will tell you the moment they are ready.</section>}
-      {o.status === "ready" && o.source === "walk_in" && (
-        <section className="card space-y-2 p-5">
-          <h2 className="text-lg font-semibold">Your clothes are ready</h2>
-          <p className="text-sm text-ink-soft">Come and collect them at the hub. If you would rather have them delivered, tell the person at the desk and they will give you the delivery fee to pay.</p>
-        </section>
+      {o.status === "ready" && o.source !== "subscription" && (
+        <FulfillmentChoice
+          orderId={id}
+          address={o.pickup_address}
+          lat={o.pickup_lat}
+          lng={o.pickup_lng}
+          fareKobo={o.delivery_fare_kobo}
+          status={o.status}
+          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
+        />
       )}
       {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
-      {o.status === "ready" && o.source !== "walk_in" && o.source !== "subscription" && (
-        <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Your clothes are ready</h2>
-          <p className="text-sm text-ink-soft">Pay the delivery fare of <strong>{naira(o.delivery_fare_kobo)}</strong> here and we will bring them to you. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo)}`} />
-        </section>
-      )}
       {o.status === "awaiting_delivery_fare" && o.source !== "subscription" && (
-        <section className="card space-y-4 p-5">
-          <h2 className="text-lg font-semibold">Pay for delivery</h2>
-          <p className="text-sm text-ink-soft">Delivery to {o.pickup_address ?? "your address"}: <strong>{naira(o.delivery_fare_kobo ?? 0)}</strong>. We assign a rider as soon as this is paid. Never pay the delivery agent in cash.</p>
-          <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(o.delivery_fare_kobo ?? 0)}`} />
-        </section>
+        <FulfillmentChoice
+          orderId={id}
+          address={o.pickup_address}
+          lat={o.pickup_lat}
+          lng={o.pickup_lng}
+          fareKobo={o.delivery_fare_kobo}
+          status={o.status}
+          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? "deliver"}
+        />
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-4 p-5">
