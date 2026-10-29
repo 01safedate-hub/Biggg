@@ -79,7 +79,39 @@ export async function updateSession(request: NextRequest) {
     }
     if (roles.some((role) => STAFF_ROLES.has(role))) {
       const destination = request.nextUrl.clone();
-      destination.pathname = "/staff/onboarding";
+      const isSuperAdmin = roles.includes("super_admin");
+      if (isSuperAdmin) {
+        destination.pathname = "/admin";
+      } else {
+        const { data: staffState, error: staffStateError } = await supabase.rpc("my_staff_state");
+        const state = staffState as { must_change_password?: boolean; onboarding_status?: string } | null;
+        if (staffStateError || !state) {
+          destination.pathname = "/account/security";
+          destination.search = "?forced=1";
+          return NextResponse.redirect(destination);
+        }
+        if (state.must_change_password) {
+          destination.pathname = "/account/security";
+          destination.search = "?forced=1";
+        } else if (state.onboarding_status === "incomplete" || state.onboarding_status === "rejected") {
+          destination.pathname = "/staff/onboarding";
+        } else {
+          destination.pathname = "/staff";
+        }
+      }
+      if (destination.pathname !== "/account/security") destination.search = "";
+      return NextResponse.redirect(destination);
+    }
+  }
+
+  // Direct visits to the generic account landing follow the same new/returning
+  // customer rule as a successful login.
+  if (path === "/account") {
+    const { count: addressCount, error: addressError } = await supabase
+      .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+    if (!addressError) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = addressCount === 0 ? "/onboarding/location" : "/dashboard";
       destination.search = "";
       return NextResponse.redirect(destination);
     }
