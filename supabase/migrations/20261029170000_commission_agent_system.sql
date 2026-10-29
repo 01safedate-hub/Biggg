@@ -1,9 +1,4 @@
 -- Commission-agent system: distinct role, configurable rates, immutable accrual source, review and payout tracking.
-do $$ begin
-  alter type public.staff_role add value if not exists 'commission_agent';
-exception when duplicate_object then null;
-end $$;
-
 create table if not exists public.commission_rules (
   id uuid primary key default gen_random_uuid(),
   first_order_rate numeric(5,4) not null default 0.15 check (first_order_rate >= 0 and first_order_rate <= 1),
