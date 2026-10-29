@@ -31,7 +31,7 @@ export function LoginForm({ next }: { next: string }) {
       return setError("Incorrect email or password.");
     }
     const destination = safeNext(next);
-    // Only send first-time customers to location setup from the default account landing.
+    // Send first-time customers to the pickup-request experience from the default account landing.
     // Preserve explicit return destinations and never send staff into customer onboarding.
     if (destination === "/account") {
       const { data: { user } } = await supabase.auth.getUser();
@@ -42,7 +42,7 @@ export function LoginForm({ next }: { next: string }) {
         ]);
         const isStaff = (roles ?? []).some((r) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(r.role));
         if (!rolesError && !isStaff && !addressError && addressCount === 0) {
-          router.replace("/onboarding/location");
+          router.replace("/request");
           router.refresh();
           return;
         }
