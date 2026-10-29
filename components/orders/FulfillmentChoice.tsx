@@ -58,7 +58,7 @@ export function FulfillmentChoice({ orderId, address, lat, lng, fareKobo, status
         <button type="button" className="btn-secondary" disabled={busy} onClick={()=>{setQuote(null);locate();}}>Use current GPS</button>
       </div>
       {coords && <p className="text-xs text-ink-soft">{useNew?"Using updated device location.":"Using saved order location."}</p>}
-      <button type="button" disabled={busy} onClick={()=>setConfirmChoice("deliver")} className="btn-primary w-full">{busy?"Checking latest fare…":"Confirm address and refresh fare"}</button>
+      <button type="button" disabled={busy} onClick={()=>setConfirmChoice("deliver")} className="btn-primary w-full min-h-12 whitespace-normal break-words px-3 py-3 text-sm leading-tight sm:text-base">{busy?"Checking latest fare…":"Confirm address and refresh fare"}</button>
       {quote!==null && quote>0 && <div className="space-y-3 rounded-lg border border-line p-4"><p>Current delivery fare: <strong>{naira(quote)}</strong></p><p className="text-xs text-ink-soft">This is separate from your earlier transport payment.</p><PayButtons orderId={orderId} purpose="delivery_fare" label={`Pay ${naira(quote)} delivery`}/></div>}
     </>}
     {notice && <p role="status" className="text-sm text-ink-soft">{notice}</p>}
