@@ -62,7 +62,7 @@ create policy "commission rules read for staff" on public.commission_rules for s
 drop policy if exists "commission agent reads own commissions" on public.commissions;
 create policy "commission agent reads own commissions" on public.commissions for select to authenticated using (agent_id = auth.uid() or (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)));
 drop policy if exists "commission agent reads own payouts" on public.commission_payouts;
-create policy "commission agent reads own payouts" on public.commission_payouts for select to authenticated using (agent_id = auth.uid() or private.has_role(array['admin','super_admin']::public.staff_role[]));
+create policy "commission agent reads own payouts" on public.commission_payouts for select to authenticated using (agent_id = auth.uid() or (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)));
 revoke all on public.commission_rules, public.commissions, public.commission_payouts from anon, authenticated;
 grant select on public.commission_rules, public.commissions, public.commission_payouts to authenticated;
 
@@ -118,7 +118,7 @@ create or replace function public.review_commission(_commission uuid, _decision 
 returns void language plpgsql security definer set search_path = ''
 as $$
 begin
-  if not private.has_role(array['admin','super_admin']::public.staff_role[]) then
+  if not (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)) then
     raise exception 'not_authorized' using errcode = '42501';
   end if;
   if _decision not in ('approved','rejected','reversed') then raise exception 'invalid_decision'; end if;
@@ -134,7 +134,7 @@ returns uuid language plpgsql security definer set search_path = ''
 as $$
 declare _id uuid; _amount bigint;
 begin
-  if not private.has_role(array['admin','super_admin']::public.staff_role[]) then raise exception 'not_authorized' using errcode = '42501'; end if;
+  if not (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)) then raise exception 'not_authorized' using errcode = '42501'; end if;
   if _to < _from then raise exception 'invalid_period'; end if;
   perform 1 from public.user_roles where user_id = _agent and role = 'commission_agent';
   if not found then raise exception 'not_commission_agent'; end if;
@@ -156,7 +156,7 @@ returns void language plpgsql security definer set search_path = ''
 as $$
 declare _status text;
 begin
-  if not private.has_role(array['admin','super_admin']::public.staff_role[]) then raise exception 'not_authorized' using errcode = '42501'; end if;
+  if not (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)) then raise exception 'not_authorized' using errcode = '42501'; end if;
   select status into _status from public.commission_payouts where id = _payout for update;
   if not found then raise exception 'payout_not_found'; end if;
   if _action = 'approve' and _status = 'pending' then
