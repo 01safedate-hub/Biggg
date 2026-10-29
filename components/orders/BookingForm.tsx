@@ -7,6 +7,11 @@ import { createClient } from "@/lib/supabase/client";
 import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
+const PAYMENT_LOGOS: Record<PaymentProvider, { src: string; alt: string }> = {
+  paystack: { src: "https://commons.wikimedia.org/wiki/Special:FilePath/Paystack_Logo.png", alt: "Paystack logo" },
+  flutterwave: { src: "https://commons.wikimedia.org/wiki/Special:FilePath/Flutterwave_Logo.png", alt: "Flutterwave logo" },
+};
+
 type Coverage = { served: boolean; zone_name?: string; reason?: string; total_fare_kobo?: number; pickup_fare_kobo?: number; delivery_fare_kobo?: number; extra_distance_fare_kobo?: number; round_trip_km?: number; included_round_trip_km?: number; extra_distance_km?: number; distance_km?: number; };
 type PaymentProvider = "paystack" | "flutterwave";
 
@@ -74,22 +79,28 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
     setBusy(true);
     setErr(null);
     const values = { ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null };
-    const r = mode === "one_time" ? await bookOneTimePickup(values) : await bookPickup(values);
-    if (r.ok && r.id) {
+    try {
+      const r = mode === "one_time" ? await bookOneTimePickup(values) : await bookPickup(values);
+      if (!r.ok || !r.id) {
+        setBusy(false);
+        setErr(r.message || "We couldn't create your pickup request. Please check your details and try again.");
+        return;
+      }
       if (mode === "one_time") {
         const { startPayment } = await import("@/app/orders/actions");
-        const providerResult = await startPayment(r.id!, "pickup_fare", provider);
+        const providerResult = await startPayment(r.id, "pickup_fare", provider);
         if (providerResult.ok && providerResult.url) { window.location.assign(providerResult.url); return; }
         setBusy(false);
-        setErr(providerResult.message);
+        setErr(providerResult.message || "Your pickup is saved as awaiting payment. Open My Orders to retry payment.");
         router.push(`/orders/${r.id}`);
         return;
       }
       router.push(`/orders/${r.id}`);
-      return;
+    } catch (cause) {
+      setBusy(false);
+      console.error("Pickup request submission failed", cause);
+      setErr("We couldn't submit your pickup request. Your connection may have dropped. Refresh the page and check My Orders before retrying, so you don't create a duplicate request.");
     }
-    setBusy(false);
-    setErr(r.message);
   }
 
   return (
@@ -126,7 +137,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
                 <div className="flex flex-wrap gap-3">
                   {providers.map((p) => <label key={p} className="flex cursor-pointer items-center gap-2 rounded-md border border-line p-3">
                     <input type="radio" name="payment_provider" value={p} checked={provider === p} onChange={() => setProvider(p)} />
-                    <span>{p === "paystack" ? "Paystack" : "Flutterwave"}</span>
+                    <span className="flex min-w-32 items-center gap-3"><img src={PAYMENT_LOGOS[p].src} alt={PAYMENT_LOGOS[p].alt} className="h-7 w-28 object-contain" loading="lazy" /><span className="sr-only">{p === "paystack" ? "Paystack" : "Flutterwave"}</span></span>
                   </label>)}
                 </div>
               )}
