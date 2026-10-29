@@ -75,9 +75,9 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
       {o.source === "one_time" && o.status === "ready" && (
         <section className="card space-y-2 border-brand/30 p-5">
           <h2 className="text-lg font-semibold">Customer fulfillment choice</h2>
-          {o.fulfillment_choice === "collect" ? (
+          {fulfillmentChoice === "collect" ? (
             <><p className="font-medium text-emerald-700">Collection requested by customer</p><p className="text-sm text-ink-soft">No delivery fee is due. Keep this order at the hub and confirm handover after the customer collects the clothes.</p></>
-          ) : o.fulfillment_choice === "deliver" ? (
+          ) : fulfillmentChoice === "deliver" ? (
             <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Address: {o.pickup_address || "Not provided"}</p><p className="text-sm">Current delivery fare: {naira(o.delivery_fare_kobo ?? 0)}</p></>
           ) : (
             <p className="text-sm text-ink-soft">The customer has not saved a collection or delivery choice yet. Contact them before arranging fulfillment.</p>
