@@ -181,7 +181,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           lng={o.pickup_lng}
           fareKobo={o.delivery_fare_kobo}
           status={o.status}
-          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? "deliver"}
+          choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
         />
       )}
       {o.status === "out_for_delivery" && (
