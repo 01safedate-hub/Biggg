@@ -8,8 +8,8 @@ import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
 const PAYMENT_LOGOS: Record<PaymentProvider, { src: string; alt: string }> = {
-  paystack: { src: "https://commons.wikimedia.org/wiki/Special:FilePath/Paystack_Logo.png", alt: "Paystack logo" },
-  flutterwave: { src: "https://commons.wikimedia.org/wiki/Special:FilePath/Flutterwave_Logo.png", alt: "Flutterwave logo" },
+  paystack: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Paystack_Logo.svg/640px-Paystack_Logo.svg.png", alt: "Paystack logo" },
+  flutterwave: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flutterwave_Logo.png/640px-Flutterwave_Logo.png", alt: "Flutterwave logo" },
 };
 
 type Coverage = { served: boolean; zone_name?: string; reason?: string; total_fare_kobo?: number; pickup_fare_kobo?: number; delivery_fare_kobo?: number; extra_distance_fare_kobo?: number; round_trip_km?: number; included_round_trip_km?: number; extra_distance_km?: number; distance_km?: number; };
