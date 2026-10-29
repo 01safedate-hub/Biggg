@@ -27,3 +27,28 @@
 @keyframes ring-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 .ring-glow { animation: ring-pulse 3.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .ring-arc, .ring-glow { animation: none; } }
+
+/* Hero illustration bubbles */
+.hero-bub { transform-box: fill-box; transform-origin: center; animation: hero-rise var(--t, 7s) ease-in-out var(--d, 0s) infinite; }
+@keyframes hero-rise { 0% { transform: translateY(8px); opacity: 0; } 18% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(-34px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hero-bub { animation: none; } }
+
+/* Soap bubbles that rise while the visitor scrolls (components/landing/ScrollBubbles.tsx) */
+.scroll-bubble {
+  position: absolute; bottom: -36px; border-radius: 9999px;
+  border: 1.5px solid rgba(98, 178, 205, .75);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 1) 0 14%, rgba(255, 255, 255, 0) 16%),
+    radial-gradient(circle at 50% 50%, rgba(143, 205, 224, .12) 0 50%, rgba(143, 205, 224, .45) 78%, rgba(234, 88, 12, .25) 100%);
+  box-shadow: inset -2px -3px 6px rgba(98, 178, 205, .45), 0 1px 3px rgba(15, 23, 42, .08);
+  animation: bubble-rise var(--time, 2.4s) cubic-bezier(.33, .7, .4, 1) forwards;
+  will-change: transform, opacity;
+}
+@keyframes bubble-rise {
+  0%   { transform: translate(0, 0) scale(.6); opacity: 0; }
+  12%  { opacity: .9; }
+  50%  { transform: translate(var(--sway, 0), calc(var(--rise, -240px) * .55)) scale(1); }
+  85%  { opacity: .85; transform: translate(calc(var(--sway, 0) * -.4), calc(var(--rise, -240px) * .92)) scale(1); }
+  100% { transform: translate(calc(var(--sway, 0) * -.4), var(--rise, -240px)) scale(1.35); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .scroll-bubble { display: none; } }

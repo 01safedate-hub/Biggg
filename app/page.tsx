@@ -9,6 +9,7 @@ import { Faq } from "@/components/landing/Faq";
 import { VisitBar } from "@/components/landing/VisitBar";
 import { FloatingContact } from "@/components/landing/FloatingContact";
 import { Footer } from "@/components/landing/Footer";
+import { ScrollBubbles } from "@/components/landing/ScrollBubbles";
 
 export const revalidate = 300;
 
@@ -22,7 +23,7 @@ export default async function Home() {
       <Header name={b.name} />
       {visitUrl && <VisitBar url={visitUrl} />}
       <main id="main">
-        <Hero eta={settings.agent.eta_minutes} open={b.opening_time} close={b.closing_time} tz={b.timezone} />
+        <Hero eta={settings.agent.eta_minutes} open={b.opening_time} close={b.closing_time} tz={b.timezone} whatsapp={settings.whatsapp.number} />
         <HowItWorks eta={settings.agent.eta_minutes} />
         <Security />
         <Pricing plans={plans} pickupsPerMonth={settings.subscription.pickups_per_month} />
@@ -30,6 +31,7 @@ export default async function Home() {
         <Faq />
       </main>
       <Footer name={b.name} mapsUrl={visitUrl} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />
+      <ScrollBubbles />
       <FloatingContact phone={settings.contact.phone} whatsapp={settings.whatsapp.number} name={b.name} />
     </>
   );
