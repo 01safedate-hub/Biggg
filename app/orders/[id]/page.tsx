@@ -37,7 +37,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
-  const { data: deliveryPayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();\n  const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
+  const { data: deliveryPayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
+  const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
   const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
   const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }, { data: iq }] = await Promise.all([
@@ -165,12 +166,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       {o.status === "ready" && o.source !== "subscription" && (
         <FulfillmentChoice
           orderId={id}
-          address={o.pickup_address}
-          lat={o.pickup_lat}
-          lng={o.pickup_lng}
+          address={(o as typeof o & { return_delivery_address?: string | null }).return_delivery_address ?? o.pickup_address}
+          lat={(o as typeof o & { return_delivery_lat?: number | null }).return_delivery_lat ?? o.pickup_lat}
+          lng={(o as typeof o & { return_delivery_lng?: number | null }).return_delivery_lng ?? o.pickup_lng}
           fareKobo={o.delivery_fare_kobo}
           status={o.status}
           choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
+          deliveryPaid={Boolean(deliveryPayment)}
         />
       )}
       {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
