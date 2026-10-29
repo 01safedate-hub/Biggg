@@ -5,7 +5,7 @@ const bub = (t: string, d: string) => ({ "--t": t, "--d": d }) as CSSProperties;
 
 export function HeroArt() {
   return (
-    <svg className="h-full w-full" viewBox="-10 100 540 412" role="img" aria-labelledby="hero-art-title">
+    <svg id="hero-art" className="h-full w-full" viewBox="-10 100 540 412" role="img" aria-labelledby="hero-art-title">
               <title id="hero-art-title">A washing machine with a duvet tumbling inside, a suit and trousers on a clothes rail, a stack of folded blankets and a sneaker on top.</title>
               <defs>
                 <clipPath id="hero-mbody"><rect x="170" y="122" width="232" height="318" rx="30"/></clipPath>
