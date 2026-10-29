@@ -71,6 +71,12 @@ export async function updateSession(request: NextRequest) {
   if (isCustomerRoute && !isStaffOnboardingException) {
     const { data: rows, error } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
     const roles = error ? [] : (rows ?? []).map((row) => String(row.role));
+    if (error) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = "/account/security";
+      destination.search = "?forced=1";
+      return NextResponse.redirect(destination);
+    }
     if (roles.some((role) => STAFF_ROLES.has(role))) {
       const destination = request.nextUrl.clone();
       destination.pathname = "/staff/onboarding";
