@@ -69,6 +69,30 @@ export async function startPayment(orderId: string, purpose: "pickup_fare" | "it
   return url ? { ok: true, message: "Opening payment", url } : { ok: false, message: friendlyError("provider_failed") };
 }
 
+export async function chooseFulfillment(
+  orderId: string,
+  choice: "collect" | "deliver",
+  point: { lat: number; lng: number } | null,
+  address: string,
+): Promise<R & { fareKobo?: number }> {
+  const { supabase } = await requireUser(`/orders/${orderId}`);
+  const { data, error } = await (supabase as any).rpc("choose_order_fulfillment", {
+    _order: orderId,
+    _choice: choice,
+    _lat: choice === "deliver" ? point?.lat ?? null : null,
+    _lng: choice === "deliver" ? point?.lng ?? null : null,
+    _address: choice === "deliver" ? address.trim().slice(0, 300) : null,
+  });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/orders/${orderId}`);
+  revalidatePath("/orders");
+  return {
+    ok: true,
+    message: "",
+    fareKobo: Number((data as { fare_kobo?: number } | null)?.fare_kobo ?? 0),
+  };
+}
+
 export async function applyPromoCode(orderId: string, code: string): Promise<R> {
   const { supabase } = await requireUser(`/orders/${orderId}`);
   const clean = code.trim().toUpperCase();
