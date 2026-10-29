@@ -31,7 +31,9 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const roleNames = (roles ?? []).map((r) => ROLE_LABEL[r.role] ?? r.role);
   const keys = (roles ?? []).map((r) => r.role as string);
   const isStaff = keys.some((k) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(k));
-  if (!isStaff) {
+  // Customer account data is not a staff landing page. Route staff through their own portal.
+  if (isStaff) redirect(keys.includes("super_admin") ? "/admin" : "/staff");
+  {
     const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
       supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").lte("current_period_start", new Date().toISOString()).gt("current_period_end", new Date().toISOString()).limit(1).maybeSingle(),
