@@ -54,8 +54,9 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
           const { data: providers, error: providerError } = await createClient().rpc("active_payment_providers");
           if (providerError) return { ok: false as const, message: "We could not check payment availability. Please try again." };
           const available = (providers ?? []) as string[];
-          if (available.includes("paystack")) return { ok: true as const, ...(await (await import("@/app/orders/actions")).startPayment(r.id!, "pickup_fare", "paystack")) };
-          if (available.includes("flutterwave")) return { ok: true as const, ...(await (await import("@/app/orders/actions")).startPayment(r.id!, "pickup_fare", "flutterwave")) };
+          const { startPayment } = await import("@/app/orders/actions");
+          if (available.includes("paystack")) return await startPayment(r.id!, "pickup_fare", "paystack");
+          if (available.includes("flutterwave")) return await startPayment(r.id!, "pickup_fare", "flutterwave");
           return { ok: false as const, message: "Online payments are temporarily unavailable. Your booking has not been confirmed; please contact support before trying again." };
         })();
         if (providerResult.ok && providerResult.url) { window.location.assign(providerResult.url); return; }
