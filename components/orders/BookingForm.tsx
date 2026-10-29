@@ -115,11 +115,13 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
               <p className="text-sm text-ink-soft">Choose how you want to pay. Your selected provider will open after you request pickup.</p>
               <div className="space-y-3">
                 {providers.map((p) => (
-                  <button key={p} type="button" aria-pressed={provider === p} onClick={() => setProvider(p)} className={`flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-white px-3 py-4 text-left shadow-sm transition sm:gap-4 sm:px-4 ${provider === p ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-brand"}`}>
-                    <img src={PAYMENT_LOGOS[p].src} alt={PAYMENT_LOGOS[p].alt} width={136} height={32} className={p === "paystack" ? "h-8 w-28 shrink-0 object-contain object-left sm:w-[136px]" : "h-8 w-[136px] shrink-0 object-contain object-left"} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-ink sm:text-base">{p === "paystack" ? "Pay with Paystack" : "Pay with Flutterwave"}</span>
-                      <span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span>
+                  <button key={p} type="button" aria-pressed={provider === p} onClick={() => setProvider(p)} className={`grid min-h-[88px] w-full min-w-0 grid-cols-[minmax(0,112px)_minmax(0,1fr)_20px] items-center gap-3 rounded-xl border bg-white px-3 py-4 text-left shadow-sm transition sm:grid-cols-[136px_minmax(0,1fr)_20px] sm:gap-4 sm:px-4 ${provider === p ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-brand"}`}>
+                    <span className="flex h-10 min-w-0 items-center justify-start overflow-hidden">
+                      <img src={PAYMENT_LOGOS[p].src} alt={PAYMENT_LOGOS[p].alt} width={136} height={32} className="block max-h-8 max-w-full object-contain object-left" />
+                    </span>
+                    <span className="block min-w-0">
+                      <span className="block whitespace-normal text-sm font-semibold leading-5 text-ink sm:text-base">{p === "paystack" ? "Pay with Paystack" : "Pay with Flutterwave"}</span>
+                      <span className="mt-1 block text-xs leading-4 text-ink-soft">Secure online checkout</span>
                     </span>
                     <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${provider === p ? "border-brand bg-brand text-white" : "border-line"}`}>{provider === p ? "✓" : ""}</span>
                   </button>
