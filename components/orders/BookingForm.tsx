@@ -8,8 +8,9 @@ import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
 const PAYMENT_LOGOS: Record<PaymentProvider, { src: string; alt: string }> = {
-  paystack: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Paystack_Logo.svg/640px-Paystack_Logo.svg.png", alt: "Paystack logo" },
-  flutterwave: { src: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flutterwave_Logo.png/640px-Flutterwave_Logo.png", alt: "Flutterwave logo" },
+  // Match the existing monthly subscription checkout assets exactly.
+  paystack: { src: "https://upload.wikimedia.org/wikipedia/commons/0/0b/Paystack_Logo.png", alt: "Paystack" },
+  flutterwave: { src: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Flutterwave_Logo.png", alt: "Flutterwave" },
 };
 
 type Coverage = { served: boolean; zone_name?: string; reason?: string; total_fare_kobo?: number; pickup_fare_kobo?: number; delivery_fare_kobo?: number; extra_distance_fare_kobo?: number; round_trip_km?: number; included_round_trip_km?: number; extra_distance_km?: number; distance_km?: number; };
@@ -18,7 +19,7 @@ type PaymentProvider = "paystack" | "flutterwave";
 export function BookingForm({ mode = "subscription" }: { mode?: "subscription" | "one_time" }) {
   const router = useRouter();
   const [pos, setPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const [providers, setProviders] = useState<PaymentProvider[]>([]);
+  const providers: PaymentProvider[] = ["paystack", "flutterwave"];
   const [provider, setProvider] = useState<PaymentProvider>("paystack");
   const [coverage, setCoverage] = useState<Coverage | null>(null);
   const [locBusy, setLocBusy] = useState(false);
@@ -26,18 +27,6 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
   const [err, setErr] = useState<string | null>(null);
   const [when, setWhen] = useState<"now" | "later">("now");
   const [slot, setSlot] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (mode !== "one_time") return;
-    let live = true;
-    createClient().rpc("active_payment_providers" as never).then(({ data, error }) => {
-      if (!live || error) return;
-      const available = ((data ?? []) as string[]).filter((x): x is PaymentProvider => x === "paystack" || x === "flutterwave");
-      setProviders(available);
-      if (available.length) setProvider(available[0]);
-    });
-    return () => { live = false; };
-  }, [mode]);
 
   function locate() {
     setErr(null);
@@ -73,7 +62,6 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!pos || !coverage?.served) return;
-    if (mode === "one_time" && providers.length === 0) { setErr("Online payment is temporarily unavailable. Please try again later."); return; }
     if (when === "later" && !slot) { setErr("Choose a day and a time, or pick As soon as possible."); return; }
     const f = new FormData(e.currentTarget);
     setBusy(true);
@@ -125,22 +113,18 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
             <div className="card space-y-3 p-5">
               <h2 className="text-lg font-semibold">3. Payment method</h2>
               <p className="text-sm text-ink-soft">Choose how you want to pay. Your selected provider will open after you request pickup.</p>
-              {providers.length === 0 ? (
-                <button type="button" className="btn-secondary" onClick={async () => {
-                  const { data, error } = await createClient().rpc("active_payment_providers" as never);
-                  if (error) { setErr("We could not load payment methods. Please try again."); return; }
-                  const available = ((data ?? []) as string[]).filter((x): x is PaymentProvider => x === "paystack" || x === "flutterwave");
-                  setProviders(available);
-                  if (available.length) setProvider(available[0]);
-                }}>Load payment methods</button>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {providers.map((p) => <label key={p} className="flex cursor-pointer items-center gap-2 rounded-md border border-line p-3">
-                    <input type="radio" name="payment_provider" value={p} checked={provider === p} onChange={() => setProvider(p)} />
-                    <span className="flex min-w-32 items-center gap-3"><img src={PAYMENT_LOGOS[p].src} alt={PAYMENT_LOGOS[p].alt} className="h-7 w-28 object-contain" loading="lazy" /><span className="sr-only">{p === "paystack" ? "Paystack" : "Flutterwave"}</span></span>
-                  </label>)}
-                </div>
-              )}
+              <div className="space-y-3">
+                {providers.map((p) => (
+                  <button key={p} type="button" aria-pressed={provider === p} onClick={() => setProvider(p)} className={`flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border bg-white px-3 py-4 text-left shadow-sm transition sm:gap-4 sm:px-4 ${provider === p ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-brand"}`}>
+                    <img src={PAYMENT_LOGOS[p].src} alt={PAYMENT_LOGOS[p].alt} width={136} height={32} className={p === "paystack" ? "h-8 w-28 shrink-0 object-contain object-left sm:w-[136px]" : "h-8 w-[136px] shrink-0 object-contain object-left"} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-ink sm:text-base">{p === "paystack" ? "Pay with Paystack" : "Pay with Flutterwave"}</span>
+                      <span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span>
+                    </span>
+                    <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${provider === p ? "border-brand bg-brand text-white" : "border-line"}`}>{provider === p ? "✓" : ""}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <div className="card space-y-4 p-5">
