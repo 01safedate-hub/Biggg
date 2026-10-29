@@ -22,7 +22,7 @@ export default async function Home() {
       <Header name={b.name} />
       {visitUrl && <VisitBar url={visitUrl} />}
       <main id="main">
-        <Hero eta={settings.agent.eta_minutes} open={b.opening_time} close={b.closing_time} tz={b.timezone} />
+        <Hero eta={settings.agent.eta_minutes} open={b.opening_time} close={b.closing_time} tz={b.timezone} whatsapp={settings.whatsapp.number} />
         <HowItWorks eta={settings.agent.eta_minutes} />
         <Security />
         <Pricing plans={plans} pickupsPerMonth={settings.subscription.pickups_per_month} />
