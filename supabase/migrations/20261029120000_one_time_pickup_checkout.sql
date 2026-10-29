@@ -64,7 +64,11 @@ begin
   _q := public.quote_one_time_pickup(_lat,_lng);
   if not coalesce((_q->>'served')::boolean,false) then raise exception 'not_served' using errcode='P0001'; end if;
   if _q->>'zone_id' is null or _q->>'total_fare_kobo' is null then raise exception 'service_area_unavailable' using errcode='P0001'; end if;
-  _scheduled := coalesce(_slot,nullif(_q->>'scheduled_for','')::timestamptz,now());
+  if _slot is null then
+    _scheduled := coalesce(nullif(_q->>'scheduled_for','')::timestamptz,now());
+  else
+    _scheduled := _slot;
+  end if;
   if _slot is not null then
     if _slot<=now() then raise exception 'slot_invalid' using errcode='P0001'; end if;
     perform pg_advisory_xact_lock(hashtext('slot:'||_slot::text));
