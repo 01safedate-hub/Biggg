@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { bookPickup } from "@/app/orders/actions";
+import { bookPickup, bookOneTimePickup } from "@/app/orders/actions";
 import { createClient } from "@/lib/supabase/client";
 import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
 
-type Coverage = { served: boolean; zone_name?: string; reason?: string };
+type Coverage = { served: boolean; zone_name?: string; reason?: string; total_fare_kobo?: number; pickup_fare_kobo?: number; delivery_fare_kobo?: number; extra_distance_fare_kobo?: number; round_trip_km?: number; included_round_trip_km?: number; extra_distance_km?: number; };
 
-export function BookingForm() {
+export function BookingForm({ mode = "subscription" }: { mode?: "subscription" | "one_time" }) {
   const router = useRouter();
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [coverage, setCoverage] = useState<Coverage | null>(null);
@@ -27,7 +27,7 @@ export function BookingForm() {
     navigator.geolocation.getCurrentPosition(async (p) => {
       const here = { lat: p.coords.latitude, lng: p.coords.longitude };
       setPos(here);
-      const { data, error } = await createClient().rpc("quote_pickup", { _lat: here.lat, _lng: here.lng });
+      const { data, error } = await createClient().rpc(mode === "one_time" ? "quote_one_time_pickup" : "quote_pickup", { _lat: here.lat, _lng: here.lng });
       setLocBusy(false);
       if (error) return setErr("We could not check service coverage. Please try again.");
       setCoverage(data as unknown as Coverage);
@@ -47,7 +47,7 @@ export function BookingForm() {
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setErr(null);
-    const r = await bookPickup({ ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null });
+    const values = { ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null };\n    const r = mode === "one_time" ? await bookOneTimePickup(values) : await bookPickup(values);
     if (r.ok && r.id) { router.push(`/orders/${r.id}`); return; }
     setBusy(false);
     setErr(r.message);
@@ -58,11 +58,11 @@ export function BookingForm() {
       {err && <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{err}</p>}
       <div className="card space-y-3 p-5">
         <h2 className="text-lg font-semibold">1. Pickup location</h2>
-        <p className="text-sm text-ink-soft">Pickup is included with your active monthly plan. There is no transport payment when you book.</p>
+        <p className="text-sm text-ink-soft">{mode === "one_time" ? "Transport is prepaid online before dispatch. Laundry charges are separate and will be billed after garment counting." : "Pickup is included with your active monthly plan. There is no transport payment when you book."}</p>
         <button type="button" className="btn-secondary" onClick={locate} disabled={locBusy}>{locBusy ? "Checking service area…" : pos ? "Check location again" : "Use my current location"}</button>
         {pos && <p className="text-xs text-ink-mute">Location captured. We will use these coordinates for service-area verification.</p>}
         {coverage && !coverage.served && <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">We do not pick up from this area yet. <a className="font-semibold underline" href="/#coverage">Join the waitlist</a>.</p>}
-        {coverage?.served && <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Pickup is available in <strong>{coverage.zone_name ?? "your area"}</strong>. Your plan covers the remaining monthly allowance. Any pieces above it will be billed online after the agent counts them.</p>}
+        {coverage?.served && (mode === "one_time" ? <div className="rounded-md border border-line p-4 text-sm"><p>Pickup is available in <strong>{coverage.zone_name ?? "your area"}</strong>.</p><dl className="mt-3 space-y-2"><div className="flex justify-between gap-3"><dt>Pickup transport</dt><dd>₦{((coverage.pickup_fare_kobo ?? 180000)/100).toLocaleString("en-NG")}</dd></div><div className="flex justify-between gap-3"><dt>Delivery transport</dt><dd>₦{((coverage.delivery_fare_kobo ?? 180000)/100).toLocaleString("en-NG")}</dd></div>{Number(coverage.extra_distance_fare_kobo ?? 0)>0 && <div className="flex justify-between gap-3"><dt>Extra distance ({coverage.extra_distance_km ?? 0} km)</dt><dd>₦{(Number(coverage.extra_distance_fare_kobo)/100).toLocaleString("en-NG")}</dd></div>}<div className="flex justify-between border-t border-line pt-2 font-semibold"><dt>Pay now for transport</dt><dd>₦{(Number(coverage.total_fare_kobo ?? 0)/100).toLocaleString("en-NG")}</dd></div><p className="text-xs text-ink-mute">Includes up to {coverage.included_round_trip_km ?? 100} km round-trip journey. Laundry charges are billed after counting.</p></dl></div> : <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Pickup is available in <strong>{coverage.zone_name ?? "your area"}</strong>. Your plan covers the remaining monthly allowance. Any pieces above it will be billed online after the agent counts them.</p>)}
       </div>
       {coverage?.served && (
         <>
