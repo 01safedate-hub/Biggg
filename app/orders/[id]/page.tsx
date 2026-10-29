@@ -74,7 +74,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
         {CUSTOMER_STEPS.map((s) => {
-          const lifecycleStatus = o.status === "awaiting_delivery_fare" ? "ready" : o.status;\n          const on = s.label === "Agent at your door" && agentAtDoor ? true : s.reached.includes(lifecycleStatus);
+          const lifecycleStatus = o.status === "awaiting_delivery_fare" ? "ready" : o.status;
+          const on = s.label === "Agent at your door" && agentAtDoor ? true : s.reached.includes(lifecycleStatus);
           return <li key={s.label} className={`rounded-md border px-1 py-2 ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line text-ink-mute"}`}>{s.label}</li>;
         })}
       </ol>
