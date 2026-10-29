@@ -19,7 +19,9 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
-  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;\n  const returnDestination = (o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null }).return_delivery_address;\n  const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
+  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;
+  const returnDestination = (o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null }).return_delivery_address;
+  const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
