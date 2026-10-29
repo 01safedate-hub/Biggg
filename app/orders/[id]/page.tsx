@@ -83,10 +83,19 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
-      {o.status === "awaiting_fare_payment" && (
+      {o.status === "awaiting_fare_payment" && o.source === "one_time" && (
         <section className="card space-y-3 p-5">
-          <h2 className="text-lg font-semibold">One-time pickup checkout is no longer available</h2>
-          <p className="text-sm text-ink-soft">LaundryPoint now accepts pickup requests through active monthly plans only. This older order remains in your history, but its transport checkout is retired. Choose a monthly plan for new pickups, or cancel this old request.</p>
+          <h2 className="text-lg font-semibold">Pay transport to confirm your pickup</h2>
+          <p className="text-sm text-ink-soft">Your one-time transport total is {naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))}. Your booking remains unconfirmed until payment is verified. Laundry charges are counted and billed separately after collection.</p>
+          <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))} transport`} />
+          <CancelButton orderId={id} />
+          <p className="text-xs text-ink-mute">Use a payment provider only once per attempt. Duplicate provider callbacks do not create duplicate payment credits.</p>
+        </section>
+      )}
+      {o.status === "awaiting_fare_payment" && o.source !== "one_time" && (
+        <section className="card space-y-3 p-5">
+          <h2 className="text-lg font-semibold">This older pickup request needs attention</h2>
+          <p className="text-sm text-ink-soft">This request predates the current booking flow. Use an active monthly plan for future pickups.</p>
           <div className="flex flex-wrap gap-3"><Link href="/subscriptions" className="btn-primary">View monthly plans</Link><CancelButton orderId={id} /></div>
         </section>
       )}
