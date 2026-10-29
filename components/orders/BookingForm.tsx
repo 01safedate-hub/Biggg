@@ -61,7 +61,8 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
         })();
         if (providerResult.ok && providerResult.url) { window.location.assign(providerResult.url); return; }
         setBusy(false);
-        setErr(providerResult.message + ` Your pending request is available at /orders/${r.id}.`);
+        setErr(providerResult.message);
+        router.push(`/orders/${r.id}`);
         return;
       }
       router.push(`/orders/${r.id}`);
