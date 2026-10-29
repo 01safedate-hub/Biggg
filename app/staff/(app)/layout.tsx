@@ -10,7 +10,6 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   work.push({ href: "/staff/leave", label: "Leave and swaps", icon: "weekly" });
   if (roles.includes("secretary") || roles.includes("super_admin")) work.push({ href: "/staff/expenses", label: "Record expense", icon: "record" });
   if (roles.includes("delivery_agent")) work.push({ href: "/staff/jobs", label: "Pickup jobs", icon: "jobs" });
-  if (roles.some((r) => ["delivery_agent", "admin", "super_admin"].includes(r))) work.push({ href: "/staff/clients", label: "My clients", icon: "customers" });
   if (roles.some((r) => ["secretary", "admin", "super_admin"].includes(r))) {
     work.push({ href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" });
     work.push({ href: "/staff/instant", label: "Instant orders", icon: "dispatch" });
@@ -23,7 +22,13 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   if (roles.some((r) => ["admin", "super_admin"].includes(r))) work.push({ href: "/staff/speed", label: "Speed analytics", icon: "overview" });
   work.push({ href: "/staff/spending", label: "Spending", icon: "spending" });
   if (roles.some((r) => r !== "delivery_agent")) work.push({ href: "/staff/count", label: "Count money", icon: "count" });
-  const groups: NavGroup[] = [{ label: "My work", items: work }, { label: "Me", items: [{ href: "/staff/onboarding", label: "My details", icon: "customers" }] }];
+  const groups: NavGroup[] = [
+    { label: "My work", items: work },
+    ...(roles.some((r) => ["delivery_agent", "admin", "super_admin"].includes(r))
+      ? [{ label: "Clients", items: [{ href: "/staff/clients", label: "My clients", icon: "customers" }] as NavGroup["items"] }]
+      : []),
+    { label: "Me", items: [{ href: "/staff/onboarding", label: "My details", icon: "customers" }] },
+  ];
   if (roles.includes("super_admin")) groups.push({ label: "Manage", items: [{ href: "/admin", label: "Super admin", icon: "admin" }] });
   return <Shell title="Staff" name={name} groups={groups}>{children}</Shell>;
 }
