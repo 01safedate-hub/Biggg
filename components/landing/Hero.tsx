@@ -12,13 +12,12 @@ export function Hero({ eta, open, close, tz, whatsapp }: { eta: number; open: st
       <div className="container-page flex flex-col py-16 sm:py-24 lg:grid lg:grid-cols-12 lg:items-center lg:gap-10 lg:px-8">
         <div className="contents lg:col-span-7 lg:block">
           <div className="order-1">
-            <p className="eyebrow">Laundry pickup and delivery</p>
-            <h1 className="mt-4 text-balance text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+            <p className="eyebrow">Smart laundry</p>
+            <h1 className="mt-4 text-balance text-[1.575rem] font-bold leading-tight tracking-tight sm:text-5xl">
               We pick up, wash and deliver back to you.
             </h1>
             <p className="mt-5 max-w-xl text-lg text-ink-soft">
-              <b className="font-semibold text-ink">Heavy duvets, blankets, shoes, suits, curtains, wedding gowns, agbada and lace</b>: the items
-              most laundries find hard. We handle all of them with our smart laundry model.
+              <b className="font-semibold text-ink">Heavy duvets, blankets, shoes, suits, curtains, wedding gowns, agbada and lace</b>
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <LaundryChat whatsapp={whatsapp} />
