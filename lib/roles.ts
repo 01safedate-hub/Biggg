@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export type Role = "super_admin" | "admin" | "secretary" | "cashier" | "delivery_agent";
+export type Role = "super_admin" | "admin" | "secretary" | "cashier" | "delivery_agent" | "commission_agent";
 
-/** Server-side gate. The database enforces the same rules; this just keeps people off screens they cannot use. */
+/** Server-side gate. The database enforces the same rules; this keeps people off screens they cannot use. */
 export async function requireRole(allowed: Role[]) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
