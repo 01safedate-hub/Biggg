@@ -25,7 +25,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
   useEffect(() => {
     if (mode !== "one_time") return;
     let live = true;
-    createClient().rpc("active_payment_providers").then(({ data, error }) => {
+    createClient().rpc("active_payment_providers" as never).then(({ data, error }) => {
       if (!live || error) return;
       const available = ((data ?? []) as string[]).filter((x): x is PaymentProvider => x === "paystack" || x === "flutterwave");
       setProviders(available);
@@ -116,7 +116,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
               <p className="text-sm text-ink-soft">Choose how you want to pay. Your selected provider will open after you request pickup.</p>
               {providers.length === 0 ? (
                 <button type="button" className="btn-secondary" onClick={async () => {
-                  const { data, error } = await createClient().rpc("active_payment_providers");
+                  const { data, error } = await createClient().rpc("active_payment_providers" as never);
                   if (error) { setErr("We could not load payment methods. Please try again."); return; }
                   const available = ((data ?? []) as string[]).filter((x): x is PaymentProvider => x === "paystack" || x === "flutterwave");
                   setProviders(available);
