@@ -48,13 +48,21 @@ export async function updateSession(request: NextRequest) {
     if (path === "/admin" || path.startsWith("/admin/")) {
       if (!isSuperAdmin) {
         const destination = request.nextUrl.clone();
-        destination.pathname = isStaff ? "/staff" : "/request";
+        if (isStaff) {
+          destination.pathname = "/staff";
+        } else {
+          const { count: addressCount, error: addressError } = await supabase
+            .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+          destination.pathname = addressError ? "/dashboard" : addressCount === 0 ? "/onboarding/location" : "/dashboard";
+        }
         destination.search = "";
         return NextResponse.redirect(destination);
       }
     } else if (!isStaff) {
       const destination = request.nextUrl.clone();
-      destination.pathname = "/request";
+      const { count: addressCount, error: addressError } = await supabase
+        .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+      destination.pathname = addressError ? "/dashboard" : addressCount === 0 ? "/onboarding/location" : "/dashboard";
       destination.search = "";
       return NextResponse.redirect(destination);
     }
