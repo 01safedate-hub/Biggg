@@ -20,9 +20,15 @@ export function PayButtons({ orderId, purpose, label, enabledProviders = ["payst
   const [err, setErr] = useState<string | null>(null);
   async function go(p: Provider) {
     setBusy(p); setErr(null);
-    const r = await startPayment(orderId, purpose, p);
-    if (r.ok && r.url) { window.location.assign(r.url); return; }
-    setBusy(null); setErr(r.message);
+    try {
+      const r = await startPayment(orderId, purpose, p);
+      if (r.ok && r.url) { window.location.assign(r.url); return; }
+      setErr(r.message);
+    } catch {
+      setErr("Payment could not be started because of a connection error. Please try again.");
+    } finally {
+      setBusy(null);
+    }
   }
   return (
     <div className="space-y-3">
