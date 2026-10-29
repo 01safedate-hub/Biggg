@@ -43,7 +43,7 @@ export default async function StaffDetail({ params }: { params: Promise<{ id: st
       </div>
       <PayForm userId={id} pay={d.pay} />
       <HubVerificationPanel userId={id} record={d.hub_verification ?? null} />
-      <ReviewPanel userId={id} status={status} />
+      <ReviewPanel userId={id} status={status} hubVerified={Boolean(d.hub_verification?.outcome === "passed" && d.hub_verification.person_present && d.hub_verification.nin_document_checked && d.hub_verification.nin_matches_profile && d.hub_verification.photo_matches_person)} />
       <div>
         <h2 className="mb-3 text-lg font-semibold">Personal details</h2>
         <p className="mb-3 text-sm text-ink-soft">You can fill or correct everything here for someone who cannot do it themselves, including taking their photo.</p>
