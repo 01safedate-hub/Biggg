@@ -54,15 +54,13 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
           const { data: providers, error: providerError } = await createClient().rpc("active_payment_providers");
           if (providerError) return { ok: false as const, message: "We could not check payment availability. Please try again." };
           const available = (providers ?? []) as string[];
-          const provider = available.includes("paystack") ? "paystack" : available.includes("flutterwave") ? "flutterwave" : null;
-          if (!provider) return { ok: false as const, message: "Online payments are temporarily unavailable. Your booking has not been confirmed; please contact support before trying again." };
-          const { startPayment } = await import("@/app/orders/actions");
-          return await startPayment(r.id!, "pickup_fare", provider);
+          if (available.includes("paystack")) return { ok: true as const, ...(await (await import("@/app/orders/actions")).startPayment(r.id!, "pickup_fare", "paystack")) };
+          if (available.includes("flutterwave")) return { ok: true as const, ...(await (await import("@/app/orders/actions")).startPayment(r.id!, "pickup_fare", "flutterwave")) };
+          return { ok: false as const, message: "Online payments are temporarily unavailable. Your booking has not been confirmed; please contact support before trying again." };
         })();
         if (providerResult.ok && providerResult.url) { window.location.assign(providerResult.url); return; }
         setBusy(false);
-        setErr(providerResult.message);
-        router.push(`/orders/${r.id}`);
+        setErr(providerResult.message + ` Your pending request is available at /orders/${r.id}.`);
         return;
       }
       router.push(`/orders/${r.id}`);
