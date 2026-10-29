@@ -1,4 +1,4 @@
-// Lets a delivery agent, admin or super admin add a client they brought in. The client gets an invitation email to choose a
+// Lets a delivery or commission agent, admin or super admin add a client they brought in. The client gets an invitation email to choose a
 // password, and the client is recorded as belonging to the person who added them. The caller is checked in the database as
 // themselves (agent_gate). An existing person is never taken over: if the email or phone is already registered, nothing changes.
 import { createClient } from "npm:@supabase/supabase-js@2";
