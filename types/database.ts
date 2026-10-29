@@ -2823,7 +2823,6 @@ export type Database = {
           },
         ]
       }
-    }
       commission_rules: {
         Row: { id:string; first_order_rate:number; repeat_order_rate:number; active:boolean; updated_by:string|null; updated_at:string }
         Insert: { id?:string; first_order_rate?:number; repeat_order_rate?:number; active?:boolean; updated_by?:string|null; updated_at?:string }
@@ -2842,6 +2841,7 @@ export type Database = {
         Update: { id?:string; agent_id?:string; period_start?:string; period_end?:string; amount_kobo?:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string }
         Relationships: []
       }
+    }
     Views: {
       late_subscription_pickups: {
         Row: {
