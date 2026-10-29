@@ -31,23 +31,54 @@ export function LoginForm({ next }: { next: string }) {
       return setError("Incorrect email or password.");
     }
     const destination = safeNext(next);
-    // Only send first-time customers to location setup from the default account landing.
-    // Preserve explicit return destinations and never send staff into customer onboarding.
-    if (destination === "/account") {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const [{ count: addressCount, error: addressError }, { data: roles, error: rolesError }] = await Promise.all([
-          supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-          supabase.from("user_roles").select("role").eq("user_id", user.id),
-        ]);
-        const isStaff = (roles ?? []).some((r) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(r.role));
-        if (!rolesError && !isStaff && !addressError && addressCount === 0) {
-          router.replace("/onboarding/location");
-          router.refresh();
+    // Explicit return destinations (e.g. payment/auth callbacks) take precedence.
+    if (destination !== "/account" && destination !== "/request" && destination !== "/dashboard") {
+      router.replace(destination);
+      router.refresh();
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.replace("/dashboard");
+      router.refresh();
+      return;
+    }
+
+    const [{ data: roleRows, error: rolesError }, { count: addressCount, error: addressError }] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", user.id),
+      supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    ]);
+    const roles = (roleRows ?? []).map((r) => r.role);
+    const isSuperAdmin = roles.includes("super_admin");
+    const isStaff = roles.some((role) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(role));
+
+    if (!rolesError && isStaff) {
+      if (isSuperAdmin) {
+        router.replace("/admin");
+      } else {
+        const { data: staffState, error: staffStateError } = await supabase.rpc("my_staff_state");
+        const state = staffState as { must_change_password?: boolean; onboarding_status?: string } | null;
+        if (staffStateError || !state) {
+          setError("We couldn't verify your staff onboarding status. Please try again.");
           return;
         }
+        if (state.must_change_password) router.replace("/account/security?forced=1");
+        else if (state.onboarding_status === "incomplete" || state.onboarding_status === "rejected") router.replace("/staff/onboarding");
+        else router.replace("/staff");
       }
+      router.refresh();
+      return;
     }
+
+    // Fail closed if roles cannot be checked; never guess that a staff account is a customer.
+    if (rolesError || addressError) {
+      setError("We couldn't verify your account routing. Please try again.");
+      return;
+    }
+    router.replace(addressCount === 0 ? "/onboarding/location" : "/dashboard");
+    router.refresh();
+    return;
     router.replace(destination);
     router.refresh();
   }
