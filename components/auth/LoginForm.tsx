@@ -32,7 +32,7 @@ export function LoginForm({ next }: { next: string }) {
     }
     const destination = safeNext(next);
     // Explicit return destinations (e.g. payment/auth callbacks) take precedence.
-    if (destination !== "/account") {
+    if (destination !== "/account" && destination !== "/request" && destination !== "/dashboard") {
       router.replace(destination);
       router.refresh();
       return;
