@@ -10,18 +10,27 @@ export const metadata = { title: "Dispatch" };
 
 export default async function DispatchPage() {
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const [{ data: orders }, { data: ag }, { data: back }, { data: cb }] = await Promise.all([
+  const [{ data: orders }, { data: ag }, { data: back }, { data: cb }, { data: readyReturnRows }] = await Promise.all([
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,zone_id,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
     supabase.rpc("list_agents"),
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at,instant,instant_target_at,instant_promise_at").in("status", ["out_for_delivery", "failed_delivery"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at"),
     supabase.rpc("callbacks_queue"),
+    supabase.from("orders").select("*").eq("source", "one_time").eq("status", "ready"),
   ]);
   type CB = { order_id: string; order_no: number; kind: "pickup" | "delivery"; customer: string; phone: string | null; address: string | null; failed_at: string; needs_call: boolean; held_until: string | null; attempts: number; last: { outcome: string; note: string; at: string } | null };
+  const readyReturnCandidates = (readyReturnRows ?? []).filter((row) =>
+    (row as typeof row & { fulfillment_choice?: string | null }).fulfillment_choice === "deliver"
+  );
+  const { data: readyReturnPayments } = readyReturnCandidates.length
+    ? await supabase.from("payments").select("order_id").in("order_id", readyReturnCandidates.map((row) => row.id)).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success")
+    : { data: [] };
+  const paidReadyReturnIds = new Set((readyReturnPayments ?? []).map((payment) => payment.order_id));
+  const paidReadyReturns = readyReturnCandidates.filter((row) => paidReadyReturnIds.has(row.id));
   const callbacks = (Array.isArray(cb) ? cb : []) as unknown as CB[];
   const mustCall = new Set(callbacks.filter((c) => c.needs_call).map((c) => c.order_id));
   const OUTCOME: Record<string, string> = { reached: "Spoke to customer", rescheduled: "New time agreed", no_answer: "No answer", wrong_number: "Wrong number" };
   const agents = (Array.isArray(ag) ? ag : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean; station_zone_id?: string | null; station_name?: string | null }[];
-  const ids = Array.from(new Set([...(orders ?? []), ...(back ?? [])].map((o) => o.customer_id)));
+  const ids = Array.from(new Set([...(orders ?? []), ...(back ?? []), ...paidReadyReturns].map((o) => o.customer_id)));
   const { data: people } = ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((people ?? []).map((p) => [p.id, p]));
   const agentIds = agents.map((a) => a.id);
@@ -40,7 +49,7 @@ export default async function DispatchPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 text-sm" aria-label="Summary">
-        {[[ "Pickups need an agent", (orders ?? []).filter((o) => o.status === "awaiting_dispatch").length ], [ "Pickups on the way", (orders ?? []).filter((o) => o.status === "agent_assigned").length ], [ "Deliveries need an agent", (back ?? []).filter((o) => o.status === "out_for_delivery" && !o.delivery_agent_id).length ], [ "Failed deliveries", (back ?? []).filter((o) => o.status === "failed_delivery").length ]].map(([l, n]) => <span key={String(l)} className={`rounded-full border px-3 py-1 ${Number(n) > 0 && (String(l).includes("need") || String(l).includes("Failed")) ? "border-brand bg-brand-tint text-brand-dark" : "border-line text-ink-soft"}`}><strong>{n}</strong> {l}</span>)}
+        {[[ "Pickups need an agent", (orders ?? []).filter((o) => o.status === "awaiting_dispatch").length ], [ "Pickups on the way", (orders ?? []).filter((o) => o.status === "agent_assigned").length ], [ "Deliveries need an agent", (back ?? []).filter((o) => o.status === "out_for_delivery" && !o.delivery_agent_id).length + paidReadyReturns.filter((o) => !(o as typeof o & { delivery_agent_id?: string | null }).delivery_agent_id).length ], [ "Failed deliveries", (back ?? []).filter((o) => o.status === "failed_delivery").length ]].map(([l, n]) => <span key={String(l)} className={`rounded-full border px-3 py-1 ${Number(n) > 0 && (String(l).includes("need") || String(l).includes("Failed")) ? "border-brand bg-brand-tint text-brand-dark" : "border-line text-ink-soft"}`}><strong>{n}</strong> {l}</span>)}
       </div>
       <div><h1 className="text-2xl font-bold tracking-tight">Dispatch</h1><p className="mt-1 text-sm text-ink-soft">Paid pickups waiting for an agent, and those on the way. You can change the agent until they reach the customer.</p></div>
       <section className="space-y-3" aria-label="Calls to make">
@@ -71,6 +80,22 @@ export default async function DispatchPage() {
         })}
         {(orders ?? []).length === 0 && <p className="card p-5 text-sm text-ink-soft">Nothing waiting. New paid bookings appear here.</p>}
       </section>
+      {paidReadyReturns.length > 0 && (
+        <section className="space-y-3">
+          <div><h2 className="text-xl font-bold tracking-tight">Return deliveries ready for assignment</h2><p className="mt-1 text-sm text-ink-soft">These one-time orders remain marked Ready after delivery payment so the laundry timeline does not reset. Assigning an agent moves them into the active delivery queue.</p></div>
+          {paidReadyReturns.map((o) => {
+            const row = o as typeof o & { return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; delivery_agent_id?: string | null; fulfillment_choice?: string | null };
+            const customer = who.get(o.customer_id);
+            const map = mapsLink(row.return_delivery_lat ?? null, row.return_delivery_lng ?? null);
+            return <article key={o.id} className="card space-y-3 p-4">
+              <p className="font-semibold">Order #{o.order_no} · {customer?.full_name}</p>
+              <p className="text-sm text-ink-soft">{row.return_delivery_address ?? "No return address"} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={customer?.phone} /></p>
+              <p className="text-xs font-semibold text-brand-dark">Delivery fee paid · Needs an agent</p>
+              <AssignForm orderId={o.id} agents={agentsWithStations.map((a) => ({ ...a, name: a.station_name ? `${a.name} · ${a.station_name}` : a.name }))} current={row.delivery_agent_id ?? null} kind="delivery" />
+            </article>;
+          })}
+        </section>
+      )}
       <div><h2 className="text-xl font-bold tracking-tight">Deliveries</h2><p className="mt-1 text-sm text-ink-soft">Clean clothes going back to customers. The customer has paid the delivery fare before they appear here.</p></div>
       <section className="space-y-3">
         {(back ?? []).map((o) => {
