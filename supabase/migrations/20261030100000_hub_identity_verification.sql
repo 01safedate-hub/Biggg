@@ -41,7 +41,11 @@ begin
   insert into public.staff_hub_verifications(user_id,outcome,person_present,nin_document_checked,nin_matches_profile,photo_matches_person,referee_checked,notes,verified_by)
   values (_user,_outcome,_person_present,_nin_document_checked,_nin_matches_profile,_photo_matches_person,coalesce(_referee_checked,false),nullif(btrim(_notes),''),auth.uid())
   returning id into _id;
-  if _outcome='rejected' then
+  if _outcome='passed' then
+    update public.staff_profiles set onboarding_status='submitted', verified_by=null, verified_at=null,
+      review_note='Hub identity check recorded; awaiting online approval', updated_at=now()
+    where user_id=_user;
+  elsif _outcome='rejected' then
     update public.staff_profiles set onboarding_status='submitted',verified_by=null,verified_at=null,
       review_note=coalesce(nullif(btrim(_notes),''),'Hub identity verification failed'),updated_at=now() where user_id=_user;
   end if;
@@ -92,7 +96,7 @@ begin
     'roles',(select array_agg(role::text order by role) from public.user_roles where user_id=_user),
     'pay',(select to_jsonb(sp)-'user_id' from public.staff_pay sp where user_id=_user),
     'profile',(select to_jsonb(p)-'user_id'-'initial_pw_hash' from public.staff_profiles p where user_id=_user),
-    'hub_verification',(select to_jsonb(h) from public.staff_hub_verifications h where h.user_id=_user order by h.verified_at desc limit 1),
+    'hub_verification',(select to_jsonb(h) from public.staff_hub_verifications h where h.user_id=_user order by h.verified_at desc, h.id desc limit 1),
     'payouts',coalesce((select jsonb_agg(to_jsonb(w)-'staff_id' order by week_start desc) from public.weekly_payouts w where staff_id=_user),'[]'::jsonb)
   );
 end $$;
