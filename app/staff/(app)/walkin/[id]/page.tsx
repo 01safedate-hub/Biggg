@@ -19,6 +19,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
+  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null }).fulfillment_choice ?? null;
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
