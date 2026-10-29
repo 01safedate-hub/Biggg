@@ -33,16 +33,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const isStaff = keys.some((k) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(k));
   // Customer account data is not a staff landing page. Route staff through their own portal.
   if (isStaff) redirect(keys.includes("super_admin") ? "/admin" : "/staff");
-  {
-    const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
-      supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").lte("current_period_start", new Date().toISOString()).gt("current_period_end", new Date().toISOString()).limit(1).maybeSingle(),
-    ]);
-    if (!addressCount) redirect("/onboarding/location");
-    if (!activeSubscription) redirect("/subscriptions");
-  }
-  const isSuper = keys.includes("super_admin");
-  const isMoneyStaff = isSuper || keys.some((k) => ["admin", "secretary", "cashier"].includes(k));
+  const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
+    supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").lte("current_period_start", new Date().toISOString()).gt("current_period_end", new Date().toISOString()).limit(1).maybeSingle(),
+  ]);
+  if (!addressCount) redirect("/onboarding/location");
+  if (!activeSubscription) redirect("/subscriptions");
 
   return (
     <main id="main" className="min-h-screen w-full">
@@ -76,12 +72,6 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         <div className="mt-5 border-t border-line pt-5"><OffersToggle initial={profile?.marketing_opt_in ?? false} /></div>
         <p className="mt-4 text-sm"><Link href="/account/security" className="font-medium text-brand-dark hover:underline">Change password or email</Link></p>
       </section>
-      {(isSuper || isMoneyStaff || keys.includes("delivery_agent")) && (
-        <div className="mt-8 flex flex-wrap gap-3">
-          {isSuper && <Link href="/admin" className="btn-primary">Open super admin</Link>}
-          {(isMoneyStaff || keys.includes("delivery_agent")) && <Link href="/staff" className="btn-secondary">Open staff area</Link>}
-        </div>
-      )}
       </div>
     </main>
   );
