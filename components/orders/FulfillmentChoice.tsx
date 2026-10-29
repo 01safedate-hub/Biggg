@@ -42,7 +42,8 @@ export function FulfillmentChoice({ orderId, address, lat, lng, fareKobo, status
       {enableHighAccuracy:true,timeout:12000,maximumAge:0});
   }
   if (choice === "collect" && status === "ready" && mode === "collect") return <section className="card space-y-2 p-5"><h2 className="text-lg font-semibold">Collection selected</h2><p className="text-sm text-ink-soft">No delivery fee is due. Please collect from the hub; staff will confirm the handover.</p><button type="button" className="btn-secondary" onClick={()=>{setMode(null);setNotice("");}}>Change to delivery</button></section>;
-  if (status === "out_for_delivery" || status === "delivered") return null;\n  if (deliveryPaid && choice === "deliver") return <section className="card space-y-2 p-5"><h2 className="text-lg font-semibold">Delivery fee paid</h2><p className="text-sm text-ink-soft">Your clothes remain marked ready while our team arranges the return delivery. Staff can now assign a delivery agent.</p></section>;
+  if (status === "out_for_delivery" || status === "delivered") return null;
+  if (deliveryPaid && choice === "deliver") return <section className="card space-y-2 p-5"><h2 className="text-lg font-semibold">Delivery fee paid</h2><p className="text-sm text-ink-soft">Your clothes remain marked ready while our team arranges the return delivery. Staff can now assign a delivery agent.</p></section>;
   return <section className="card space-y-4 p-5">
     <h2 className="text-lg font-semibold">Your clothes are ready</h2>
     <p className="text-sm text-ink-soft">Choose collection or delivery. Delivery pricing is recalculated from the latest fare rules before you pay.</p>
