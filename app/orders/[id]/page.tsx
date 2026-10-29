@@ -88,6 +88,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           <h2 className="text-lg font-semibold">Pay transport to confirm your pickup</h2>
           <p className="text-sm text-ink-soft">Your one-time transport total is {naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))}. Your booking remains unconfirmed until payment is verified. Laundry charges are counted and billed separately after collection.</p>
           <PayButtons orderId={id} purpose="pickup_fare" label={`Pay ${naira(Number(o.pickup_fare_kobo ?? 0) + Number(o.delivery_fare_kobo ?? 0))} transport`} />
+          {returning === "1" && <VerifyPayment orderId={id} auto />}
           <CancelButton orderId={id} />
           <p className="text-xs text-ink-mute">Use a payment provider only once per attempt. Duplicate provider callbacks do not create duplicate payment credits.</p>
         </section>
