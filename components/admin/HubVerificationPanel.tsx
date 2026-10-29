@@ -25,7 +25,7 @@ export function HubVerificationPanel({ userId, record }: { userId: string; recor
   async function submit(outcome: "passed" | "rejected") {
     setBusy(true); setMsg(null);
     const r = await recordHubVerification(userId, { outcome, ...checks, notes });
-    setBusy(false); setMsg(r);
+    setBusy(false); setMsg({ ok: r.ok, text: r.message });
   }
 
   return (
