@@ -27,7 +27,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
     navigator.geolocation.getCurrentPosition(async (p) => {
       const here = { lat: p.coords.latitude, lng: p.coords.longitude };
       setPos(here);
-      const { data, error } = await createClient().rpc(mode === "one_time" ? "quote_one_time_pickup" : "quote_pickup", { _lat: here.lat, _lng: here.lng });
+      const { data, error } = await createClient().rpc((mode === "one_time" ? "quote_one_time_pickup" : "quote_pickup") as never, { _lat: here.lat, _lng: here.lng } as never);
       setLocBusy(false);
       if (error) return setErr("We could not check service coverage. Please try again.");
       setCoverage(data as unknown as Coverage);
