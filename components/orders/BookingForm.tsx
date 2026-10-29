@@ -47,7 +47,8 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setErr(null);
-    const values = { ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null };\n    const r = mode === "one_time" ? await bookOneTimePickup(values) : await bookPickup(values);
+    const values = { ...pos, address: String(f.get("address") ?? ""), notes: String(f.get("notes") ?? ""), slot: when === "later" ? slot : null };
+    const r = mode === "one_time" ? await bookOneTimePickup(values) : await bookPickup(values);
     if (r.ok && r.id) {
       if (mode === "one_time") {
         const providerResult = await (async () => {
