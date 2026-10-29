@@ -204,7 +204,8 @@ begin
     values (_o.id, 'topup_received', jsonb_build_object('reference', _reference, 'amount_kobo', _amount_kobo));
   elsif _pay.purpose = 'delivery_fare' and _o.source = 'one_time'
     and _o.fulfillment_choice = 'deliver' and _o.status = 'awaiting_delivery_fare' then
-    -- Record the paid return delivery, but leave the completed laundry status untouched.
+    -- Keep the completed laundry lifecycle at Ready; staff can now arrange delivery.
+    update public.orders set status = 'ready' where id = _o.id;
     insert into public.order_events(order_id, event, detail)
     values (_o.id, 'return_delivery_fee_paid',
       jsonb_build_object('reference', _reference, 'amount_kobo', _amount_kobo,
