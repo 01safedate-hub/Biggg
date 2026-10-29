@@ -6,6 +6,20 @@ import { friendlyError } from "@/lib/rpc-errors";
 
 type R = { ok: boolean; message: string };
 
+export async function bookOneTimePickup(v: { lat: number; lng: number; address: string; notes: string; slot?: string | null }): Promise<R & { id?: string }> {
+  const { supabase } = await requireUser("/request");
+  const { data, error } = await supabase.rpc("book_one_time_pickup", {
+    _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes, _slot: (v.slot || null) as string,
+  });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  const id = String(data);
+  revalidatePath("/request");
+  revalidatePath("/orders");
+  revalidatePath("/dashboard");
+  revalidatePath(`/orders/${id}`);
+  return { ok: true, message: "Pickup prepared. Complete online transport payment to confirm it.", id };
+}
+
 export async function bookPickup(v: { lat: number; lng: number; address: string; notes: string; slot?: string | null }): Promise<R & { id?: string }> {
   const { supabase } = await requireUser("/request");
   const { data, error } = await supabase.rpc("book_pickup_scheduled", { _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes, _slot: (v.slot || null) as string });
