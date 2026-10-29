@@ -41,7 +41,7 @@ export function FulfillmentChoice({ orderId, address, lat, lng, fareKobo, status
       () => setError("We could not get your location. Allow location access or use the saved location."),
       {enableHighAccuracy:true,timeout:12000,maximumAge:0});
   }
-  if (choice === "collect" && status === "ready") return <section className="card space-y-2 p-5"><h2 className="text-lg font-semibold">Collection selected</h2><p className="text-sm text-ink-soft">No delivery fee is due. Please collect from the hub; staff will confirm the handover.</p><button type="button" className="btn-secondary" onClick={()=>{setMode(null);setNotice("");}}>Change to delivery</button></section>;
+  if (choice === "collect" && status === "ready" && mode === "collect") return <section className="card space-y-2 p-5"><h2 className="text-lg font-semibold">Collection selected</h2><p className="text-sm text-ink-soft">No delivery fee is due. Please collect from the hub; staff will confirm the handover.</p><button type="button" className="btn-secondary" onClick={()=>{setMode(null);setNotice("");}}>Change to delivery</button></section>;
   if (status === "out_for_delivery" || status === "delivered") return null;
   return <section className="card space-y-4 p-5">
     <h2 className="text-lg font-semibold">Your clothes are ready</h2>
