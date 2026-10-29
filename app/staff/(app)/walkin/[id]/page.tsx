@@ -77,11 +77,11 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
           <WalkinActions orderId={id} kind="handover" />
-          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
+          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (
-        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
+        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-3 p-5 print:hidden">
