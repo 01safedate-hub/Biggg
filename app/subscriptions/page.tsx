@@ -32,6 +32,7 @@ export default async function SubscriptionsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {(plans ?? []).map((plan) => <section key={plan.id} className="card space-y-3 p-5"><h2 className="text-lg font-semibold">{plan.name}</h2><p className="text-2xl font-bold">{naira(Number(plan.monthly_price_kobo))}<span className="ml-1 text-sm font-normal text-ink-soft">/ month</span></p><p className="text-sm">{plan.pieces_per_month} clothes per month</p>{plan.blurb ? <p className="text-sm text-ink-soft">{plan.blurb}</p> : null}<p className="text-sm text-ink-soft">Use the allowance over two pickups. Pieces above the remaining allowance must be recorded and billed separately online.</p>{user ? <Link href={`/subscriptions/checkout?plan=${plan.slug}`} className="btn-primary inline-block">Choose plan</Link> : <Link href="/login?next=/subscriptions" className="btn-primary inline-block">Sign in to choose</Link>}</section>)}
       </div>
+      <div className="space-y-2 border-t border-line pt-4"><p className="text-sm text-ink-soft">A monthly plan is optional. You can explore LaundryPoint and use the dashboard without subscribing.</p><Link href="/dashboard" className="inline-flex font-medium text-brand-dark underline underline-offset-4">Skip for now and go to dashboard</Link></div>
       <p className="text-xs text-ink-mute">Plan activation requires verified online payment. Never pay an agent in cash.</p>
       </div>
     </main>
