@@ -2916,6 +2916,7 @@ export type Database = {
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
       agent_gate: { Args: never; Returns: boolean }
+      record_staff_hub_verification: { Args: { _user: string; _outcome: string; _person_present: boolean; _nin_document_checked: boolean; _nin_matches_profile: boolean; _photo_matches_person: boolean; _referee_checked?: boolean; _notes?: string | null }; Returns: string }
       review_commission: { Args: { _commission:string; _decision:string; _note?:string|null }; Returns: undefined }
       create_commission_payout: { Args: { _agent:string; _from:string; _to:string; _note?:string|null }; Returns: string }
       update_commission_payout: { Args: { _payout:string; _action:string; _method?:string|null; _reference?:string|null; _note?:string|null }; Returns: undefined }
