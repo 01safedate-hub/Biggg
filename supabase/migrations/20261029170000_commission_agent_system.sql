@@ -76,12 +76,18 @@ declare
   _rules public.commission_rules;
   _basis bigint;
 begin
-  if new.status <> 'success' or new.kind <> 'payment' or new.order_id is null
+  if new.status <> 'success' or new.order_id is null
      or (tg_op = 'UPDATE' and old.status = 'success') then
     return new;
   end if;
-  -- Only paid service charges earn commission; transport, demurrage and refunds do not.
-  if new.purpose not in ('items','extra_clothes') then return new; end if;
+  -- A successful refund reverses unpaid/unapproved earnings for the order. Paid payouts remain auditable.
+  if new.kind = 'refund' then
+    update public.commissions set status = 'reversed', review_note = 'Reversed after successful refund payment',
+      updated_at = now() where order_id = new.order_id and status in ('pending','approved') and payout_id is null;
+    return new;
+  end if;
+  -- Only paid service charges earn commission; transport and demurrage are excluded.
+  if new.kind <> 'payment' or new.purpose not in ('items','extra_clothes') then return new; end if;
   select p.onboarded_by into _agent from public.profiles p
     where p.id = new.customer_id and p.onboarded_by is not null;
   if _agent is null or not exists (
@@ -182,3 +188,16 @@ as $$
 $$;
 revoke all on function public.agent_gate() from public, anon;
 grant execute on function public.agent_gate() to authenticated;
+
+create or replace function public.update_commission_rules(_first_rate numeric, _repeat_rate numeric)
+returns void language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not private.has_role('super_admin'::public.staff_role) then raise exception 'not_authorized' using errcode = '42501'; end if;
+  if _first_rate < 0 or _first_rate > 1 or _repeat_rate < 0 or _repeat_rate > 1 then raise exception 'invalid_rate'; end if;
+  update public.commission_rules set active = false, updated_by = auth.uid(), updated_at = now() where active;
+  insert into public.commission_rules(first_order_rate,repeat_order_rate,active,updated_by)
+    values (_first_rate,_repeat_rate,true,auth.uid());
+end $$;
+revoke all on function public.update_commission_rules(numeric,numeric) from public, anon;
+grant execute on function public.update_commission_rules(numeric,numeric) to authenticated;
