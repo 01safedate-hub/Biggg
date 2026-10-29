@@ -47,11 +47,15 @@ export default async function RequestPage() {
             <div className="flex gap-3"><Link href="/login?next=/request" className="btn-primary">Sign in</Link><Link href="/signup" className="btn-secondary">Create account</Link></div>
           </div>
         ) : !active ? (
-          <div className="card space-y-4 p-6">
-            <h2 className="text-lg font-semibold">An active monthly plan is required</h2>
-            <p className="text-sm text-ink-soft">One-time pickup checkout is no longer supported. Choose and pay for a monthly plan before requesting collection.</p>
-            <Link href="/subscriptions" className="btn-primary inline-flex">View monthly plans</Link>
-          </div>
+          <>
+            <section className="card space-y-3 p-5">
+              <p className="text-sm text-ink-soft">No monthly plan is active on your account. You can pay once for transport and have your garments counted and billed separately after collection.</p>
+              <h2 className="text-lg font-semibold">One-time pickup</h2>
+              <p className="text-sm text-ink-soft">Pickup and delivery transport is paid online before we assign an agent. Laundry charges are calculated after the agent records your garments.</p>
+              <p className="text-sm"><Link className="font-semibold text-brand-dark underline" href="/subscriptions">Compare monthly plans</Link> for plan-covered transport and garment allowance.</p>
+            </section>
+            <BookingForm mode="one_time" />
+          </>
         ) : (
           <>
             <NoCashNotice subscription />
