@@ -20,8 +20,10 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
   const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;
-  const returnDestination = (o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null }).return_delivery_address;
+  const returnRow = o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null };
+  const returnDestination = returnRow.return_delivery_address ?? null;
   const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
+  const returnDeliveryReady = o.source === "one_time" && o.status === "ready" && fulfillmentChoice === "deliver" && Boolean(returnFeePayment);
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
@@ -32,7 +34,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
     supabase.from("orders").select("id,order_no,status,instant,parent_order_id").or(`parent_order_id.eq.${id},id.eq.${o.parent_order_id ?? id},parent_order_id.eq.${o.parent_order_id ?? id}`).neq("id", id),
     supabase.from("settings").select("value").eq("key", "instant").maybeSingle(),
     supabase.from("order_photos").select("note").eq("order_id", id).eq("kind", "stain"),
-    o.status === "out_for_delivery" ? supabase.rpc("list_agents") : Promise.resolve({ data: [] }),
+    (o.status === "out_for_delivery" || returnDeliveryReady) ? supabase.rpc("list_agents") : Promise.resolve({ data: [] }),
   ]);
   const icv = (icfg?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number };
   const stainedNames = Array.from(new Set((stainRows ?? []).map((r) => (r.note ?? "").split(": ")[0]).filter(Boolean)));
@@ -93,16 +95,26 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
           {fulfillmentChoice !== "deliver" && <WalkinActions orderId={id} kind="handover" />}
-          <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
+          <div className="border-t border-line pt-4">{returnDeliveryReady ? (
+            <div className="space-y-3">
+              <p className="font-medium text-emerald-700">Delivery fee paid. Assign a delivery agent.</p>
+              <p className="text-sm text-ink-soft">Deliver to: {returnDestination || "Customer delivery address not found"}</p>
+              <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
+            </div>
+          ) : fulfillmentChoice === "deliver" ? (
+            <p className="text-sm text-ink-soft">Delivery is selected. Waiting for the customer to pay the delivery fee before an agent can be assigned.</p>
+          ) : (
+            <DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} />
+          )}</div>
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (
-        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
+        <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><p className="text-sm text-ink-soft">Customer destination: {returnDestination || "Not provided"} · {naira(o.delivery_fare_kobo ?? 0)}</p><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={returnDestination ?? o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={returnRow.return_delivery_lat ?? o.pickup_lat} pickupLng={returnRow.return_delivery_lng ?? o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-3 p-5 print:hidden">
           <h2 className="text-lg font-semibold">Delivery fee paid: assign a rider</h2>
-          <p className="text-sm text-ink-soft">Deliver to: {o.pickup_address}</p>
+          <p className="text-sm text-ink-soft">Deliver to: {returnDestination ?? o.pickup_address}</p>
           <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
         </section>
       )}
