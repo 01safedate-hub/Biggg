@@ -1,7 +1,20 @@
 -- Customer fulfillment choice and fresh delivery-fare quote for ready orders.
 alter table public.orders
-  add column if not exists fulfillment_choice text
-  check (fulfillment_choice in ('collect', 'deliver'));
+  add column if not exists fulfillment_choice text;
+
+do $constraint$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'orders_fulfillment_choice_check'
+      and conrelid = 'public.orders'::regclass
+  ) then
+    alter table public.orders
+      add constraint orders_fulfillment_choice_check
+      check (fulfillment_choice is null or fulfillment_choice in ('collect', 'deliver'));
+  end if;
+end
+$constraint$;
 
 create or replace function public.choose_order_fulfillment(
   _order uuid, _choice text, _lat double precision default null,
@@ -20,7 +33,7 @@ begin
   if _choice = 'collect' then
     update public.payments set status = 'failed'
      where order_id = _order and purpose = 'delivery_fare' and kind = 'payment' and status = 'pending';
-    update public.orders set fulfillment_choice='collect', status='ready', delivery_fare_kobo=0 where id=_order;
+    update public.orders set fulfillment_choice='collect', status='ready' where id=_order;
     insert into public.order_events(order_id,actor_id,event,detail)
     values(_order,auth.uid(),'fulfillment_chosen',jsonb_build_object('choice','collect'));
     return jsonb_build_object('choice','collect','fare_kobo',0);
