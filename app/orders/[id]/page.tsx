@@ -55,7 +55,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
     : { data: null };
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
-  const confirming = returning === "1" && o.status === "awaiting_fare_payment";
+  const confirming = returning === "1" && ["awaiting_fare_payment", "awaiting_dispatch"].includes(o.status);
   const showNotice = ["awaiting_fare_payment", "awaiting_dispatch", "agent_assigned", "agent_arrived", "counted", "ready", "out_for_delivery"].includes(o.status);
 
   const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
