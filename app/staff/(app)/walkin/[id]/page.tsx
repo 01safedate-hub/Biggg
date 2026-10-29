@@ -19,7 +19,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
   if (!o) notFound();
-  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null }).fulfillment_choice ?? null;
+  const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;\n  const returnDestination = (o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null }).return_delivery_address;\n  const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
@@ -79,7 +79,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           {fulfillmentChoice === "collect" ? (
             <><p className="font-medium text-emerald-700">Collection requested by customer</p><p className="text-sm text-ink-soft">No delivery fee is due. Keep this order at the hub and confirm handover after the customer collects the clothes.</p></>
           ) : fulfillmentChoice === "deliver" ? (
-            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Address: {o.pickup_address || "Not provided"}</p><p className="text-sm">Current delivery fare: {naira(o.delivery_fare_kobo ?? 0)}</p></>
+            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Return address: {returnDestination || "Not provided"}</p><p className="text-sm">Return distance: {(o as typeof o & { return_delivery_distance_km?: number | null }).return_delivery_distance_km ?? "—"} km · Delivery fare: {naira(o.delivery_fare_kobo ?? 0)} · {returnFeePayment ? "PAID" : "PAYMENT PENDING"}</p></>
           ) : (
             <p className="text-sm text-ink-soft">The customer has not saved a collection or delivery choice yet. Contact them before arranging fulfillment.</p>
           )}
@@ -90,7 +90,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
-          <WalkinActions orderId={id} kind="handover" />
+          {fulfillmentChoice !== "deliver" && <WalkinActions orderId={id} kind="handover" />}
           <div className="border-t border-line pt-4"><DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></div>
         </section>
       )}
