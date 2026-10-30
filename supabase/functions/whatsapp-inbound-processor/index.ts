@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY");
   const waToken = Deno.env.get("WA_ACCESS_TOKEN");
-  const phoneNumberId = Deno.env.get("WA_PHONE_NUMBER_ID");
+  const phoneNumberId = Deno.env.get("WA_PHONE_NUMBER_2_ID");
   if (!supabaseUrl || !serviceKey) return json({ error: "database_not_configured" }, 503);
 
   const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
