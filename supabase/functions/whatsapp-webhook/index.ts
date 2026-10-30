@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
   let payload: { entry?: Array<{ changes?: Array<{ value?: {
     statuses?: Array<{ id?: string; status?: string; timestamp?: string; errors?: unknown[] }>;
-    messages?: Array<{ from?: string; id?: string; text?: { body?: string }; type?: string }>;
+    messages?: Array<{ from?: string; id?: string; timestamp?: string; text?: { body?: string }; type?: string }>;
   } }> }> };
   try { payload = JSON.parse(raw); } catch { return new Response("invalid_json", { status: 400 }); }
 
@@ -79,11 +79,28 @@ Deno.serve(async (req) => {
         if (!error && data) updated++;
       }
 
-      // Only accept an explicit exact STOP command. Do not opt out on ordinary messages.
+      // Store inbound messages durably and deduplicate by Meta's message ID.
+      // STOP is processed immediately and is never sent to the AI queue.
       for (const message of value.messages ?? []) {
-        if (!message.from || message.type !== "text" || !/^\s*STOP\s*$/i.test(message.text?.body ?? "")) continue;
-        const { data, error } = await db.rpc("whatsapp_opt_out_by_phone", { _phone: message.from });
-        if (!error && data === true) optOuts++;
+        if (!message.from || !message.id) continue;
+        if (message.type === "text" && /^\s*STOP\s*$/i.test(message.text?.body ?? "")) {
+          const { data, error } = await db.rpc("whatsapp_opt_out_by_phone", { _phone: message.from });
+          if (!error && data === true) optOuts++;
+          continue;
+        }
+        const textBody = message.type === "text" ? (message.text?.body ?? "").trim() : null;
+        const { error } = await db.from("whatsapp_inbound_messages").upsert({
+          provider_message_id: message.id,
+          from_phone: message.from,
+          message_type: message.type ?? "unknown",
+          message_text: textBody?.slice(0, 4000) ?? null,
+          provider_timestamp: message.timestamp
+            ? new Date(Number(message.timestamp) * 1000).toISOString()
+            : new Date().toISOString(),
+          status: "queued",
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "provider_message_id", ignoreDuplicates: true });
+        if (error) console.error("inbound_message_enqueue_failed", error.message);
       }
     }
   }
