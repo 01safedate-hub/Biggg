@@ -174,7 +174,7 @@ end $$;
 create or replace function public.assign_pickup_agent(_order uuid, _agent uuid) returns void language plpgsql security definer set search_path = '' as $$
 begin
   if not private.is_shift_manager() or not private.is_active() then raise exception 'not_allowed' using errcode = 'P0001'; end if;
-  if not exists (select 1 from public.user_roles r join public.profiles p on p.id = r.user_id where r.user_id = _agent and r.role = 'delivery_agent' and p.status = 'active') and not exists(select 1 from public.staff_profiles sp where sp.user_id=_agent and sp.onboarding_status='verified' and sp.hub_visit_at is not null and sp.secretary_verified_at is not null and sp.orientation_completed_at is not null and sp.agreement_accepted_at is not null) then
+  if not exists (select 1 from public.user_roles r join public.profiles p on p.id = r.user_id join public.staff_profiles sp on sp.user_id = p.id where r.user_id = _agent and r.role = 'delivery_agent' and p.status = 'active' and sp.onboarding_status = 'verified' and sp.hub_visit_at is not null and sp.secretary_verified_at is not null and sp.orientation_completed_at is not null and sp.agreement_accepted_at is not null) then
     raise exception 'agent_invalid' using errcode = 'P0001';
   end if;
   update public.orders set pickup_agent_id = _agent, status = 'agent_assigned' where id = _order and status in ('awaiting_dispatch', 'agent_assigned');
