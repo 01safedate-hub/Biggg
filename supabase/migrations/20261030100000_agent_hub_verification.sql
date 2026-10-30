@@ -87,7 +87,7 @@ begin
  select * into _p from public.staff_profiles where user_id=auth.uid();
  if _p.nin is null or _p.nin_document_path is null then raise exception 'application_incomplete' using errcode='P0001'; end if;
  if _face_photo_path is null or left(_face_photo_path,length(auth.uid()::text)+1) <> auth.uid()::text || '/hub-face/'
-   or not exists(select 1 from storage.objects where bucket_id='staff-docs' and name=_face_photo_path) then raise exception 'invalid_face_photo' using errcode='P0001'; end if;
+   or not exists(select 1 from storage.objects where bucket_id='staff-docs' and name=_face_photo_path and owner_id=auth.uid()::text) then raise exception 'invalid_face_photo' using errcode='P0001'; end if;
  update public.staff_profiles set hub_visit_at=now(),hub_visit_lat=_lat,hub_visit_lng=_lng,hub_visit_distance_m=round(_distance)::int,
   face_photo_path=_face_photo_path, secretary_verified_at=null,secretary_verified_by=null,orientation_completed_at=null
  where user_id=auth.uid();
