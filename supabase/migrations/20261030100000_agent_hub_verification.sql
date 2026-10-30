@@ -182,6 +182,28 @@ begin
  return auth.uid() is not null and private.is_active() and private.has_role('delivery_agent') and private.is_verified_agent(auth.uid());
 end $$;
 
+create or replace function public.secretary_agent_hub_queue()
+returns table(agent_id uuid, full_name text, phone text, onboarding_status text, hub_visit_at timestamptz,
+ hub_distance_m integer, secretary_verified_at timestamptz, orientation_completed_at timestamptz,
+ agreement_accepted_at timestamptz, nin_last4 text, items jsonb)
+language plpgsql stable security definer set search_path='' as $
+begin
+ if auth.uid() is null or not private.is_active() or not (private.has_role('secretary') or private.is_super_admin()) then
+  raise exception 'not_allowed' using errcode='P0001';
+ end if;
+ return query
+ select sp.user_id,pr.full_name,pr.phone,sp.onboarding_status,sp.hub_visit_at,sp.hub_visit_distance_m,
+  sp.secretary_verified_at,sp.orientation_completed_at,sp.agreement_accepted_at,right(sp.nin,4),
+  coalesce((select jsonb_agg(jsonb_build_object('key',i.item_key,'label',i.label,'checked',c.item_key is not null) order by i.sort_order)
+    from public.agent_orientation_items i left join public.agent_orientation_checks c on c.agent_id=sp.user_id and c.item_key=i.item_key where i.active),'[]'::jsonb)
+ from public.staff_profiles sp join public.user_roles ur on ur.user_id=sp.user_id and ur.role='delivery_agent'
+ join public.profiles pr on pr.id=sp.user_id
+ where sp.onboarding_status in ('incomplete','submitted','rejected','verified')
+ order by (sp.hub_visit_at is null),sp.hub_visit_at desc nulls last,pr.full_name;
+end $;
+
+revoke execute on function public.secretary_agent_hub_queue() from public,anon;
+grant execute on function public.secretary_agent_hub_queue() to authenticated;
 revoke execute on function public.agent_hub_status(),public.agent_set_nin_document_path(text),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
 grant execute on function public.agent_hub_status(),public.agent_set_nin_document_path(text),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
 revoke execute on function public.verify_staff(uuid,boolean,text) from public,anon;
