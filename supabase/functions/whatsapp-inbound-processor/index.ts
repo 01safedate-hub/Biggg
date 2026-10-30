@@ -95,12 +95,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const { data: profile } = await db.from("profiles")
-        .select("whatsapp_opt_in,whatsapp_opt_out_at")
-        .eq("phone", from)
-        .maybeSingle();
-      // If a known customer has opted out, never send an automated reply.
-      if (profile && (!profile.whatsapp_opt_in || profile.whatsapp_opt_out_at)) {
+      const { data: optedOut, error: optOutCheckError } = await db.rpc("whatsapp_is_opted_out_by_phone", { _phone: from });
+      if (optOutCheckError) throw new Error("opt_out_check_failed");
+      if (optedOut === true) {
         await db.from("whatsapp_inbound_messages").update({
           status: "ignored", processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           last_error: "customer_opted_out",
