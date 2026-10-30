@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
   let payload: { entry?: Array<{ changes?: Array<{ value?: {
     statuses?: Array<{ id?: string; status?: string; timestamp?: string; errors?: unknown[] }>;
-    messages?: Array<{ from?: string; id?: string; text?: { body?: string }; type?: string }>;
+    messages?: Array<{ from?: string; id?: string; timestamp?: string; text?: { body?: string }; type?: string }>;
   } }> }> };
   try { payload = JSON.parse(raw); } catch { return new Response("invalid_json", { status: 400 }); }
 
