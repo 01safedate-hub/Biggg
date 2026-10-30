@@ -16,6 +16,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase, user } = await requireRole(["delivery_agent"]);
+  const { data: allowed } = await supabase.rpc("agent_gate");
+  if (allowed !== true) notFound();
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).or(`pickup_agent_id.eq.${user.id},delivery_agent_id.eq.${user.id}`).maybeSingle();
   if (!o) notFound();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }] = await Promise.all([
