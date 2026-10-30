@@ -38,11 +38,7 @@ Deno.serve(async (req) => {
 
   const expectedSecret = Deno.env.get("WHATSAPP_INBOUND_PROCESSOR_SECRET");
   const suppliedSecret = req.headers.get("x-whatsapp-worker-secret");
-  if (!expectedSecret || !suppliedSecret || suppliedSecret.length !== expectedSecret.length ||
-      !crypto.subtle.timingSafeEqual) {
-    // Timing-safe equality is performed below using WebCrypto HMAC to avoid string comparison leaks.
-    if (!expectedSecret || !suppliedSecret) return json({ error: "unauthorized" }, 401);
-  }
+  if (!expectedSecret || !suppliedSecret) return json({ error: "unauthorized" }, 401);
   const enc = new TextEncoder();
   const secretKey = await crypto.subtle.importKey("raw", enc.encode(expectedSecret!), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const [a, b] = await Promise.all([
