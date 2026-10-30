@@ -37,7 +37,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <p>After your hub visit, the app will show your recorded attendance, identity check, orientation and agreement status.</p>
           <p className="text-ink-soft">You cannot add clients, accept jobs or receive payouts until final approval.</p>
         </div>
-        <a href="/staff/onboarding" className="btn-primary inline-block">Continue my details</a>
+        <div className="flex flex-wrap gap-3"><a href="/staff/onboarding" className="btn-primary inline-block">Continue my details</a><a href="/staff/agent-hub" className="btn-secondary inline-block">Open hub verification</a></div>
       </main>
     </Shell>;
   }
