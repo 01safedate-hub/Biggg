@@ -161,3 +161,37 @@ grant execute on function public.agent_hub_status(),public.agent_confirm_hub_vis
 revoke execute on function public.verify_staff(uuid,boolean,text) from public,anon;
 grant execute on function public.verify_staff(uuid,boolean,text) to authenticated;
 
+
+-- Reinstate dispatch and agent action functions with verification checks (existing signatures preserved).
+create or replace function public.list_agents() returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not private.is_shift_manager() or not private.is_active() then raise exception 'not_allowed' using errcode = 'P0001'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.full_name, 'phone', p.phone,
+      'open_jobs', (select count(*) from public.orders o where o.pickup_agent_id = p.id and o.status in ('agent_assigned','agent_arrived','counted','count_confirmed'))) order by p.full_name)
+    from public.profiles p join public.user_roles r on r.user_id = p.id and r.role = 'delivery_agent' where p.status = 'active' and exists(select 1 from public.staff_profiles sp where sp.user_id=p.id and sp.onboarding_status='verified' and sp.hub_visit_at is not null and sp.secretary_verified_at is not null and sp.orientation_completed_at is not null and sp.agreement_accepted_at is not null)), '[]'::jsonb);
+end $$;
+
+create or replace function public.assign_pickup_agent(_order uuid, _agent uuid) returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not private.is_shift_manager() or not private.is_active() then raise exception 'not_allowed' using errcode = 'P0001'; end if;
+  if not exists (select 1 from public.user_roles r join public.profiles p on p.id = r.user_id where r.user_id = _agent and r.role = 'delivery_agent' and p.status = 'active') and not exists(select 1 from public.staff_profiles sp where sp.user_id=_agent and sp.onboarding_status='verified' and sp.hub_visit_at is not null and sp.secretary_verified_at is not null and sp.orientation_completed_at is not null and sp.agreement_accepted_at is not null) then
+    raise exception 'agent_invalid' using errcode = 'P0001';
+  end if;
+  update public.orders set pickup_agent_id = _agent, status = 'agent_assigned' where id = _order and status in ('awaiting_dispatch', 'agent_assigned');
+  if not found then raise exception 'wrong_state' using errcode = 'P0001'; end if;
+  insert into public.user_notifications (user_id, title, kind, order_id) values (_agent, 'New pickup assigned to you', 'job', _order);
+end $$;
+
+
+create or replace function private.agent_order(_order uuid, _states public.order_status[]) returns public.orders language plpgsql security definer set search_path = '' as $$
+declare _o public.orders;
+begin
+  if auth.uid() is null or not private.is_active() or not private.is_verified_agent(auth.uid()) then raise exception 'not_allowed' using errcode = 'P0001'; end if;
+  select * into _o from public.orders where id = _order for update;
+  if not found or _o.pickup_agent_id is distinct from auth.uid() then raise exception 'not_allowed' using errcode = 'P0001'; end if;
+  if not (_o.status = any(_states)) then raise exception 'wrong_state' using errcode = 'P0001'; end if;
+  return _o;
+end $$;
+
+
+
