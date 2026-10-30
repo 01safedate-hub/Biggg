@@ -49,15 +49,27 @@ create policy agent_orientation_items_select on public.agent_orientation_items f
 create policy agent_orientation_checks_select on public.agent_orientation_checks for select to authenticated
  using (agent_id=auth.uid() or private.is_super_admin() or private.has_role('secretary'));
 
--- The NIN evidence is private and is stored in the already-private staff-docs bucket.
+-- The NIN evidence and fresh hub face photo are private in the staff-docs bucket.
 -- Keep the legacy generic face photo policy unchanged for existing staff onboarding.
+drop policy if exists staff_docs_agent_nin_insert on storage.objects;
 create policy staff_docs_agent_nin_insert on storage.objects for insert to authenticated
  with check(bucket_id='staff-docs' and (select private.is_active())
   and (storage.foldername(name))[1]=(select auth.uid())::text
   and (storage.foldername(name))[2]='agent-nin' and private.has_role('delivery_agent'));
+drop policy if exists staff_docs_agent_nin_read on storage.objects;
 create policy staff_docs_agent_nin_read on storage.objects for select to authenticated
  using(bucket_id='staff-docs' and (select private.is_super_admin())
   and (storage.foldername(name))[2]='agent-nin');
+
+drop policy if exists staff_docs_agent_face_insert on storage.objects;
+create policy staff_docs_agent_face_insert on storage.objects for insert to authenticated
+ with check(bucket_id='staff-docs' and (select private.is_active())
+  and (storage.foldername(name))[1]=(select auth.uid())::text
+  and (storage.foldername(name))[2]='hub-face' and private.has_role('delivery_agent'));
+drop policy if exists staff_docs_agent_face_read on storage.objects;
+create policy staff_docs_agent_face_read on storage.objects for select to authenticated
+ using(bucket_id='staff-docs' and ((select private.is_super_admin()) or
+  ((storage.foldername(name))[1]=(select auth.uid())::text and private.has_role('delivery_agent'))));
 
 create or replace function public.agent_hub_status()
 returns jsonb language plpgsql stable security definer set search_path='' as $$
@@ -159,7 +171,7 @@ begin
 end $$;
 
 revoke execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
-grant execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
+grant execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
 revoke execute on function public.verify_staff(uuid,boolean,text) from public,anon;
 grant execute on function public.verify_staff(uuid,boolean,text) to authenticated;
 
