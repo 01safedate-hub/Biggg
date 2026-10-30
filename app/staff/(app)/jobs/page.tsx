@@ -6,6 +6,10 @@ export const metadata = { title: "My jobs" };
 
 export default async function JobsPage() {
   const { supabase, user } = await requireRole(["delivery_agent"]);
+  const { data: allowed } = await supabase.rpc("agent_gate");
+  if (allowed !== true) {
+    return <div className="card space-y-2 p-5"><h1 className="text-lg font-semibold">Agent access is not active</h1><p className="text-sm text-ink-soft">Complete the hub visit, secretary identity verification, orientation and agreement. A super admin must then approve your account.</p></div>;
+  }
   const { data } = await supabase.from("orders").select("id,order_no,status,pickup_address,created_at")
     .or("and(pickup_agent_id.eq." + user.id + ",status.in.(agent_assigned,agent_arrived,counted,count_confirmed)),and(delivery_agent_id.eq." + user.id + ",status.eq.out_for_delivery)").order("created_at");
   return (
