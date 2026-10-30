@@ -86,6 +86,18 @@ begin
   'hub_lat',_hub.centre_lat,'hub_lng',_hub.centre_lng,'hub_name',_hub.name);
 end $$;
 
+create or replace function public.agent_set_nin_document_path(_path text)
+returns void language plpgsql security definer set search_path='' as $
+begin
+ if auth.uid() is null or not private.has_role('delivery_agent') or not private.is_active() then raise exception 'not_agent' using errcode='P0001'; end if;
+ if _path is null or left(_path,length(auth.uid()::text)+1) <> auth.uid()::text || '/agent-nin/'
+   or not exists(select 1 from storage.objects where bucket_id='staff-docs' and name=_path and owner_id=auth.uid()::text) then
+   raise exception 'invalid_nin_document' using errcode='P0001';
+ end if;
+ update public.staff_profiles set nin_document_path=_path where user_id=auth.uid() and onboarding_status in ('incomplete','rejected','submitted');
+ if not found then raise exception 'staff_profile_missing' using errcode='P0001'; end if;
+end $;
+
 create or replace function public.agent_confirm_hub_visit(_lat double precision,_lng double precision,_face_photo_path text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare _hub record; _distance double precision; _p public.staff_profiles;
@@ -170,8 +182,8 @@ begin
  return auth.uid() is not null and private.is_active() and private.has_role('delivery_agent') and private.is_verified_agent(auth.uid());
 end $$;
 
-revoke execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
-grant execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
+revoke execute on function public.agent_hub_status(),public.agent_set_nin_document_path(text),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
+grant execute on function public.agent_hub_status(),public.agent_set_nin_document_path(text),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
 revoke execute on function public.verify_staff(uuid,boolean,text) from public,anon;
 grant execute on function public.verify_staff(uuid,boolean,text) to authenticated;
 
