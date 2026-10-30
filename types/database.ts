@@ -2823,6 +2823,24 @@ export type Database = {
           },
         ]
       }
+      commission_rules: {
+        Row: { id:string; first_order_rate:number; repeat_order_rate:number; active:boolean; updated_by:string|null; updated_at:string }
+        Insert: { id?:string; first_order_rate?:number; repeat_order_rate?:number; active?:boolean; updated_by?:string|null; updated_at?:string }
+        Update: { id?:string; first_order_rate?:number; repeat_order_rate?:number; active?:boolean; updated_by?:string|null; updated_at?:string }
+        Relationships: []
+      }
+      commissions: {
+        Row: { id:string; agent_id:string; customer_id:string; order_id:string; payment_id:string; order_sequence:number; rate:number; basis_kobo:number; amount_kobo:number; status:string; reviewed_by:string|null; reviewed_at:string|null; review_note:string|null; payout_id:string|null; created_at:string; updated_at:string }
+        Insert: { id?:string; agent_id:string; customer_id:string; order_id:string; payment_id:string; order_sequence:number; rate:number; basis_kobo:number; amount_kobo:number; status?:string; reviewed_by?:string|null; reviewed_at?:string|null; review_note?:string|null; payout_id?:string|null; created_at?:string; updated_at?:string }
+        Update: { id?:string; agent_id?:string; customer_id?:string; order_id?:string; payment_id?:string; order_sequence?:number; rate?:number; basis_kobo?:number; amount_kobo?:number; status?:string; reviewed_by?:string|null; reviewed_at?:string|null; review_note?:string|null; payout_id?:string|null; created_at?:string; updated_at?:string }
+        Relationships: []
+      }
+      commission_payouts: {
+        Row: { id:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status:string; payment_method:string|null; payment_reference:string|null; note:string|null; created_by:string|null; approved_by:string|null; paid_by:string|null; approved_at:string|null; paid_at:string|null; created_at:string }
+        Insert: { id?:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string }
+        Update: { id?:string; agent_id?:string; period_start?:string; period_end?:string; amount_kobo?:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string }
+        Relationships: []
+      }
     }
     Views: {
       late_subscription_pickups: {
@@ -2898,6 +2916,11 @@ export type Database = {
       }
       admin_staff_detail: { Args: { _user: string }; Returns: Json }
       agent_gate: { Args: never; Returns: boolean }
+      record_staff_hub_verification: { Args: { _user: string; _outcome: string; _person_present: boolean; _nin_document_checked: boolean; _nin_matches_profile: boolean; _photo_matches_person: boolean; _referee_checked?: boolean; _notes?: string | null }; Returns: string }
+      review_commission: { Args: { _commission:string; _decision:string; _note?:string|null }; Returns: undefined }
+      create_commission_payout: { Args: { _agent:string; _from:string; _to:string; _note?:string|null }; Returns: string }
+      update_commission_payout: { Args: { _payout:string; _action:string; _method?:string|null; _reference?:string|null; _note?:string|null }; Returns: undefined }
+      update_commission_rules: { Args: { _first_rate:number; _repeat_rate:number }; Returns: undefined }
       agent_performance: { Args: { _from: string; _to: string }; Returns: Json }
       agent_ping: {
         Args: { _accuracy: number; _lat: number; _lng: number; _order: string }
@@ -3448,6 +3471,7 @@ export type Database = {
         | "secretary"
         | "admin"
         | "super_admin"
+        | "commission_agent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3598,6 +3622,7 @@ export const Constants = {
         "secretary",
         "admin",
         "super_admin",
+        "commission_agent",
       ],
     },
   },

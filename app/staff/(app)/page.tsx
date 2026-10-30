@@ -13,7 +13,7 @@ type Pay = {
 };
 
 export default async function StaffHome() {
-  const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent"]);
+  const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent"]);
   const { data } = await supabase.rpc("my_pay_overview");
   const p = data as unknown as Pay | null;
   const { data: auth } = await supabase.auth.getUser();
@@ -67,11 +67,13 @@ export default async function StaffHome() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {canExpense && <Link href="/staff/expenses" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Record an expense</h2><p className="mt-1 text-sm text-ink-soft">Fuel, supplies, repairs. Proof is required.</p></Link>}
+        {roles.includes("commission_agent") && <Link href="/staff/commissions" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">My commissions</h2><p className="mt-1 text-sm text-ink-soft">Track earned commissions and payouts.</p></Link>}
+        {roles.includes("commission_agent") && <Link href="/staff/commissions" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">My commissions</h2><p className="mt-1 text-sm text-ink-soft">Track earned commissions and payouts.</p></Link>}
         {roles.includes("delivery_agent") && <Link href="/staff/jobs" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Pickup jobs</h2><p className="mt-1 text-sm text-ink-soft">Your assigned pickups. Count, bill, and leave once paid.</p></Link>}
         {roles.some((r) => ["secretary", "admin", "super_admin"].includes(r)) && <Link href="/staff/dispatch" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Dispatch</h2><p className="mt-1 text-sm text-ink-soft">Send an agent to paid bookings.</p></Link>}
         {roles.some((r) => ["secretary", "admin", "super_admin"].includes(r)) && <Link href="/staff/receiving" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Receiving</h2><p className="mt-1 text-sm text-ink-soft">Check what the agent brought, then mark it received.</p></Link>}
         <Link href="/staff/spending" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Spending</h2><p className="mt-1 text-sm text-ink-soft">See what the business spent, with the proof.</p></Link>
-        {roles.some((r) => r !== "delivery_agent") && <Link href="/staff/count" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Count money</h2><p className="mt-1 text-sm text-ink-soft">Enter what is in a drawer, POS or account at the end of the day.</p></Link>}
+        {roles.some((r) => r !== "delivery_agent" && r !== "commission_agent") && <Link href="/staff/count" className="card p-5 hover:bg-canvas"><h2 className="font-semibold">Count money</h2><p className="mt-1 text-sm text-ink-soft">Enter what is in a drawer, POS or account at the end of the day.</p></Link>}
       </div>
     </div>
   );

@@ -32,3 +32,29 @@ export async function reviewStaff(userId: string, approve: boolean, note: string
   revalidatePath("/admin/staff");
   return { ok: true, message: approve ? "Marked as verified." : "Sent back for changes." };
 }
+
+export async function recordHubVerification(userId: string, input: {
+  outcome: "passed" | "rejected";
+  person_present: boolean;
+  nin_document_checked: boolean;
+  nin_matches_profile: boolean;
+  photo_matches_person: boolean;
+  referee_checked: boolean;
+  notes: string;
+}): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("record_staff_hub_verification", {
+    _user: userId,
+    _outcome: input.outcome,
+    _person_present: input.person_present,
+    _nin_document_checked: input.nin_document_checked,
+    _nin_matches_profile: input.nin_matches_profile,
+    _photo_matches_person: input.photo_matches_person,
+    _referee_checked: input.referee_checked,
+    _notes: input.notes,
+  });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/admin/staff/${userId}`);
+  revalidatePath("/admin/staff");
+  return { ok: true, message: input.outcome === "passed" ? "In-person hub verification recorded. You may now complete profile approval." : "Failed hub verification recorded; profile approval is blocked." };
+}
