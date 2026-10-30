@@ -16,7 +16,7 @@ type Detail = {
   person: { full_name: string; email: string | null; phone: string | null; status: string };
   roles: string[];
   pay: { job_title: string | null; base_salary_kobo: number; boosted_salary_kobo: number; monthly_target_kobo: number | null; earns_weekly_bonus: boolean; active: boolean } | null;
-  profile: (ProfileData & { onboarding_status: string; photo_path: string | null; review_note: string | null; must_change_password: boolean }) | null;
+  profile: (ProfileData & { onboarding_status: string; photo_path: string | null; nin_document_path: string | null; face_photo_path: string | null; agent_type: string | null; hub_visit_at: string | null; secretary_verified_at: string | null; orientation_completed_at: string | null; agreement_accepted_at: string | null; review_note: string | null; must_change_password: boolean }) | null;
   payouts: { id: string; week_start: string; units: number; target_units: number; amount_kobo: number; status: string }[];
 };
 
@@ -28,6 +28,9 @@ export default async function StaffDetail({ params }: { params: Promise<{ id: st
   if (error || !data) notFound();
   const d = data as unknown as Detail;
   const photo = d.profile?.photo_path ? (await supabase.storage.from("staff-docs").createSignedUrl(d.profile.photo_path, 600)).data?.signedUrl ?? null : null;
+  const ninDoc = d.profile?.nin_document_path ? (await supabase.storage.from("staff-docs").createSignedUrl(d.profile.nin_document_path, 600)).data?.signedUrl ?? null : null;
+  const isAgent = d.roles.includes("delivery_agent");
+  const hubReady = !!(d.profile?.hub_visit_at && d.profile?.secretary_verified_at && d.profile?.orientation_completed_at && d.profile?.agreement_accepted_at && d.profile?.nin_document_path && d.profile?.face_photo_path);
   const status = d.profile?.onboarding_status ?? "incomplete";
 
   return (
@@ -40,7 +43,8 @@ export default async function StaffDetail({ params }: { params: Promise<{ id: st
         {d.profile?.review_note && <p className="mt-1 text-sm text-ink-soft">Last note: {d.profile.review_note}</p>}
       </div>
       <PayForm userId={id} pay={d.pay} />
-      <ReviewPanel userId={id} status={status} />
+      {isAgent && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Agent hub verification</h2><p className="text-sm text-ink-soft">Type: {d.profile?.agent_type === "commission_only" ? "Commission-only" : "Staff"}</p><p className="text-sm">Hub visit: {d.profile?.hub_visit_at ? new Date(d.profile.hub_visit_at).toLocaleString("en-NG") : "Not recorded"}</p><p className="text-sm">Secretary identity check: {d.profile?.secretary_verified_at ? "Complete" : "Pending"}</p><p className="text-sm">Orientation: {d.profile?.orientation_completed_at ? "Complete" : "Pending"}</p><p className="text-sm">Agreement: {d.profile?.agreement_accepted_at ? "Accepted" : "Pending"}</p>{ninDoc && <a href={ninDoc} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-dark underline">View private NIN document</a>}</section>}
+      <ReviewPanel userId={id} status={status} isAgent={isAgent} hubReady={hubReady} />
       <div>
         <h2 className="mb-3 text-lg font-semibold">Personal details</h2>
         <p className="mb-3 text-sm text-ink-soft">You can fill or correct everything here for someone who cannot do it themselves, including taking their photo.</p>
