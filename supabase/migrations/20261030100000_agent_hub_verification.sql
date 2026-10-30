@@ -74,7 +74,7 @@ begin
   'hub_lat',_hub.centre_lat,'hub_lng',_hub.centre_lng,'hub_name',_hub.name);
 end $$;
 
-create or replace function public.agent_confirm_hub_visit(_lat double precision,_lng double precision)
+create or replace function public.agent_confirm_hub_visit(_lat double precision,_lng double precision,_face_photo_path text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare _hub record; _distance double precision; _p public.staff_profiles;
 begin
@@ -85,9 +85,11 @@ begin
  _distance:=private.distance_km(_hub.centre_lat::float8,_hub.centre_lng::float8,_lat,_lng)*1000;
  if _distance>150 then raise exception 'outside_hub' using errcode='P0001',detail=round(_distance)::text; end if;
  select * into _p from public.staff_profiles where user_id=auth.uid();
- if _p.nin is null or _p.photo_path is null or _p.nin_document_path is null then raise exception 'application_incomplete' using errcode='P0001'; end if;
+ if _p.nin is null or _p.nin_document_path is null then raise exception 'application_incomplete' using errcode='P0001'; end if;
+ if _face_photo_path is null or left(_face_photo_path,length(auth.uid()::text)+1) <> auth.uid()::text || '/hub-face/'
+   or not exists(select 1 from storage.objects where bucket_id='staff-docs' and name=_face_photo_path) then raise exception 'invalid_face_photo' using errcode='P0001'; end if;
  update public.staff_profiles set hub_visit_at=now(),hub_visit_lat=_lat,hub_visit_lng=_lng,hub_visit_distance_m=round(_distance)::int,
-  face_photo_path=photo_path, secretary_verified_at=null,secretary_verified_by=null,orientation_completed_at=null
+  face_photo_path=_face_photo_path, secretary_verified_at=null,secretary_verified_by=null,orientation_completed_at=null
  where user_id=auth.uid();
  return jsonb_build_object('visited_at',now(),'distance_m',round(_distance));
 end $$;
@@ -156,7 +158,7 @@ begin
  return auth.uid() is not null and private.is_active() and private.has_role('delivery_agent') and private.is_verified_agent(auth.uid());
 end $$;
 
-revoke execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
+revoke execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision,text),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() from public,anon;
 grant execute on function public.agent_hub_status(),public.agent_confirm_hub_visit(double precision,double precision),public.secretary_verify_agent_identity(uuid,boolean,text),public.secretary_check_agent_orientation(uuid,text),public.agent_accept_agreement() to authenticated;
 revoke execute on function public.verify_staff(uuid,boolean,text) from public,anon;
 grant execute on function public.verify_staff(uuid,boolean,text) to authenticated;
