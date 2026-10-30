@@ -12,6 +12,7 @@ alter table public.staff_profiles
   add column if not exists secretary_verified_at timestamptz,
   add column if not exists orientation_completed_at timestamptz,
   add column if not exists agreement_accepted_at timestamptz,
+  add column if not exists agreement_version text,
   add column if not exists invitation_sent_at timestamptz;
 
 alter table public.staff_profiles drop constraint if exists staff_profiles_agent_type_check;
@@ -151,7 +152,7 @@ returns void language plpgsql security definer set search_path='' as $$
 begin
  if auth.uid() is null or not private.has_role('delivery_agent') or not private.is_active() then raise exception 'not_agent' using errcode='P0001'; end if;
  if not exists(select 1 from public.staff_profiles where user_id=auth.uid() and secretary_verified_at is not null and orientation_completed_at is not null) then raise exception 'orientation_incomplete' using errcode='P0001'; end if;
- update public.staff_profiles set agreement_accepted_at=coalesce(agreement_accepted_at,now()) where user_id=auth.uid();
+ update public.staff_profiles set agreement_accepted_at=coalesce(agreement_accepted_at,now()),agreement_version=coalesce(agreement_version,'v1-2026-10-30') where user_id=auth.uid();
 end $$;
 
 -- The existing super-admin approval remains the final activation step, but cannot skip the in-person checks for agents.
