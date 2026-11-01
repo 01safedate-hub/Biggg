@@ -11,7 +11,7 @@ export function PickupFollowupActions({ followupId, initialNotes }: { followupId
   function save(next: "confirmed" | "rescheduled" | "skipped") {
     startTransition(async () => {
       const result = await updatePickupFollowup(followupId, next, notes);
-      setMessage(result.ok ? "Call outcome saved." : result.error);
+      setMessage(result.ok ? "Call outcome saved." : (result.error ?? "Could not save the call outcome. Please try again."));
       if (result.ok) setStatus(next);
     });
   }
