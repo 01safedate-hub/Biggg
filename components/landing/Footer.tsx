@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/Logo";
+import Link from "next/link";
 import { MapPin, MessageCircle, Phone } from "lucide-react";
 
 export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsUrl: string | null; whatsapp: string | null; phone: string | null }) {
@@ -26,6 +27,7 @@ export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsU
               <MessageCircle className="h-4 w-4" aria-hidden />Chat on WhatsApp
             </a>
           )}
+          <Link href="/privacy" className="hover:text-white hover:underline">Privacy Policy</Link>
         </div>
       </div>
       <div className="border-t border-slate-700 py-4 text-center text-xs text-slate-400">
