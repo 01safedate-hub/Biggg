@@ -16,7 +16,7 @@ export default async function CustomerDashboardPage() {
   const actions = [
     { number: "01", title: "My orders", description: "Track laundry in progress and revisit previous orders.", href: "/orders", label: "View orders" },
     { number: "02", title: "Book a pickup", description: "Schedule a collection that fits your day.", href: "/request", label: "Schedule pickup" },
-    { number: "03", title: "Monthly plans", description: "Review your allowance and manage your plan.", href: "/subscriptions", label: "Manage plan" },
+    { number: "03", title: "Monthly plans", description: "Review your allowance and manage your plan.", href: subscription?.status === "active" ? "/subscriptions/manage" : "/subscriptions", label: subscription?.status === "active" ? "Manage subscription" : "Choose a plan" },
     { number: "04", title: "Extra-clothes bills", description: "See additional pieces and pay outstanding bills online.", href: "/account/extra-clothes", label: "View bills" },
     { number: "05", title: "My account", description: "Update your profile and collection address.", href: "/account", label: "Account settings" },
   ];
