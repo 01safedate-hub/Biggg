@@ -27,7 +27,7 @@ Never hard-code a town in public headings, never describe delivery as free, say 
 ## Email
 All email goes through Resend. Sign-up and password-reset emails use a Supabase "Send Email" auth hook that calls the
 `auth-email` edge function (sent instantly). Order, waitlist and demurrage emails are queued in `email_outbox` and sent by
-`email-worker` every 5 minutes. Edge function secrets: `RESEND_API_KEY`, `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET`, optional `EMAIL_REPLY_TO`.
+`email-worker` every 5 minutes. Edge function secrets: `RESEND_API` (or `RESEND_API_KEY`), `EMAIL_FROM`, `SEND_EMAIL_HOOK_SECRET`, optional `EMAIL_REPLY_TO`. The default sender is `LaundryPoint <noreply@laundrypoint.app>`; configure `EMAIL_FROM` to that exact value in Supabase if the secret is already set to another sender. The `laundrypoint.app` domain must be verified in Resend before customer delivery will work.
 
 
 ## Database copies and tests
