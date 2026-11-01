@@ -77,12 +77,29 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: auth } },
     auth: { persistSession: false },
   });
+  const rpcName = purpose === "subscription"
+    ? "create_subscription_payment_intent"
+    : purpose === "extra_clothes"
+      ? "create_extra_clothes_payment_intent"
+      : "create_payment_intent";
   const { data, error } = purpose === "subscription"
     ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })
     : purpose === "extra_clothes"
       ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })
       : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
-  if (error) return json(400, { error: error.message }, origin);
+  if (error) {
+    // Capture the database rejection reason for diagnosis without logging customer details or secrets.
+    console.error("Payment intent RPC rejected", {
+      rpc: rpcName,
+      provider,
+      purpose,
+      code: error.code ?? null,
+      message: error.message,
+      details: error.details ?? null,
+      hint: error.hint ?? null,
+    });
+    return json(400, { error: error.message, code: error.code ?? null }, origin);
+  }
 
   const i = data as {
     reference: string;
