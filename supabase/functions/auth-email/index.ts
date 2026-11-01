@@ -3,11 +3,11 @@
 // Auth emails are sent immediately (not through the 5-minute outbox) because people are waiting on them.
 import { Webhook } from "npm:standardwebhooks@1.0.0";
 
-const FROM = Deno.env.get("EMAIL_FROM") ?? "LaundryPoint <onboarding@resend.dev>";
+const FROM = Deno.env.get("EMAIL_FROM") ?? "LaundryPoint <noreply@laundrypoint.app>";
 const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") ?? undefined;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
 const HOOK_SECRET = (Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "").replace("v1,whsec_", "");
-const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
+const RESEND_KEY = Deno.env.get("RESEND_API_KEY") ?? Deno.env.get("RESEND_API");
 
 type Payload = {
   user: { email: string; new_email?: string };
