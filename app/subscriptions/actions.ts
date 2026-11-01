@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function updateSubscriptionCancellation(formData: FormData) {
   const subscriptionId = String(formData.get("subscription_id") ?? "");
   const cancelAtPeriodEnd = String(formData.get("cancel_at_period_end") ?? "") === "true";
-  if (!subscriptionId) redirect("/subscriptions?notice=subscription_not_found");
+  if (!subscriptionId) redirect("/subscriptions/manage?notice=subscription_not_found");
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,8 +24,8 @@ export async function updateSubscriptionCancellation(formData: FormData) {
     .select("id")
     .maybeSingle();
 
-  if (error || !data) redirect("/subscriptions?notice=subscription_update_failed");
+  if (error || !data) redirect("/subscriptions/manage?notice=subscription_update_failed");
   revalidatePath("/subscriptions");
   revalidatePath("/dashboard");
-  redirect(cancelAtPeriodEnd ? "/subscriptions?notice=cancellation_scheduled" : "/subscriptions?notice=cancellation_reversed");
+  redirect(cancelAtPeriodEnd ? "/subscriptions/manage?notice=cancellation_scheduled" : "/subscriptions/manage?notice=cancellation_reversed");
 }
