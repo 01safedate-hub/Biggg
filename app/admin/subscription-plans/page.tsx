@@ -1,6 +1,7 @@
 import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
 import { createPlan, updatePlan } from "./actions";
+import { CategoryLimitsEditor } from "@/components/admin/CategoryLimitsEditor";
 
 export const metadata = { title: "Subscription plans" };
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function AdminSubscriptionPlansPage() {
           <label className="block text-sm font-medium">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required placeholder="25" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required placeholder="15000" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required placeholder="10" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
-          <label className="block text-sm font-medium sm:col-span-2">Category limits (JSON)<textarea name="category_limits" rows={3} defaultValue="{}" required className="input mt-1 w-full" placeholder='{"tops":30,"bottoms":20}' /><span className="mt-1 block text-xs text-ink-soft">Optional category caps across the billing period. Use category slugs as keys; omitted categories remain uncapped.</span></label>
+          <CategoryLimitsEditor />
           <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"><input type="checkbox" name="active" defaultChecked className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Active for sale</label>
         </div>
         <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Create plan</button></div>
@@ -40,7 +41,7 @@ export default async function AdminSubscriptionPlansPage() {
         <label className="text-sm">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required defaultValue={plan.weekly_allowance} className="input mt-1 w-full" /></label>
         <label className="text-sm">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required defaultValue={plan.overage_price_kobo} className="input mt-1 w-full" /></label>
         <label className="text-sm">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
-        <label className="text-sm sm:col-span-2 lg:col-span-3">Category limits (JSON)<textarea name="category_limits" rows={3} required defaultValue={JSON.stringify(plan.category_limits ?? {}, null, 2)} className="input mt-1 w-full" placeholder='{"tops":30,"bottoms":20}' /><span className="mt-1 block text-xs text-ink-soft">Use category slugs; omitted categories remain uncapped. Limits apply cumulatively within the billing period.</span></label>
+        <CategoryLimitsEditor initial={plan.category_limits ?? {}} />
       </div>
       <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Save plan</button></div>
     </form>)}
