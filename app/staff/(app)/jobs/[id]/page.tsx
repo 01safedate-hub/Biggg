@@ -21,7 +21,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
-    supabase.from("item_categories").select("id,name").eq("active", true).order("sort_order").order("name"),
+    supabase.from("item_categories").select("id,name,slug").eq("active", true).order("sort_order").order("name"),
     supabase.from("items").select("id,name,price_kobo,category_id").eq("active", true).order("sort_order").order("name"),
   ]);
   const initial: Record<string, number> = {};
