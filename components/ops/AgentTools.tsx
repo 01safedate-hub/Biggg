@@ -28,11 +28,10 @@ export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I hav
 }
 
 type Item = { id: string; name: string; price_kobo: number; category_id: string; description?: string | null };
-type Cat = { id: string; name: string };
-function categorySlug(name: string): string {
-  const key = name.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, " ").trim();
-  const known: Record<string, string> = { tops: "tops", top: "tops", bottoms: "bottoms", "native wear": "native-wear", "suits and formal": "suits-formal", "suits formal": "suits-formal", "bedding and home": "bedding-home", "underwear and sleepwear": "underwear-sleepwear", "uniforms and workwear": "uniforms-workwear", accessories: "accessories", "footwear and bags": "footwear-bags" };
-  return known[key] ?? key.replace(/\s+/g, "-");
+type Cat = { id: string; name: string; slug?: string };
+function categorySlug(category: Cat): string {
+  if (category.slug) return category.slug;
+  return category.name.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 type InstantCfg = { perItemKobo: number };
 
@@ -129,7 +128,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
     for (const item of items) {
       const category = cats.find((c) => c.id === item.category_id);
       if (!category) continue;
-      const slug = categorySlug(category.name);
+      const slug = categorySlug(category);
       totals[slug] = (totals[slug] ?? 0) + (qty[item.id] ?? 0);
     }
     return totals;
@@ -161,7 +160,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
         return (
           <section key={c.id} className="card p-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-mute">{c.name}</h3>
-            {subscription && (() => { const slug = categorySlug(c.name); const used = categoryCounts[slug] ?? 0; const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); return <div className={`mt-2 rounded-md border p-2 text-xs ${hasLimit && used > limit ? "border-red-300 bg-red-50 text-red-800" : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{hasLimit ? <> · Category limit: {limit} · {Math.max(0, limit - used)} remaining{used > limit ? <strong> · {used - limit} over limit</strong> : null}</> : " · No separate category limit; total plan allowance applies"}</div>; })()}
+            {subscription && (() => { const slug = categorySlug(c); const used = categoryCounts[slug] ?? 0; const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); return <div className={`mt-2 rounded-md border p-2 text-xs ${hasLimit && used > limit ? "border-red-300 bg-red-50 text-red-800" : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{hasLimit ? <> · Category limit: {limit} · {Math.max(0, limit - used)} remaining{used > limit ? <strong> · {used - limit} over limit</strong> : null}</> : " · No separate category limit; total plan allowance applies"}</div>; })()}
             <ul className="mt-2 divide-y divide-line">
               {list.map((i) => (
                 <li key={i.id} className="py-2">
