@@ -30,9 +30,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,subscription_id").eq("id", o.subscription_pickup_id).maybeSingle()
     : { data: null };
   const { data: subscriptionPlan } = subscriptionPickup?.subscription_id
-    ? await (supabase as any).from("subscriptions").select("plans(category_limits,pieces_per_month,name)").eq("id", subscriptionPickup.subscription_id).maybeSingle()
+    ? await (supabase as any).from("subscriptions").select("plan_id").eq("id", subscriptionPickup.subscription_id).maybeSingle()
     : { data: null };
-  const planInfo = Array.isArray(subscriptionPlan?.plans) ? subscriptionPlan.plans[0] : subscriptionPlan?.plans;
+  // Read limits directly from the subscribed plan instead of relying on a nested
+  // PostgREST relationship that may return an empty relation on the staff page.
+  const { data: planInfo } = subscriptionPlan?.plan_id
+    ? await (supabase as any).from("plans").select("id,name,pieces_per_month,category_limits").eq("id", subscriptionPlan.plan_id).maybeSingle()
+    : { data: null };
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
