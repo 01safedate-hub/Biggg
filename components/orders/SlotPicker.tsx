@@ -16,7 +16,7 @@ function dayLabel(offset: number, iso: string): string {
   return new Date(`${iso}T12:00:00+01:00`).toLocaleDateString("en-NG", { weekday: "short", day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 }
 
-/** Lets the customer choose a one-hour window. Used when booking and when changing the time. */
+/** Lets the customer choose a preferred one-hour pickup window. */
 export function SlotPicker({ value, onChange, days = 8 }: { value: string | null; onChange: (slot: string | null) => void; days?: number }) {
   const [offset, setOffset] = useState(0);
   const [slots, setSlots] = useState<Slot[] | null>(null);
@@ -43,22 +43,22 @@ export function SlotPicker({ value, onChange, days = 8 }: { value: string | null
       </div>
       {err && <p role="alert" className="text-sm text-red-700">{err}</p>}
       {slots === null && !err && <p className="text-sm text-ink-soft">Loading times</p>}
-      {slots && slots.length === 0 && <p className="text-sm text-ink-soft">No times are left on this day. Try another day.</p>}
+      {slots && slots.length === 0 && <p className="text-sm text-ink-soft">No pickup times are configured for this day. Please try another day.</p>}
       {slots && slots.length > 0 && (
         <div role="radiogroup" aria-label="Pickup time" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {slots.map((s) => {
-            const full = s.remaining <= 0;
             const on = value === s.start;
             return (
-              <button key={s.start} type="button" role="radio" aria-checked={on} disabled={full} onClick={() => onChange(s.start)}
-                className={`rounded-md border px-3 py-2 text-left text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line"} ${full ? "cursor-not-allowed text-ink-mute line-through" : "hover:border-brand"}`}>
+              <button key={s.start} type="button" role="radio" aria-checked={on} onClick={() => onChange(s.start)}
+                className={`rounded-md border px-3 py-2 text-left text-sm ${on ? "border-brand bg-brand-tint font-semibold text-brand-dark" : "border-line hover:border-brand"}`}>
                 {s.label}
-                <span className="block text-xs font-normal text-ink-mute">{full ? "Full" : s.remaining <= 2 ? `${s.remaining} left` : "Available"}</span>
+                <span className="block text-xs font-normal text-ink-mute">Preferred time</span>
               </button>
             );
           })}
         </div>
       )}
+      <p className="text-xs text-ink-soft">Choose the time that works for you. Your request will be created for agent assignment.</p>
     </div>
   );
 }
