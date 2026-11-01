@@ -4,7 +4,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const BATCH = 80;
-const FROM = Deno.env.get("EMAIL_FROM") ?? "LaundryPoint <onboarding@resend.dev>";
+const FROM = Deno.env.get("EMAIL_FROM") ?? "LaundryPoint <noreply@laundrypoint.app>";
 const REPLY_TO = Deno.env.get("EMAIL_REPLY_TO") ?? undefined;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
 const LOGO = `${SITE}/brand/icon/192.png`;
@@ -133,8 +133,8 @@ Deno.serve(async (req) => {
   const { data: ok } = await db.rpc("verify_worker_secret", { _s: secret });
   if (ok !== true) return new Response("unauthorized", { status: 401 });
 
-  const key = Deno.env.get("RESEND_API_KEY");
-  if (!key) return Response.json({ error: "RESEND_API_KEY is not set" }, { status: 500 });
+  const key = Deno.env.get("RESEND_API_KEY") ?? Deno.env.get("RESEND_API");
+  if (!key) return Response.json({ error: "Set RESEND_API (or RESEND_API_KEY) in Supabase Edge Function secrets" }, { status: 500 });
 
   const { data: rows, error } = await db.rpc("claim_email_batch", { _n: BATCH });
   if (error) return Response.json({ error: error.message }, { status: 500 });
