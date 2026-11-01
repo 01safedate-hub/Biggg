@@ -1904,6 +1904,7 @@ export type Database = {
           active: boolean
           blurb: string | null
           created_at: string
+          category_limits: Json
           id: string
           monthly_price_kobo: number
           name: string
@@ -1919,6 +1920,7 @@ export type Database = {
           active?: boolean
           blurb?: string | null
           created_at?: string
+          category_limits?: Json
           id?: string
           monthly_price_kobo: number
           name: string
@@ -1934,6 +1936,7 @@ export type Database = {
           active?: boolean
           blurb?: string | null
           created_at?: string
+          category_limits?: Json
           id?: string
           monthly_price_kobo?: number
           name?: string

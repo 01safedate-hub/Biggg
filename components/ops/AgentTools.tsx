@@ -28,7 +28,11 @@ export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I hav
 }
 
 type Item = { id: string; name: string; price_kobo: number; category_id: string; description?: string | null };
-type Cat = { id: string; name: string };
+type Cat = { id: string; name: string; slug?: string };
+function categorySlug(category: Cat): string {
+  if (category.slug) return category.slug;
+  return category.name.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 type InstantCfg = { perItemKobo: number };
 
 function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription, busy, onCancel, onOk }: {
@@ -106,8 +110,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {} }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -119,6 +123,17 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const [err, setErr] = useState<string | null>(null);
   const total = useMemo(() => items.reduce((s, i) => s + (qty[i.id] ?? 0) * Number(i.price_kobo), 0), [items, qty]);
   const count = Object.values(qty).reduce((s, n) => s + n, 0);
+  const categoryCounts = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const item of items) {
+      const category = cats.find((c) => c.id === item.category_id);
+      if (!category) continue;
+      const slug = categorySlug(category);
+      totals[slug] = (totals[slug] ?? 0) + (qty[item.id] ?? 0);
+    }
+    return totals;
+  }, [items, cats, qty]);
+
   const instCount = items.reduce((s, i) => s + Math.min(inst[i.id] ?? 0, qty[i.id] ?? 0), 0);
   const instantFee = (instant?.perItemKobo ?? 0) * instCount;
   const set = (id: string, n: number) => { const v = Math.max(0, Math.min(200, n)); setQty((p) => ({ ...p, [id]: v })); setInst((p) => (p[id] > v ? { ...p, [id]: v } : p)); };
@@ -145,11 +160,13 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
         return (
           <section key={c.id} className="card p-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-mute">{c.name}</h3>
+            {subscription && (() => { const slug = categorySlug(c); const used = categoryCounts[slug] ?? 0; const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); return <div className={`mt-2 rounded-md border p-2 text-xs ${hasLimit && used > limit ? "border-red-300 bg-red-50 text-red-800" : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{hasLimit ? (limit === 0 ? <> · <strong>Not included — every piece is chargeable</strong></> : <> · Included cap: {limit} · {Math.max(0, limit - used)} remaining{used > limit ? <strong> · {used - limit} over cap</strong> : null}</>) : " · No separate category cap; overall plan allowance applies"}</div>; })()}
             <ul className="mt-2 divide-y divide-line">
               {list.map((i) => (
                 <li key={i.id} className="py-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? "Garment count · included in monthly allowance" : `${naira(Number(i.price_kobo))} each`}</p></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(cats.find((c) => c.id === i.category_id) ?? { id: "", name: "uncategorized" })) && Number(categoryLimits[categorySlug(cats.find((c) => c.id === i.category_id) ?? { id: "", name: "uncategorized" })]) === 0 ? "Excluded from plan · charged per piece" : "Garment count · subject to category and total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
+</div>
                     <div className="flex items-center gap-2">
                       <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>
                       <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{qty[i.id] ?? 0}</span>

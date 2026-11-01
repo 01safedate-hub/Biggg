@@ -27,8 +27,13 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
   const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
-    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
+    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,subscription_id").eq("id", o.subscription_pickup_id).maybeSingle()
     : { data: null };
+  const { data: subscriptionPlan } = subscriptionPickup?.subscription_id
+    ? await (supabase as any).from("subscriptions").select("plans(category_limits,pieces_per_month,name)").eq("id", subscriptionPickup.subscription_id).maybeSingle()
+    : { data: null };
+  const planInfo = Array.isArray(subscriptionPlan?.plans) ? subscriptionPlan.plans[0] : subscriptionPlan?.plans;
+  const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
   if (delivering) {
@@ -59,10 +64,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p>
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
       <AgentPickupMap agentId={user.id} orderId={id} />
-      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category, regardless of clothing type. The monthly allowance is based on total pieces, and excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
+      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category. Follow the category caps and total-piece allowance shown below; excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">{o.source === "subscription" ? "3. Garment count submitted" : "3. Waiting for the customer to pay"}</h2>
