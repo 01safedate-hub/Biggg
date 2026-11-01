@@ -70,7 +70,6 @@ export default async function PrivacyPolicyPage() {
           <section><h2 className="text-xl font-semibold text-ink">13. Contact us</h2>
             <p className="mt-2">For privacy questions or requests, contact LaundryPoint using the phone number or WhatsApp contact shown in the website footer. You can also visit our hub using the “Visit us on Google Maps” link when available. Please state your request clearly and do not send passwords or full payment-card details.</p>
           </section>
-          <p className="rounded-xl border border-line p-4">This page is general privacy information, not legal advice. Before publication, LaundryPoint should confirm its official privacy contact, retention schedule, processor arrangements and operational practices match this policy.</p>
         </div>
       </main>
       <Footer name={b.name} mapsUrl={mapsUrl} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />
