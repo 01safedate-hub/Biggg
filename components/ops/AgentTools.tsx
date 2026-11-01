@@ -106,8 +106,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {} }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -119,6 +119,17 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const [err, setErr] = useState<string | null>(null);
   const total = useMemo(() => items.reduce((s, i) => s + (qty[i.id] ?? 0) * Number(i.price_kobo), 0), [items, qty]);
   const count = Object.values(qty).reduce((s, n) => s + n, 0);
+  const categoryCounts = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const item of items) {
+      const category = cats.find((c) => c.id === item.category_id);
+      if (!category) continue;
+      const slug = category.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      totals[slug] = (totals[slug] ?? 0) + (qty[item.id] ?? 0);
+    }
+    return totals;
+  }, [items, cats, qty]);
+
   const instCount = items.reduce((s, i) => s + Math.min(inst[i.id] ?? 0, qty[i.id] ?? 0), 0);
   const instantFee = (instant?.perItemKobo ?? 0) * instCount;
   const set = (id: string, n: number) => { const v = Math.max(0, Math.min(200, n)); setQty((p) => ({ ...p, [id]: v })); setInst((p) => (p[id] > v ? { ...p, [id]: v } : p)); };
@@ -149,7 +160,13 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
               {list.map((i) => (
                 <li key={i.id} className="py-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? "Garment count · included in monthly allowance" : `${naira(Number(i.price_kobo))} each`}</p></div>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? "Garment count · included in monthly allowance" : `${naira(Number(i.price_kobo))} each`}</p>
+                    {subscription && Object.prototype.hasOwnProperty.call(categoryLimits, cats.find((cat) => cat.id === i.category_id)?.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "") && (() => {
+                      const slug = cats.find((cat) => cat.id === i.category_id)?.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ?? "";
+                      const limit = categoryLimits[slug];
+                      const used = categoryCounts[slug] ?? 0;
+                      return <p className={`mt-1 text-xs font-medium ${used > limit ? "text-red-700" : "text-amber-800"}`}>Category cap: {limit} pieces · {used} counted · {Math.max(0, limit - used)} remaining{used > limit ? ` · ${used - limit} over cap` : ""}</p>;
+                    })()}</div>
                     <div className="flex items-center gap-2">
                       <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>
                       <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{qty[i.id] ?? 0}</span>
