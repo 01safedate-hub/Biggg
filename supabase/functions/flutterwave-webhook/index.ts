@@ -13,8 +13,18 @@ function same(a: string, b: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method !== "POST" || !HASH || !SECRET) return new Response("no", { status: 405 });
-  if (!same(req.headers.get("verif-hash") ?? "", HASH)) return new Response("bad hash", { status: 401 });
+  if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+  if (!HASH || !SECRET) {
+    console.error("Flutterwave webhook configuration missing", {
+      webhookHashConfigured: Boolean(HASH),
+      secretKeyConfigured: Boolean(SECRET),
+    });
+    return new Response("webhook configuration missing", { status: 500 });
+  }
+  if (!same(req.headers.get("verif-hash") ?? "", HASH)) {
+    console.error("Flutterwave webhook rejected: verif-hash mismatch or missing");
+    return new Response("unauthorized", { status: 401 });
+  }
   // deno-lint-ignore no-explicit-any
   let ev: { event?: string; data?: any };
   try { ev = await req.json(); } catch { return new Response("bad json", { status: 400 }); }
@@ -28,13 +38,35 @@ Deno.serve(async (req) => {
     return error ? new Response(error.message, { status: 400 }) : new Response("ok", { status: 200 });
   }
   const ref = ev.data?.tx_ref;
-  if (ev.event !== "charge.completed" || !ref) return new Response("ignored", { status: 200 });
+  if (ev.event !== "charge.completed" || !ref) {
+    console.log("Flutterwave webhook event ignored", { event: String(ev.event ?? "unknown"), hasReference: Boolean(ref) });
+    return new Response("ignored", { status: 200 });
+  }
 
-  const v = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(ref)}`, { headers: { Authorization: `Bearer ${SECRET}` } });
-  const j = await v.json().catch(() => null);
-  if (!v.ok || j?.data?.status !== "successful" || j.data.currency !== "NGN" || j.data.tx_ref !== ref) return new Response("not successful", { status: 200 });
+  let v: Response;
+  let j: any;
+  try {
+    v = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(ref)}`, { headers: { Authorization: `Bearer ${SECRET}` } });
+    j = await v.json().catch(() => null);
+  } catch (error) {
+    console.error("Flutterwave transaction verification request failed", String(error));
+    return new Response("verification unavailable", { status: 502 });
+  }
+  if (!v.ok || j?.data?.status !== "successful" || j.data.currency !== "NGN" || j.data.tx_ref !== ref) {
+    console.error("Flutterwave transaction verification did not confirm payment", {
+      httpStatus: v.status,
+      providerStatus: j?.data?.status ?? null,
+      currency: j?.data?.currency ?? null,
+      referenceMatched: j?.data?.tx_ref === ref,
+    });
+    return new Response("payment not verified", { status: 400 });
+  }
 
   const { error } = await db.rpc("settle_online_payment", { _reference: ref, _provider: "flutterwave", _amount_kobo: Math.round(Number(j.data.amount) * 100) });
-  if (error) return new Response(error.message, { status: 400 });
+  if (error) {
+    console.error("Flutterwave verified payment could not be settled in LaundryPoint", { message: error.message });
+    return new Response("payment settlement failed", { status: 500 });
+  }
+  console.log("Flutterwave payment verified and settlement recorded");
   return new Response("ok", { status: 200 });
 });
