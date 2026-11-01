@@ -82,8 +82,12 @@ begin
               and prior.scheduled_for < _sub.current_period_end
               and prior.status not in ('missed','skipped')
          );
-      _category_overage := _category_overage + greatest(0, _line.qty + _category_used - _category_limit);
-      _included_pieces := _included_pieces + least(_line.qty, greatest(0, _category_limit - _category_used));
+      if _category_limit = 0 then
+        null; -- Excluded pieces are counted separately below.
+      else
+        _category_overage := _category_overage + greatest(0, _line.qty + _category_used - _category_limit);
+        _included_pieces := _included_pieces + least(_line.qty, greatest(0, _category_limit - _category_used));
+      end if;
     else
       _included_pieces := _included_pieces + _line.qty;
     end if;
