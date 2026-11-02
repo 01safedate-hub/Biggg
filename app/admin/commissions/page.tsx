@@ -1,10 +1,9 @@
 import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 export const metadata={title:"Commission management"}; export const dynamic="force-dynamic";
 async function reviewAction(formData:FormData){ "use server"; const {supabase}=await requireRole(["super_admin"]); await supabase.rpc("review_commission",{_commission:String(formData.get("commission_id")||""),_decision:String(formData.get("decision")||""),_note:String(formData.get("note")||"")||null}); revalidatePath("/admin/commissions");}
-async function rulesAction(formData:FormData){ "use server"; const {supabase}=await requireRole(["super_admin"]); const {error}=await supabase.rpc("update_commission_rules",{_staff_rate:Number(formData.get("staff_rate"))/100,_commission_only_rate:Number(formData.get("commission_only_rate"))/100}); if(error) redirect("/admin/commissions?notice=rules_failed"); revalidatePath("/admin/commissions"); redirect("/admin/commissions?notice=rules_saved");}
+async function rulesAction(formData:FormData){ "use server"; const {supabase}=await requireRole(["super_admin"]); await supabase.rpc("update_commission_rules",{_staff_rate:Number(formData.get("staff_rate"))/100,_commission_only_rate:Number(formData.get("commission_only_rate"))/100}); revalidatePath("/admin/commissions");}
 async function payoutAction(formData:FormData){ "use server"; const {supabase}=await requireRole(["super_admin"]); const action=String(formData.get("action")||""); if(action==="create") await supabase.rpc("create_commission_payout",{_agent:String(formData.get("agent_id")||""),_from:String(formData.get("period_start")||""),_to:String(formData.get("period_end")||""),_note:String(formData.get("note")||"")||null}); else await supabase.rpc("update_commission_payout",{_payout:String(formData.get("payout_id")||""),_action:action,_method:String(formData.get("payment_method")||"")||null,_reference:String(formData.get("payment_reference")||"")||null,_note:String(formData.get("note")||"")||null}); revalidatePath("/admin/commissions");}
 const money=(v:number)=>naira(Number(v)||0); const day=(v:string)=>new Intl.DateTimeFormat("en-GB",{timeZone:"Africa/Lagos",day:"numeric",month:"short",year:"numeric"}).format(new Date(v));
 export default async function CommissionsAdmin(){
