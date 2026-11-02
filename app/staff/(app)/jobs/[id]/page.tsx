@@ -27,9 +27,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
-  const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
-    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,subscription_id").eq("id", o.subscription_pickup_id).maybeSingle()
+  const { data: subscriptionPickupRows } = o.source === "subscription" && o.subscription_pickup_id
+    ? await (supabase as any).rpc("agent_subscription_pickup_summary", { p_order_id: id })
     : { data: null };
+  const subscriptionPickup = Array.isArray(subscriptionPickupRows) ? subscriptionPickupRows[0] ?? null : subscriptionPickupRows;
   // The RPC validates the agent's assignment and returns only the plan rules
   // and usage required for this pickup. Agents do not need direct subscription access.
   const { data: planInfo } = o.source === "subscription"
