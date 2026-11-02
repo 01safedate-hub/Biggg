@@ -150,11 +150,11 @@ begin
            _included_pieces := _included_pieces + least(_line.qty, greatest(0, _category_limit - _category_used)); end if;
     else _included_pieces := _included_pieces + _line.qty; end if;
   end loop;
-  select coalesce(sum(_line.qty), 0)::integer into _excluded_pieces from (
+  select coalesce(sum(excluded_line.qty), 0)::integer into _excluded_pieces from (
     select lower(regexp_replace(coalesce(ic.slug, oi.category_name, 'uncategorized'), '[^a-z0-9]+', '-', 'g')) as category_key, sum(oi.qty)::integer as qty
       from public.order_items oi left join public.items i on i.id = oi.item_id left join public.item_categories ic on ic.id = i.category_id
      where oi.order_id = new.id and oi.removed_at is null group by 1
-  ) _line where _plan.category_limits ? _line.category_key and coalesce((_plan.category_limits ->> _line.category_key)::integer, 0) = 0;
+  ) excluded_line where _plan.category_limits ? excluded_line.category_key and coalesce((_plan.category_limits ->> excluded_line.category_key)::integer, 0) = 0;
   _total_overage := greatest(0, _included_pieces - _available);
   _overage := _excluded_pieces + _category_overage + _total_overage;
   _price := greatest(0, coalesce(_plan.overage_price_kobo,0));
