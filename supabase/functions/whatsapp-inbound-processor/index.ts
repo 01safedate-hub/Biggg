@@ -11,7 +11,7 @@ function json(body: unknown, status = 200) {
 }
 function normPhone(value: string) { return value.replace(/\D/g, ""); }
 function needsHuman(text: string) {
-  return /\\b(human|agent|secretary|staff|complain|complaint|refund|dispute|manager|speak to someone|talk to someone|wrong charge|overcharged|damaged|missing clothes|lost clothes|missed pickup|pickup did not arrive|pickup hasn't arrived|missed delivery|delivery did not arrive)\\b/i.test(text);
+  return /\b(human|agent|secretary|staff|complain|complaint|refund|dispute|manager|speak to someone|talk to someone|wrong charge|overcharged|damaged|missing clothes|lost clothes|missed pickup|pickup did not arrive|pickup hasn't arrived|missed delivery|delivery did not arrive)\b/i.test(text);
 }
 function isStop(text: string) { return /^\s*(stop|unsubscribe|opt\s*out)\s*$/i.test(text); }
 
