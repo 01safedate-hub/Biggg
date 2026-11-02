@@ -26,15 +26,27 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
 
   let usedPieces = 0;
   let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; order_id: string | null }[] = [];
-  if (active?.id) {
-    const [{ data: pickupRows }, { data: counts }] = await Promise.all([
-      supabase.from("subscription_pickups").select("id,scheduled_for,status,pieces_counted,order_id").eq("subscription_id", active.id).gte("scheduled_for", active.current_period_start ?? new Date().toISOString()).lt("scheduled_for", active.current_period_end ?? "9999-12-31").order("scheduled_for"),
-      supabase.from("subscription_pickups").select("pieces_counted").eq("subscription_id", active.id).gte("scheduled_for", active.current_period_start ?? new Date().toISOString()).lt("scheduled_for", active.current_period_end ?? "9999-12-31").not("status", "in", '("missed","skipped")'),
-    ]);
-    pickups = pickupRows ?? [];
-    usedPieces = (counts ?? []).reduce((sum, pickup) => sum + Number(pickup.pieces_counted ?? 0), 0);
-  }
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
+  if (active?.id) {
+    const { data: pickupRows, error: pickupError } = await supabase
+      .from("subscription_pickups")
+      .select("id,scheduled_for,status,pieces_counted,order_id")
+      .eq("subscription_id", active.id)
+      .gte("scheduled_for", active.current_period_start ?? new Date().toISOString())
+      .lt("scheduled_for", active.current_period_end ?? "9999-12-31")
+      .order("scheduled_for");
+    if (!pickupError) pickups = pickupRows ?? [];
+
+    // Use the persisted overage figure as the authoritative billing result.
+    // Reconstruct allowance usage from recorded total minus separately chargeable pieces.
+    usedPieces = pickups
+      .filter((pickup) => !["missed", "skipped"].includes(pickup.status))
+      .reduce((sum, pickup) => {
+        const recorded = Number(pickup.pieces_counted ?? 0);
+        const separatelyChargeable = Number(pickup.overage_pieces ?? 0);
+        return sum + Math.max(0, recorded - separatelyChargeable);
+      }, 0);
+  }
   const allowance = Number(activePlan?.pieces_per_month ?? 0);
   const remaining = Math.max(0, allowance - usedPieces);
 
@@ -49,13 +61,13 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
           <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-ink-mute">CURRENT SUBSCRIPTION</p><h2 className="mt-2 text-2xl font-bold">{activePlan.name}</h2><p className="mt-1 text-sm text-ink-soft">Status: {active.status === "active" ? "Active" : "Awaiting payment"}</p></div><p className="text-xl font-bold">{naira(Number(active.price_kobo ?? activePlan.monthly_price_kobo))}<span className="text-sm font-normal text-ink-soft"> / billing period</span></p></div>
           <div className="grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-canvas p-4"><p className="text-xs text-ink-mute">Allowance used</p><p className="mt-1 text-lg font-semibold">{usedPieces} / {allowance}</p></div><div className="rounded-xl bg-canvas p-4"><p className="text-xs text-ink-mute">Pieces remaining</p><p className="mt-1 text-lg font-semibold">{remaining}</p></div><div className="rounded-xl bg-canvas p-4"><p className="text-xs text-ink-mute">Current period ends</p><p className="mt-1 text-lg font-semibold">{date(active.current_period_end)}</p></div></div>
           <div className="h-2 overflow-hidden rounded-full bg-canvas"><div className="h-full rounded-full bg-brand" style={{ width: `${allowance > 0 ? Math.min(100, usedPieces / allowance * 100) : 0}%` }} /></div>
-          <p className="text-sm text-ink-soft">Your allowance is shared across up to two pickups in the billing period. Extra pieces are recorded separately by staff.</p>
+          <p className="text-sm text-ink-soft">Your allowance counts eligible pieces only. Excluded categories, category-cap excess and pieces above the monthly allowance are charged separately.</p>
           {active.status === "active" ? <div className="rounded-xl border border-line p-4">
             {active.cancel_at_period_end ? <div className="space-y-3"><p className="text-sm font-medium">Cancellation is scheduled for {date(active.current_period_end)}. Your subscription remains active until then.</p><form action={updateSubscriptionCancellation}><input type="hidden" name="subscription_id" value={active.id} /><input type="hidden" name="cancel_at_period_end" value="false" /><button className="btn-secondary" type="submit">Keep my subscription</button></form></div> : <div className="space-y-3"><div><h3 className="font-semibold">Cancellation settings</h3><p className="mt-1 text-sm text-ink-soft">You can schedule cancellation for the end of this period. This does not cancel the current period or issue a refund.</p></div><form action={updateSubscriptionCancellation}><input type="hidden" name="subscription_id" value={active.id} /><input type="hidden" name="cancel_at_period_end" value="true" /><button className="btn-secondary" type="submit">Schedule cancellation</button></form></div>}
           </div> : <p className="text-sm text-ink-soft">Complete the subscription payment to activate plan benefits.</p>}
         </section> : <section className="card space-y-2 p-5"><h2 className="text-xl font-semibold">No active subscription</h2><p className="text-sm text-ink-soft">Browse the available plans to get started. Your previous subscription history remains available further down this page.</p></section>}
 
-        {active ? <section className="card space-y-3 p-5"><div><h2 className="text-xl font-semibold">Pickup schedule</h2><p className="text-sm text-ink-soft">Your scheduled subscription pickups and recorded clothing counts.</p></div>{pickups.length ? <div className="divide-y divide-line">{pickups.map((pickup) => <div key={pickup.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{date(pickup.scheduled_for)}</p><p className="text-xs text-ink-soft">{pickup.pieces_counted ?? 0} pieces recorded{pickup.order_id ? " · Order linked" : " · Pickup request pending"}</p></div><span className="rounded-full bg-canvas px-3 py-1 text-xs font-medium capitalize">{pickup.status.replaceAll("_", " ")}</span></div>)}</div> : <p className="text-sm text-ink-soft">No pickups are scheduled for this billing period yet.</p>}<Link href="/request" className="btn-secondary inline-block">Request a pickup</Link></section> : null}
+        {active ? <section className="card space-y-3 p-5"><div><h2 className="text-xl font-semibold">Pickup schedule</h2><p className="text-sm text-ink-soft">Your scheduled subscription pickups and recorded clothing counts.</p></div>{pickups.length ? <div className="divide-y divide-line">{pickups.map((pickup) => <div key={pickup.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{date(pickup.scheduled_for)}</p><p className="text-xs text-ink-soft">{pickup.pieces_counted ?? 0} total pieces recorded · {pickup.overage_pieces ?? 0} chargeable separately{pickup.order_id ? " · Order linked" : " · Pickup request pending"}</p></div><span className="rounded-full bg-canvas px-3 py-1 text-xs font-medium capitalize">{pickup.status.replaceAll("_", " ")}</span></div>)}</div> : <p className="text-sm text-ink-soft">No pickups are scheduled for this billing period yet.</p>}<Link href="/request" className="btn-secondary inline-block">Request a pickup</Link></section> : null}
 
 
 
