@@ -30,7 +30,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   if (active?.id) {
     const { data: pickupRows, error: pickupError } = await supabase
       .from("subscription_pickups")
-      .select("id,scheduled_for,status,pieces_counted,order_id")
+      .select("id,scheduled_for,status,pieces_counted,overage_pieces,order_id")
       .eq("subscription_id", active.id)
       .gte("scheduled_for", active.current_period_start ?? new Date().toISOString())
       .lt("scheduled_for", active.current_period_end ?? "9999-12-31")
