@@ -49,7 +49,7 @@ function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription
       <div role="dialog" aria-modal="true" aria-labelledby="cc-title" className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-line p-5">
           <h2 id="cc-title" className="text-lg font-semibold">{subscription ? "Confirm garment count" : desk ? "Confirm the count with the customer" : "Send this bill to the customer?"}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{subscription ? "Record every garment, regardless of type. The monthly allowance is applied to the total piece count; excess pieces are billed to the customer online." : desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
+          <p className="mt-1 text-sm text-ink-soft">{subscription ? "Record every garment by category. Excluded categories and pieces above a category cap are charged separately; only eligible pieces use the monthly allowance. Any excess is paid online by the customer. Never collect cash." : desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
         </div>
         <ul className="divide-y divide-line overflow-y-auto px-5 text-sm">
           {lines.map((l) => (
@@ -110,8 +110,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {} }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {}, piecesPerMonth = 0, periodPiecesUsed = 0 }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>; piecesPerMonth?: number; periodPiecesUsed?: number;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -153,14 +153,14 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const term = q.trim().toLowerCase();
   return (
     <div className="space-y-4">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
+      {subscription && <div className="rounded-lg border border-line bg-white p-4"><div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">Monthly plan allowance</h3><span className="text-sm font-semibold tabular-nums">{Math.max(0, piecesPerMonth - periodPiecesUsed)} of {piecesPerMonth} pieces remaining before this pickup</span></div><p className="mt-1 text-xs text-ink-soft">Previous eligible usage: {periodPiecesUsed} pieces. Excluded categories and category-cap excess are billed separately and do not consume this allowance. Final charges are calculated by the system.</p></div>}\n      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
       {cats.map((c) => {
         const list = items.filter((i) => i.category_id === c.id && (!term || i.name.toLowerCase().includes(term)));
         if (!list.length) return null;
         return (
           <section key={c.id} className="card p-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-mute">{c.name}</h3>
-            {subscription && (() => { const slug = categorySlug(c); const used = categoryCounts[slug] ?? 0; const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); const excluded = hasLimit && limit === 0; const capped = hasLimit && limit > 0; return <div className={`mt-2 rounded-md border p-2.5 text-xs ${excluded ? "border-red-300 bg-red-50 text-red-900" : capped ? (used > limit ? "border-amber-400 bg-amber-50 text-amber-950" : "border-amber-200 bg-amber-50/70 text-amber-900") : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{excluded ? <p className="mt-1 font-bold">🔴 NOT INCLUDED IN PLAN — every piece in this category is chargeable.</p> : capped ? <p className="mt-1 font-semibold">🟠 CATEGORY LIMIT: {limit} included pieces per billing period · {Math.max(0, limit - used)} remaining{used > limit ? ` · ${used - limit} piece${used - limit === 1 ? "" : "s"} over the category cap (chargeable)` : ""}</p> : <p className="mt-1">Included under the overall plan allowance; no separate category cap.</p>}</div>; })()}
+            {subscription && (() => { const slug = categorySlug(c); const used = Number(categoryUsage[slug] ?? 0) + (categoryCounts[slug] ?? 0); const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); const excluded = hasLimit && limit === 0; const capped = hasLimit && limit > 0; return <div className={`mt-2 rounded-md border p-2.5 text-xs ${excluded ? "border-red-300 bg-red-50 text-red-900" : capped ? (used > limit ? "border-amber-400 bg-amber-50 text-amber-950" : "border-amber-200 bg-amber-50/70 text-amber-900") : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{excluded ? <p className="mt-1 font-bold">🔴 NOT INCLUDED IN PLAN — every piece in this category is chargeable.</p> : capped ? <p className="mt-1 font-semibold">🟠 CATEGORY LIMIT: {limit} included pieces per billing period · {Math.max(0, limit - used)} remaining{used > limit ? ` · ${used - limit} piece${used - limit === 1 ? "" : "s"} over the category cap (chargeable)` : ""}</p> : <p className="mt-1">Included under the overall plan allowance; no separate category cap.</p>}</div>; })()}
             <ul className="mt-2 divide-y divide-line">
               {list.map((i) => (
                 <li key={i.id} className="py-2">

@@ -11,6 +11,7 @@ import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 
 export const metadata = { title: "Pickup job" };
+export const dynamic = "force-dynamic";
 
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,16 +27,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
-  const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
-    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,subscription_id").eq("id", o.subscription_pickup_id).maybeSingle()
+  const { data: subscriptionPickupRows } = o.source === "subscription" && o.subscription_pickup_id
+    ? await (supabase as any).rpc("agent_subscription_pickup_summary", { p_order_id: id })
     : { data: null };
-  const { data: subscriptionPlan } = subscriptionPickup?.subscription_id
-    ? await (supabase as any).from("subscriptions").select("plan_id").eq("id", subscriptionPickup.subscription_id).maybeSingle()
-    : { data: null };
-  // Read limits directly from the subscribed plan instead of relying on a nested
-  // PostgREST relationship that may return an empty relation on the staff page.
-  const { data: planInfo } = subscriptionPlan?.plan_id
-    ? await (supabase as any).from("plans").select("id,name,pieces_per_month,category_limits").eq("id", subscriptionPlan.plan_id).maybeSingle()
+  const subscriptionPickup = Array.isArray(subscriptionPickupRows) ? subscriptionPickupRows[0] ?? null : subscriptionPickupRows;
+  // The RPC validates the agent's assignment and returns only the plan rules
+  // and usage required for this pickup. Agents do not need direct subscription access.
+  const { data: planInfo } = o.source === "subscription"
+    ? await (supabase as any).rpc("agent_subscription_plan_for_order", { p_order_id: id })
     : { data: null };
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
@@ -71,12 +70,12 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category. Follow the category caps and total-piece allowance shown below; excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">{o.source === "subscription" ? "3. Garment count submitted" : "3. Waiting for the customer to pay"}</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
-          {o.source === "subscription" ? <p className="text-sm text-ink-soft">Pieces counted: {subscriptionPickup?.pieces_counted ?? (lines ?? []).reduce((n, l) => n + l.qty, 0)} · Excess pieces: {subscriptionPickup?.overage_pieces ?? 0} · Extra-clothes amount: {naira(Number(subscriptionPickup?.overage_kobo ?? 0))}</p> : <p className="text-lg font-bold">Bill: {naira(total)}</p>}
+          {o.source === "subscription" ? <p className="text-sm text-ink-soft">Pieces counted: {subscriptionPickup?.pieces_counted ?? (lines ?? []).reduce((n, l) => n + l.qty, 0)} · Chargeable pieces: {subscriptionPickup?.overage_pieces ?? 0} · Extra-clothes amount: {naira(Number(subscriptionPickup?.overage_kobo ?? 0))}</p> : <p className="text-lg font-bold">Bill: {naira(total)}</p>}
           <p className="text-sm text-ink-soft">{o.source === "subscription" ? "The system applies the customer’s monthly allowance. Any excess is paid online by the customer; do not collect cash." : o.source === "online" && !o.count_accepted_at ? "The customer must check and accept this count on their phone first, then pay." : o.count_auto ? "This count is accepted automatically because you brought this client in. They can still pay now." : "The bill is on their phone."} This page updates automatically.</p>
           <ReopenButton orderId={id} />
         </section>
