@@ -128,9 +128,9 @@ Deno.serve(async (req) => {
         if (saveInboundError) throw new Error("conversation_inbound_save_failed");
       }
       // Account access is email-verified and scoped to this WhatsApp sender.
-      const sensitiveIntent = /\\b(my account|my profile|my address|my order|track my|order status|my subscription|subscription status|remaining garments|garment balance|payment status|request (a )?(for )?pickup|book (a )?pickup|schedule (a )?pickup|change my address|cancel my order)\\b/i.test(body);
+      const sensitiveIntent = /\b(my account|my profile|my address|my order|track my|order status|my subscription|subscription status|remaining garments|garment balance|payment status|request (a )?(for )?pickup|book (a )?pickup|schedule (a )?pickup|change my address|cancel my order)\b/i.test(body);
       const { data: verification } = await db.from("whatsapp_account_verifications").select("phone,email,code_hash,expires_at,verified_until,attempts,last_sent_at").eq("phone", from).maybeSingle();
-      const normalizedEmail = body.trim().match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+      const normalizedEmail = body.trim().match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
       const isCode = /^[A-Z0-9]{6}$/i.test(body.trim());
       const nowMs = Date.now();
       const activeVerified = Boolean(verification?.verified_until && new Date(verification.verified_until).getTime() > nowMs);
