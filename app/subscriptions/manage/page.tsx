@@ -25,7 +25,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   ]);
 
   let usedPieces = 0;
-  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; order_id: string | null }[] = [];
+  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; order_id: string | null }[] = [];
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
   if (active?.id) {
     const { data: pickupRows, error: pickupError } = await supabase
