@@ -69,10 +69,10 @@ Deno.serve(async (req) => {
   if (plansError) console.error("active_plans_lookup_failed", plansError.message);
   if (hubError) console.error("main_hub_lookup_failed", hubError.message);
   const money = (v: number | null | undefined) => v == null ? null : "₦" + (Number(v) / 100).toLocaleString("en-NG", { maximumFractionDigits: 2 });
-  const zonesContext = (activeZones ?? []).map((z: any) => [z.name, z.kind, z.villages?.length ? "areas: " + z.villages.join(", ") : null, z.note].filter(Boolean).join(" — ")).join("\\n") || "No active zones configured; do not promise coverage.";
-  const plansContext = (activePlans ?? []).map((p: any) => [p.name, p.blurb, p.monthly_price_kobo != null ? "monthly " + money(p.monthly_price_kobo) : null, p.pieces_per_month != null ? p.pieces_per_month + " garments/month" : null, p.weekly_allowance != null ? p.weekly_allowance + " garments/week" : null, p.yearly_discount_pct != null ? p.yearly_discount_pct + "% yearly discount" : null, p.overage_price_kobo != null ? money(p.overage_price_kobo) + " per extra garment" : null, p.category_limits ? "category limits " + JSON.stringify(p.category_limits) : null].filter(Boolean).join(" — ")).join("\\n") || "No active plans configured; do not invent plan details.";
+  const zonesContext = (activeZones ?? []).map((z: any) => [z.name, z.kind, z.villages?.length ? "areas: " + z.villages.join(", ") : null, z.note].filter(Boolean).join(" — ")).join("\n") || "No active zones configured; do not promise coverage.";
+  const plansContext = (activePlans ?? []).map((p: any) => [p.name, p.blurb, p.monthly_price_kobo != null ? "monthly " + money(p.monthly_price_kobo) : null, p.pieces_per_month != null ? p.pieces_per_month + " garments/month" : null, p.weekly_allowance != null ? p.weekly_allowance + " garments/week" : null, p.yearly_discount_pct != null ? p.yearly_discount_pct + "% yearly discount" : null, p.overage_price_kobo != null ? money(p.overage_price_kobo) + " per extra garment" : null, p.category_limits ? "category limits " + JSON.stringify(p.category_limits) : null].filter(Boolean).join(" — ")).join("\n") || "No active plans configured; do not invent plan details.";
   const hub = (hubSetting?.value ?? {}) as { address?: string; maps_url?: string };
-  const liveContext = ["Active hubs from Admin > Coverage zones (each active zone is a hub):\\n" + zonesContext, "Main hub address: " + (hub.address || "not configured"), hub.maps_url ? "Main hub map: " + hub.maps_url : null, "Active subscription plans:\\n" + plansContext].filter(Boolean).join("\\n");
+  const liveContext = ["Active hubs from Admin > Coverage zones (each active zone is a hub):\n" + zonesContext, "Main hub address: " + (hub.address || "not configured"), hub.maps_url ? "Main hub map: " + hub.maps_url : null, "Active subscription plans:\n" + plansContext].filter(Boolean).join("\n");
   const { data: batch, error: claimError } = await db.rpc("whatsapp_claim_inbound_messages", { _limit: 10 });
   if (claimError) return json({ error: "queue_claim_failed" }, 500);
   let processed = 0, handedOff = 0, skipped = 0, failed = 0;
@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
           model: Deno.env.get("WHATSAPP_AI_MODEL") || "gpt-4.1-mini",
           instructions: [
             "You are LaundryPoint's WhatsApp customer-service assistant. Be concise, warm, direct, and answer the actual question.",
-            `Verified live LaundryPoint facts from the database:\\n${liveContext}`,
+            `Verified live LaundryPoint facts from the database:\n${liveContext}`,
             "Every active entry in Admin > Coverage zones is a LaundryPoint hub. If Owerri West or Amawbia appears in the active list, confirm we have a hub there. Never say an active zone has no hub. If a place is absent, say it is not currently listed as active. Never reveal internal coordinates, radii, database fields, or implementation details.",
             "Intent handling: distinguish general information, new pickup booking, existing-order tracking, subscription, payment, delivery, complaint, and human-support requests.",
             "Do not assume every mention of pickup/delivery means the customer wants to book. Questions about how pickup-to-delivery works are informational; explain the process briefly and do not immediately ask for an address/date/time.",
