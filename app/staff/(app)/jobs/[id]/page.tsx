@@ -31,7 +31,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     : { data: null };
   // The RPC validates the agent's assignment and returns only the plan rules
   // and usage required for this pickup. Agents do not need direct subscription access.
-  const { data: planInfo, error: planInfoError } = o.source === "subscription"
+  const { data: planInfo } = o.source === "subscription"
     ? await (supabase as any).rpc("agent_subscription_plan_for_order", { p_order_id: id })
     : { data: null, error: null };
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
