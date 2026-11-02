@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
   const expectedSecret = Deno.env.get("WHATSAPP_INBOUND_PROCESSOR_SECRET");
-  const suppliedSecret = req.headers.get("x-whatsapp-worker-secret");
+  const suppliedSecret = req.headers.get("x-worker-secret");
   if (!expectedSecret || !suppliedSecret) return json({ error: "unauthorized" }, 401);
   const enc = new TextEncoder();
   const secretKey = await crypto.subtle.importKey("raw", enc.encode(expectedSecret!), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
