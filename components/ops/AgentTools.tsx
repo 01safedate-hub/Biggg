@@ -110,8 +110,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {} }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {} }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -160,7 +160,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
         return (
           <section key={c.id} className="card p-4">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-mute">{c.name}</h3>
-            {subscription && (() => { const slug = categorySlug(c); const used = categoryCounts[slug] ?? 0; const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); const excluded = hasLimit && limit === 0; const capped = hasLimit && limit > 0; return <div className={`mt-2 rounded-md border p-2.5 text-xs ${excluded ? "border-red-300 bg-red-50 text-red-900" : capped ? (used > limit ? "border-amber-400 bg-amber-50 text-amber-950" : "border-amber-200 bg-amber-50/70 text-amber-900") : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{excluded ? <p className="mt-1 font-bold">🔴 NOT INCLUDED IN PLAN — every piece in this category is chargeable.</p> : capped ? <p className="mt-1 font-semibold">🟠 CATEGORY LIMIT: {limit} included pieces per billing period · {Math.max(0, limit - used)} remaining{used > limit ? ` · ${used - limit} piece${used - limit === 1 ? "" : "s"} over the category cap (chargeable)` : ""}</p> : <p className="mt-1">Included under the overall plan allowance; no separate category cap.</p>}</div>; })()}
+            {subscription && (() => { const slug = categorySlug(c); const used = Number(categoryUsage[slug] ?? 0) + (categoryCounts[slug] ?? 0); const hasLimit = Object.prototype.hasOwnProperty.call(categoryLimits, slug); const limit = Number(categoryLimits[slug] ?? 0); const excluded = hasLimit && limit === 0; const capped = hasLimit && limit > 0; return <div className={`mt-2 rounded-md border p-2.5 text-xs ${excluded ? "border-red-300 bg-red-50 text-red-900" : capped ? (used > limit ? "border-amber-400 bg-amber-50 text-amber-950" : "border-amber-200 bg-amber-50/70 text-amber-900") : "border-line bg-canvas text-ink-soft"}`}><span className="font-semibold">{used} piece{used === 1 ? "" : "s"} counted</span>{excluded ? <p className="mt-1 font-bold">🔴 NOT INCLUDED IN PLAN — every piece in this category is chargeable.</p> : capped ? <p className="mt-1 font-semibold">🟠 CATEGORY LIMIT: {limit} included pieces per billing period · {Math.max(0, limit - used)} remaining{used > limit ? ` · ${used - limit} piece${used - limit === 1 ? "" : "s"} over the category cap (chargeable)` : ""}</p> : <p className="mt-1">Included under the overall plan allowance; no separate category cap.</p>}</div>; })()}
             <ul className="mt-2 divide-y divide-line">
               {list.map((i) => (
                 <li key={i.id} className="py-2">
