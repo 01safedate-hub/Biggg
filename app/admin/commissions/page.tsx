@@ -12,7 +12,7 @@ export default async function CommissionsAdmin(){
   supabase.from("commissions").select("id,agent_id,customer_id,order_id,order_sequence,rate,basis_kobo,amount_kobo,status,created_at,review_note").order("created_at",{ascending:false}).limit(500),
   supabase.from("commission_payouts").select("id,agent_id,period_start,period_end,amount_kobo,status,payment_method,payment_reference,created_at").order("created_at",{ascending:false}).limit(200),
   supabase.from("user_roles").select("user_id,role").in("role",["commission_agent","delivery_agent"]),
-  supabase.from("commission_rules").select("staff_rate,commission_only_rate").eq("active",true).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+  (supabase as any).from("commission_rules").select("staff_rate,commission_only_rate").eq("active",true).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
   supabase.from("settings").select("value").eq("key","commission").maybeSingle()
  ]);
  const ids=(agents??[]).map(x=>x.user_id); const {data:profiles}=ids.length?await supabase.from("profiles").select("id,full_name").in("id",ids):{data:[]}; const names=new Map((profiles??[]).map(x=>[x.id,x.full_name||x.id.slice(0,8)]));
