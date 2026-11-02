@@ -127,6 +127,73 @@ Deno.serve(async (req) => {
         const { error: saveInboundError } = await db.from("whatsapp_conversation_messages").insert({ phone: from, direction: "inbound", body: body.slice(0, 3500), inbound_message_id: item.id, provider_message_id: item.provider_message_id || null, delivery_status: "received" });
         if (saveInboundError) throw new Error("conversation_inbound_save_failed");
       }
+      // Account access is email-verified and scoped to this WhatsApp sender.
+      const sensitiveIntent = /\\b(my account|my profile|my address|my order|track my|order status|my subscription|subscription status|remaining garments|garment balance|payment status|request (a )?(for )?pickup|book (a )?pickup|schedule (a )?pickup|change my address|cancel my order)\\b/i.test(body);
+      const { data: verification } = await db.from("whatsapp_account_verifications").select("phone,email,code_hash,expires_at,verified_until,attempts,last_sent_at").eq("phone", from).maybeSingle();
+      const normalizedEmail = body.trim().match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+      const isCode = /^[A-Z0-9]{6}$/i.test(body.trim());
+      const nowMs = Date.now();
+      const activeVerified = Boolean(verification?.verified_until && new Date(verification.verified_until).getTime() > nowMs);
+      const activeChallenge = Boolean(verification?.code_hash && verification?.expires_at && new Date(verification.expires_at).getTime() > nowMs);
+      if (activeChallenge && isCode && !activeVerified) {
+        if (Number(verification.attempts ?? 0) >= 6) {
+          await db.from("whatsapp_account_verifications").update({ code_hash: null, expires_at: null, updated_at: new Date().toISOString() }).eq("phone", from);
+          await sendWhatsApp(from, "For your security, that verification attempt has expired. Please send your email address to request a new code.", waToken!, phoneNumberId!);
+        } else {
+          const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body.trim().toUpperCase()));
+          const codeHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+          if (codeHash === verification.code_hash) {
+            await db.from("whatsapp_account_verifications").update({ code_hash: null, expires_at: null, attempts: 0, verified_until: new Date(nowMs + 30 * 60 * 1000).toISOString(), updated_at: new Date().toISOString() }).eq("phone", from);
+            await sendWhatsApp(from, "Your email is verified. I can now help with your own LaundryPoint account for the next 30 minutes. What would you like to do?", waToken!, phoneNumberId!);
+          } else {
+            await db.from("whatsapp_account_verifications").update({ attempts: Number(verification.attempts ?? 0) + 1, updated_at: new Date().toISOString() }).eq("phone", from);
+            await sendWhatsApp(from, "That code doesn't match. Please check the latest email code and try again.", waToken!, phoneNumberId!);
+          }
+        }
+        await db.from("whatsapp_inbound_messages").update({ status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", item.id);
+        processed++; continue;
+      }
+      if (normalizedEmail && (!activeVerified || verification?.email !== normalizedEmail)) {
+        const { data: profile, error: profileError } = await db.from("profiles").select("id,email").ilike("email", normalizedEmail).maybeSingle();
+        if (profileError) throw new Error("customer_email_lookup_failed");
+        if (!profile) {
+          await db.from("whatsapp_account_verifications").upsert({ phone: from, email: normalizedEmail, code_hash: null, expires_at: null, verified_until: null, attempts: 0, updated_at: new Date().toISOString() }, { onConflict: "phone" });
+          await sendWhatsApp(from, "I couldn't find a LaundryPoint customer account for that email. Please create your account first at https://laundrypoint.app/signup, then return here and send the email address linked to your account.", waToken!, phoneNumberId!);
+        } else {
+          const lastSent = verification?.last_sent_at ? new Date(verification.last_sent_at).getTime() : 0;
+          if (nowMs - lastSent < 60 * 1000) await sendWhatsApp(from, "For security, please wait a minute before requesting another verification code.", waToken!, phoneNumberId!);
+          else {
+            const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", random = new Uint8Array(6); crypto.getRandomValues(random);
+            const code = Array.from(random, n => alphabet[n % alphabet.length]).join("");
+            const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code));
+            const codeHash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+            const { error: saveError } = await db.from("whatsapp_account_verifications").upsert({ phone: from, email: normalizedEmail, code_hash: codeHash, expires_at: new Date(nowMs + 10 * 60 * 1000).toISOString(), verified_until: null, attempts: 0, last_sent_at: new Date(nowMs).toISOString(), updated_at: new Date().toISOString() }, { onConflict: "phone" });
+            if (saveError) throw new Error("verification_challenge_save_failed");
+            const { error: emailError } = await db.from("email_outbox").insert({ to_email: normalizedEmail, template: "whatsapp_verification", payload: { code, expires_minutes: 10 }, status: "queued", idempotency_key: "wa-verify:" + from + ":" + nowMs });
+            if (emailError) throw new Error("verification_email_queue_failed");
+            await sendWhatsApp(from, "I've sent a six-character verification code to that email address. It expires in 10 minutes. Reply with the code to continue.", waToken!, phoneNumberId!);
+          }
+        }
+        await db.from("whatsapp_inbound_messages").update({ status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", item.id);
+        processed++; continue;
+      }
+      if (sensitiveIntent && !activeVerified) {
+        await sendWhatsApp(from, "I can help with your own pickup, orders, subscription or account, but first I need to verify your email. Please reply with the email address linked to your LaundryPoint account. If you don't have an account yet, sign up at https://laundrypoint.app/signup.", waToken!, phoneNumberId!);
+        await db.from("whatsapp_inbound_messages").update({ status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", item.id);
+        processed++; continue;
+      }
+      let verifiedAccountContext = "No verified customer account; do not reveal personal data.";
+      if (activeVerified && verification?.email) {
+        const { data: profile } = await db.from("profiles").select("id,full_name,email,status").ilike("email", verification.email).maybeSingle();
+        if (profile) {
+          const [{ data: orders }, { data: subscriptions }] = await Promise.all([
+            db.from("orders").select("order_no,status,scheduled_for,created_at").eq("customer_id", profile.id).order("created_at", { ascending: false }).limit(5),
+            db.from("subscriptions").select("status,billing_period,current_period_end,price_kobo").eq("customer_id", profile.id).order("created_at", { ascending: false }).limit(3)
+          ]);
+          verifiedAccountContext = JSON.stringify({ name: profile.full_name, email: profile.email, status: profile.status, recent_orders: orders ?? [], subscriptions: subscriptions ?? [] });
+        }
+      }
+
       const receivedAt = item.provider_timestamp ? new Date(item.provider_timestamp) : new Date(item.received_at);
       const withinCustomerCareWindow = Number.isFinite(receivedAt.getTime()) &&
         Date.now() - receivedAt.getTime() <= 24 * 60 * 60 * 1000 &&
@@ -174,6 +241,8 @@ Deno.serve(async (req) => {
           model: Deno.env.get("WHATSAPP_AI_MODEL") || "gpt-4.1-mini",
           instructions: [
             "You are LaundryPoint's WhatsApp customer-service assistant. Be concise, warm, direct, and answer the actual question.",
+            "Account privacy: only use this verified account context for the current WhatsApp sender; never infer or disclose another customer's data.",
+            `Verified account context: ${verifiedAccountContext}`,
             `Verified live LaundryPoint facts from the database:\n${liveContext}`,
             "Every active entry in Admin > Coverage zones is a LaundryPoint hub. If Owerri West or Amawbia appears in the active list, confirm we have a hub there. Never say an active zone has no hub. If a place is absent, say it is not currently listed as active. Never reveal internal coordinates, radii, database fields, or implementation details.",
             "Intent handling: distinguish general information, new pickup booking, existing-order tracking, subscription, payment, delivery, complaint, and human-support requests.",
