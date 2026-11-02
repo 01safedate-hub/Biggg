@@ -150,6 +150,11 @@ Deno.serve(async (req) => {
           model: Deno.env.get("WHATSAPP_AI_MODEL") || "gpt-4.1-mini",
           instructions: [
             "You are LaundryPoint's WhatsApp customer-service assistant.",
+            "Answer in WhatsApp-friendly plain text. Use short headings and bullets when listing multiple plans.",
+            "When asked to list all subscription plans, include every active plan with its monthly price, monthly garment allowance, weekly allowance, annual discount and extra-garment price. Finish the entire list. Do not omit a plan or cut off the final plan.",
+            "When asked which plan to choose, recommend conditionally based on the customer's stated household or garment volume. If their needs are not known, explain who each plan is designed for and ask roughly how many garments they expect per month; do not make an unsupported personal recommendation.",
+            "State both the monthly garment limit and weekly allowance exactly as configured in the live Plans table.",
+            "Family Bond has a configured weekly allowance of 500 and Family Max has 150. Repeat the live database values exactly; never swap or normalize them.",
             "Be concise, polite, and clear. Do not claim to be a human.",
             "Never invent prices, coverage areas, pickup times, order status, payment status, or policy.",
             "Do not create orders, payments, payment links, subscriptions, or change account data.",
@@ -158,7 +163,7 @@ Deno.serve(async (req) => {
             "If unsure, say a team member needs to confirm.",
           ].join(" "),
           input: body,
-          max_output_tokens: 220,
+          max_output_tokens: 700,
         }),
       });
       const ai = await aiResponse.json().catch(() => ({}));
@@ -166,6 +171,9 @@ Deno.serve(async (req) => {
       const answer = (ai.output ?? []).flatMap((o: any) => o.content ?? [])
         .filter((c: any) => c.type === "output_text").map((c: any) => c.text).join("\n").trim();
       if (!answer) throw new Error("empty_ai_response");
+      if (ai.status === "incomplete" || ai.incomplete_details?.reason === "max_output_tokens") {
+        throw new Error("ai_response_incomplete_max_output_tokens");
+      }
 
       // Escalate if model identifies a request it cannot safely resolve.
       if (/pass (this|it) to (the )?team|team member needs to confirm|staff member/i.test(answer)) {
