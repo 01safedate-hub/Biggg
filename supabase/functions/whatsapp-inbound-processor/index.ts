@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const { data: optedOut, error: optOutCheckError } = await db.rpc("whatsapp_is_opted_out_by_phone", { _phone: from });
+      // Only an explicit STOP/opt-out blocks replies. A missing notification opt-in\n      // must not silence a customer who has just messaged the business.\n      const { data: optedOut, error: optOutCheckError } = await db.rpc("whatsapp_is_opted_out_by_phone", { _phone: from });
       if (optOutCheckError) throw new Error("opt_out_check_failed");
       if (optedOut === true) {
         await db.from("whatsapp_inbound_messages").update({
