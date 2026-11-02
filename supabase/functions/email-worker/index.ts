@@ -97,6 +97,12 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       const text = `Hello ${first}, we counted your clothes for order #${p.order_no}.\n` + items.map((i) => `${i.qty} x ${i.name}${i.stain ? " (hard stain)" : ""}`).join("\n") + `\nTotal items: ${p.total}` + (stains.length ? `\nHard stains: ${stains.join("; ")}` : "");
       return { subject: `Your clothes were counted: ${p.total} items, order #${p.order_no}`, html: layout("Your clothes were counted", lines), text };
     }
+    case "whatsapp_verification": {
+      const code = String(p.code ?? "");
+      const expiry = Number(p.expires_minutes ?? 10);
+      const lines = ["Use this code to verify your email for LaundryPoint WhatsApp account assistance.", `Your verification code is <strong style="font-size:24px;letter-spacing:4px;color:#c2410c">${esc(code)}</strong>.`, `It expires in ${esc(expiry)} minutes. If you did not request this, ignore this email.`, "LaundryPoint staff will never ask you to share this code."];
+      return { subject: "Your LaundryPoint verification code", html: layout("Verify your email", lines), text: `Your LaundryPoint verification code is ${code}. It expires in ${expiry} minutes. Never share this code.` };
+    }
     case "test": {
       const lines = ["This is a test message from your LaundryPoint admin screen.", "If you can read this, email delivery through Resend is working."];
       return { subject: "LaundryPoint test email", html: layout("Email is working", lines), text: lines.join("\n\n") };
