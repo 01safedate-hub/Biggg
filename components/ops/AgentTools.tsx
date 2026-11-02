@@ -49,7 +49,7 @@ function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription
       <div role="dialog" aria-modal="true" aria-labelledby="cc-title" className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-line p-5">
           <h2 id="cc-title" className="text-lg font-semibold">{subscription ? "Confirm garment count" : desk ? "Confirm the count with the customer" : "Send this bill to the customer?"}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{subscription ? "Record every garment, regardless of type. The monthly allowance is applied to the total piece count; excess pieces are billed to the customer online." : desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
+          <p className="mt-1 text-sm text-ink-soft">{subscription ? "Record every garment by category. Excluded categories and pieces above a category cap are charged separately; only eligible pieces use the monthly allowance. Any excess is paid online by the customer. Never collect cash." : desk ? "Read each line out loud while the customer watches. They also get an email with this list." : "The customer will see every line and must accept it before paying."}</p>
         </div>
         <ul className="divide-y divide-line overflow-y-auto px-5 text-sm">
           {lines.map((l) => (
@@ -110,8 +110,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {} }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {}, piecesPerMonth = 0, periodPiecesUsed = 0 }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>; piecesPerMonth?: number; periodPiecesUsed?: number;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -153,7 +153,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const term = q.trim().toLowerCase();
   return (
     <div className="space-y-4">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
+      {subscription && <div className="rounded-lg border border-line bg-white p-4"><div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">Monthly plan allowance</h3><span className="text-sm font-semibold tabular-nums">{Math.max(0, piecesPerMonth - periodPiecesUsed)} of {piecesPerMonth} pieces remaining before this pickup</span></div><p className="mt-1 text-xs text-ink-soft">Previous eligible usage: {periodPiecesUsed} pieces. Excluded categories and category-cap excess are billed separately and do not consume this allowance. Final charges are calculated by the system.</p></div>}\n      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
       {cats.map((c) => {
         const list = items.filter((i) => i.category_id === c.id && (!term || i.name.toLowerCase().includes(term)));
         if (!list.length) return null;
