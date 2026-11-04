@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.com";
+const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
 const PAYSTACK = Deno.env.get("PAYSTACK_SECRET_KEY");
 const FLW = Deno.env.get("FLUTTERWAVE_SECRET_KEY");
 
@@ -13,8 +13,8 @@ function allowedOrigin(origin: string | null): string | null {
     const u = new URL(origin);
     const host = u.hostname.toLowerCase();
     if (u.protocol === "https:" && (
-      host === "laundrypoint.com" ||
-      host === "www.laundrypoint.com" ||
+      host === "laundrypoint.app" ||
+      host === "www.laundrypoint.app" ||
       host.endsWith(".netlify.app")
     )) return u.origin;
   } catch { /* invalid origin is rejected */ }
@@ -34,7 +34,7 @@ const baseHeaders = {
   "Content-Type": "application/json",
 };
 const json = (status: number, body: unknown, origin: string | null) => {
-  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.com" };
+  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.app" };
   return new Response(JSON.stringify(body), { status, headers });
 };
 
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       status: 200,
-      headers: { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.com" },
+      headers: { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.app" },
     });
   }
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" }, origin);
@@ -56,6 +56,7 @@ Deno.serve(async (req) => {
   const purpose = String(b.purpose ?? "");
   const provider = String(b.provider ?? "");
   const planSlug = String(b.plan_slug ?? "");
+  const billingPeriod = String(b.billing_period ?? "monthly");
   const pickupId = String(b.pickup_id ?? "");
 
   if (provider !== "paystack" && provider !== "flutterwave") {
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
   }
   if (provider === "paystack" && !PAYSTACK) return json(503, { error: "provider_not_configured" }, origin);
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" }, origin);
-  if (purpose === "subscription" && !/^[a-z0-9_]{2,40}$/.test(planSlug)) {
+  if (purpose === "subscription" && (!/^[a-z0-9_]{2,40}$/.test(planSlug) || !["monthly", "three_month", "six_month", "yearly"].includes(billingPeriod))) {
     return json(400, { error: "plan_not_found" }, origin);
   }
   if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) {
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
       ? "create_extra_clothes_payment_intent"
       : "create_payment_intent";
   const { data, error } = purpose === "subscription"
-    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider })
+    ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider, _billing_period: billingPeriod })
     : purpose === "extra_clothes"
       ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })
       : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
@@ -117,7 +118,7 @@ Deno.serve(async (req) => {
       ? `${site}/account/extra-clothes?returning=1`
       : `${site}/orders/${order}?returning=1`;
   const description = purpose === "subscription"
-    ? `Monthly plan: ${i.plan_name ?? planSlug}`
+    ? `Subscription plan (${billingPeriod}): ${i.plan_name ?? planSlug}`
     : purpose === "extra_clothes"
       ? "Extra-clothes bill"
       : purpose === "pickup_fare"

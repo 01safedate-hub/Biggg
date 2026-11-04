@@ -6,14 +6,14 @@ import { CategoryLimitsEditor } from "@/components/admin/CategoryLimitsEditor";
 export const metadata = { title: "Subscription plans" };
 export const dynamic = "force-dynamic";
 
-type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number };
+type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; monthly_discount_pct: number; three_month_discount_pct: number; six_month_discount_pct: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number };
 
 export default async function AdminSubscriptionPlansPage() {
   const { supabase } = await requireRole(["super_admin"]);
-  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,yearly_discount_pct,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
+  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
   const plans = (data ?? []) as Plan[];
   return <div className="space-y-6">
-    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices and allowances. Prices are stored in kobo; changes may affect new checkouts, so verify the configured values before saving.</p></div>
+    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices, monthly piece allowances and the maximum included pieces per pickup. The monthly allowance is shared across two pickups. This per-pickup value is a cap within the monthly allowance, not an additional allowance. Extra pieces above either limit are billed separately.</p></div>
     <section className="card space-y-4 p-4 sm:p-5">
       <div><h2 className="text-lg font-semibold">Create a plan</h2><p className="mt-1 text-sm text-ink-soft">Add a new subscription option. Use a unique slug and verify the allowance and price before creating it.</p></div>
       <form action={createPlan} className="space-y-4">
@@ -22,9 +22,12 @@ export default async function AdminSubscriptionPlansPage() {
           <label className="block text-sm font-medium">Plan slug<input name="slug" required pattern="[A-Za-z0-9 _-]+" placeholder="e.g. business" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Monthly price (kobo)<input name="monthly_price_kobo" type="number" min="0" step="1" required placeholder="3000000" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Pieces per month<input name="pieces_per_month" type="number" min="1" step="1" required placeholder="75" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
-          <label className="block text-sm font-medium">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required placeholder="25" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
+          <label className="block text-sm font-medium">Maximum included pieces per pickup<input name="weekly_allowance" type="number" min="1" step="1" required placeholder="35" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required placeholder="15000" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
-          <label className="block text-sm font-medium">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required placeholder="10" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
+          <label className="block text-sm font-medium">1-month discount (%)<input name="monthly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="0" className="input mt-1 w-full" /></label>
+          <label className="block text-sm font-medium">3-month discount (%)<input name="three_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="2" className="input mt-1 w-full" /></label>
+          <label className="block text-sm font-medium">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="5" className="input mt-1 w-full" /></label>
+          <label className="block text-sm font-medium">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required placeholder="10" className="input mt-1 w-full" /></label>
           <CategoryLimitsEditor />
           <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"><input type="checkbox" name="active" defaultChecked className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Active for sale</label>
         </div>
@@ -38,9 +41,12 @@ export default async function AdminSubscriptionPlansPage() {
         <label className="text-sm">Plan name<input name="name" required defaultValue={plan.name} className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none transition focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
         <label className="text-sm">Monthly price (kobo)<input name="monthly_price_kobo" type="number" min="0" step="1" required defaultValue={plan.monthly_price_kobo} className="input mt-1 w-full" /></label>
         <label className="text-sm">Pieces per month<input name="pieces_per_month" type="number" min="1" step="1" required defaultValue={plan.pieces_per_month} className="input mt-1 w-full" /></label>
-        <label className="text-sm">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required defaultValue={plan.weekly_allowance} className="input mt-1 w-full" /></label>
+        <label className="text-sm">Maximum included pieces per pickup<input name="weekly_allowance" type="number" min="1" step="1" required defaultValue={plan.weekly_allowance} className="input mt-1 w-full" /></label>
         <label className="text-sm">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required defaultValue={plan.overage_price_kobo} className="input mt-1 w-full" /></label>
-        <label className="text-sm">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
+        <label className="text-sm">1-month discount (%)<input name="monthly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.monthly_discount_pct ?? 0} className="input mt-1 w-full" /></label>
+        <label className="text-sm">3-month discount (%)<input name="three_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.three_month_discount_pct ?? 2} className="input mt-1 w-full" /></label>
+        <label className="text-sm">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.six_month_discount_pct ?? 5} className="input mt-1 w-full" /></label>
+        <label className="text-sm">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
         <CategoryLimitsEditor initial={plan.category_limits ?? {}} />
       </div>
       <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Save plan</button></div>

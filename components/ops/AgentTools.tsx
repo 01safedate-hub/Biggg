@@ -110,8 +110,8 @@ function AddItemForm({ cats }: { cats: Cat[] }) {
   );
 }
 
-export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {}, piecesPerMonth = 0, periodPiecesUsed = 0 }: {
-  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>; piecesPerMonth?: number; periodPiecesUsed?: number;
+export function Itemiser({ orderId, cats, items, initial, desk = false, instant, stainedNames = [], canAddItem = false, subscription = false, categoryLimits = {}, categoryUsage = {}, piecesPerMonth = 0, periodPiecesUsed = 0, perPickupAllowance = 0 }: {
+  orderId: string; cats: Cat[]; items: Item[]; initial: Record<string, number>; desk?: boolean; instant?: InstantCfg; stainedNames?: string[]; canAddItem?: boolean; subscription?: boolean; categoryLimits?: Record<string, number>; categoryUsage?: Record<string, number>; piecesPerMonth?: number; periodPiecesUsed?: number; perPickupAllowance?: number;
 }) {
   const router = useRouter();
   const [qty, setQty] = useState<Record<string, number>>(initial);
@@ -153,7 +153,14 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const term = q.trim().toLowerCase();
   return (
     <div className="space-y-4">
-      {subscription && <div className="rounded-lg border border-line bg-white p-4"><div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">Monthly plan allowance</h3><span className="text-sm font-semibold tabular-nums">{Math.max(0, piecesPerMonth - periodPiecesUsed)} of {piecesPerMonth} pieces remaining before this pickup</span></div><p className="mt-1 text-xs text-ink-soft">Previous eligible usage: {periodPiecesUsed} pieces. Excluded categories and category-cap excess are billed separately and do not consume this allowance. Final charges are calculated by the system.</p></div>}\n      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
+      {subscription && <div className="rounded-lg border border-line bg-white p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2"><h3 className="font-semibold">Pickup allowance</h3>
+          <span className="text-sm font-semibold tabular-nums">{Math.min(perPickupAllowance || piecesPerMonth, Math.max(0, piecesPerMonth - periodPiecesUsed))} pieces included for this pickup</span></div>
+        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs"><span><strong>Monthly balance:</strong> {Math.max(0, piecesPerMonth - periodPiecesUsed)} of {piecesPerMonth} pieces remaining</span>
+          <span><strong>Per-pickup limit:</strong> {perPickupAllowance || piecesPerMonth} pieces</span></div>
+        <p className="mt-1 text-xs text-ink-soft">Previous eligible usage: {periodPiecesUsed} pieces. This pickup's included amount is the lower of the per-pickup limit and monthly balance. Excluded categories are charged at full catalogue price; eligible excess uses the plan extra-piece rate.</p>
+      </div>}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
       {cats.map((c) => {
         const list = items.filter((i) => i.category_id === c.id && (!term || i.name.toLowerCase().includes(term)));
         if (!list.length) return null;
@@ -165,7 +172,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
               {list.map((i) => (
                 <li key={i.id} className="py-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged per piece" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged at full catalogue price" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
 </div>
                     <div className="flex items-center gap-2">
                       <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>

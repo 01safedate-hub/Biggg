@@ -31,7 +31,8 @@ export async function updateSession(request: NextRequest) {
   if (!user && isProtected) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
-    login.search = `?next=${encodeURIComponent(path)}`;
+    const returnTo = `${path}${request.nextUrl.search}`;
+    login.search = `?next=${encodeURIComponent(returnTo)}`;
     return NextResponse.redirect(login);
   }
 

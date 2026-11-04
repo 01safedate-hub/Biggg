@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type Plan = { name: string; pieces_per_month: number; monthly_price_kobo: number };
 type Subscriber = {
   id: string; customer_id: string; plan_id: string; billing_period: string; status: string;
-  price_kobo: number; current_period_start: string | null; current_period_end: string | null;
+  price_kobo: number; term_amount_kobo: number | null; current_period_start: string | null; current_period_end: string | null;
   created_at: string; plans: Plan | Plan[] | null;
 };
 type Pickup = { subscription_id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number | null };
@@ -23,7 +23,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
   const { status } = await searchParams;
   const allowed = ["active", "pending", "past_due", "cancelled", "expired"];
   let query = supabase.from("subscriptions")
-    .select("id,customer_id,plan_id,billing_period,status,price_kobo,current_period_start,current_period_end,created_at,plans(name,pieces_per_month,monthly_price_kobo)")
+    .select("id,customer_id,plan_id,billing_period,status,price_kobo,term_amount_kobo,current_period_start,current_period_end,created_at,plans(name,pieces_per_month,monthly_price_kobo)")
     .order("created_at", { ascending: false }).limit(500);
   if (status && allowed.includes(status)) query = query.eq("status", status);
   const { data, error } = await query;
@@ -59,7 +59,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
         return <article key={row.id} className="card space-y-3 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">{profile?.full_name || "Customer name unavailable"}</h2><p className="text-sm text-ink-soft">{profile?.email || profile?.phone || row.customer_id}</p></div><span className="rounded-full border border-line px-2.5 py-1 text-xs font-semibold capitalize">{row.status.replace("_", " ")}</span></div>
           <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <div><p className="text-ink-mute">Plan</p><p className="font-medium">{plan?.name ?? "Plan unavailable"} · {money(Number(row.price_kobo))} / {row.billing_period}</p></div>
+            <div><p className="text-ink-mute">Plan</p><p className="font-medium">{plan?.name ?? "Plan unavailable"} · {money(Number(row.term_amount_kobo ?? row.price_kobo))} total / {row.billing_period} · {money(Number(row.price_kobo))} monthly</p></div>
             <div><p className="text-ink-mute">Current period</p><p className="font-medium">{date(row.current_period_start)} – {date(row.current_period_end)}</p></div>
             <div><p className="text-ink-mute">Allowance used</p><p className="font-medium">{used} / {allowance || "—"} pieces</p><p className="mt-1 text-xs text-ink-soft">{allowance > 0 ? `${remaining} pieces remaining` : "Allowance unavailable"}</p><span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${stateClasses}`}>{stateLabel}</span></div>
           </div>

@@ -55,7 +55,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
   const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
-    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
+    ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,excluded_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
     : { data: null };
   const timeline = tl as unknown as Timeline | null;
   const due = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
@@ -135,8 +135,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               {o.source === "subscription" ? (
-                Number(subscriptionPickup?.overage_pieces ?? 0) > 0
-                  ? <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Your garments exceed the remaining monthly allowance by {subscriptionPickup?.overage_pieces} piece(s). Review and pay the separate online bill under <Link className="font-semibold underline" href="/account/extra-clothes">Extra-clothes bills</Link>. Your clothes proceed once that bill is paid. Never pay the agent in cash.</p>
+                (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 || Number(subscriptionPickup?.excluded_kobo ?? 0) > 0)
+                  ? <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Your pickup has {subscriptionPickup?.overage_pieces} extra eligible piece(s) charged at the plan extra-piece rate and excluded-category garments charged at their full catalogue price ({naira(Number(subscriptionPickup?.excluded_kobo ?? 0))}). Review and pay the separate online bill under <Link className="font-semibold underline" href="/account/extra-clothes">Extra-clothes bills</Link>. Your clothes proceed once that bill is paid. Never pay the agent in cash.</p>
                   : <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">The recorded garments are covered by your monthly plan. No laundry or transport payment is due for this pickup.</p>
               ) : o.source === "online" && !o.count_accepted_at ? <AcceptCount orderId={id} /> : (
                 <>
@@ -151,7 +151,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
           {o.count_auto && o.count_accepted_at && !o.count_disputed_at && ["counted", "count_confirmed", "received"].includes(o.status) && Date.now() - new Date(o.count_accepted_at).getTime() < 86_400_000 && <div className="mt-4"><ReportCount orderId={id} /></div>}
           {o.count_disputed_at && <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">You told us the count looks wrong. Our team has been told and will contact you.</p>}
-          {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{o.source === "subscription" ? (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 ? "Your extra-clothes bill has been paid online. Your order is confirmed for processing. No transport payment is due." : "These garments are covered by your monthly allowance. Your clothes are moving to our hub for checking and processing. No transport payment is due.") : "Paid. Your agent is taking your clothes to our hub, where they are checked again."}</p>}
+          {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{o.source === "subscription" ? (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 ? "Your subscription pickup charges (extra eligible pieces and excluded-category full-price items) have been paid online. Your order is confirmed for processing. No transport payment is due." : "These garments are covered by your monthly allowance. Your clothes are moving to our hub for checking and processing. No transport payment is due.") : "Paid. Your agent is taking your clothes to our hub, where they are checked again."}</p>}
           {o.source !== "subscription" && o.status === "count_confirmed" && topUp > 0 && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">When we checked your clothes, one item was in a higher-priced category than first counted. The prices above are now corrected. Please pay the difference of <strong>{naira(topUp)}</strong>.</p>

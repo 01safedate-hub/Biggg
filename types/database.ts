@@ -1906,6 +1906,9 @@ export type Database = {
           created_at: string
           category_limits: Json
           id: string
+          monthly_discount_pct: number
+          three_month_discount_pct: number
+          six_month_discount_pct: number
           monthly_price_kobo: number
           name: string
           overage_price_kobo: number
@@ -1918,6 +1921,9 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          monthly_discount_pct?: number
+          three_month_discount_pct?: number
+          six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
           category_limits?: Json
@@ -1934,6 +1940,9 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          monthly_discount_pct?: number
+          three_month_discount_pct?: number
+          six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
           category_limits?: Json
@@ -2378,6 +2387,8 @@ export type Database = {
         Row: {
           id: string
           order_id: string | null
+          excluded_kobo: number
+          excluded_pieces: number
           overage_kobo: number
           overage_pieces: number
           pieces_counted: number | null
@@ -2389,6 +2400,7 @@ export type Database = {
         Insert: {
           id?: string
           order_id?: string | null
+          excluded_kobo?: number
           overage_kobo?: number
           overage_pieces?: number
           pieces_counted?: number | null
@@ -2400,6 +2412,7 @@ export type Database = {
         Update: {
           id?: string
           order_id?: string | null
+          excluded_kobo?: number
           overage_kobo?: number
           overage_pieces?: number
           pieces_counted?: number | null
@@ -2445,6 +2458,7 @@ export type Database = {
           pickup_weekday: number | null
           plan_id: string
           price_kobo: number
+          term_amount_kobo: number | null
           started_at: string | null
           status: string
           updated_at: string
@@ -2462,6 +2476,7 @@ export type Database = {
           pickup_weekday?: number | null
           plan_id: string
           price_kobo: number
+          term_amount_kobo?: number | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -2479,6 +2494,7 @@ export type Database = {
           pickup_weekday?: number | null
           plan_id?: string
           price_kobo?: number
+          term_amount_kobo?: number | null
           started_at?: string | null
           status?: string
           updated_at?: string

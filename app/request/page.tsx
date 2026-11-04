@@ -12,7 +12,7 @@ export default async function RequestPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const { data: active } = user
     ? await supabase.from("subscriptions")
-        .select("id,plan_id,status,current_period_start,current_period_end,plans(name,pieces_per_month)")
+        .select("id,plan_id,status,current_period_start,current_period_end,plans(name,pieces_per_month,weekly_allowance)")
         .eq("customer_id", user.id)
         .eq("status", "active")
         .lte("current_period_start", new Date().toISOString())
@@ -25,15 +25,26 @@ export default async function RequestPage() {
   const plan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
   let pickupCount = 0;
   let usedPieces = 0;
+  let cycleStart = active?.current_period_start ?? new Date().toISOString();
+  let cycleEnd = active?.current_period_end ?? new Date().toISOString();
+  if (active?.current_period_start) {
+    const anchor = new Date(active.current_period_start);
+    const now = new Date();
+    let months = (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + now.getUTCMonth() - anchor.getUTCMonth();
+    let start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months);
+    if (start > now) { months -= 1; start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months); }
+    const end = new Date(anchor); end.setUTCMonth(anchor.getUTCMonth() + months + 1);
+    cycleStart = start.toISOString(); cycleEnd = end.toISOString();
+  }
   if (active?.id) {
     const { data: pickups } = await supabase.from("subscription_pickups")
-      .select("pieces_counted,status")
+      .select("pieces_counted,overage_pieces,excluded_pieces,status")
       .eq("subscription_id", active.id)
-      .gte("scheduled_for", active.current_period_start ?? new Date().toISOString())
-      .lt("scheduled_for", active.current_period_end ?? new Date().toISOString())
+      .gte("scheduled_for", cycleStart)
+      .lt("scheduled_for", cycleEnd)
       .not("status", "in", '("missed","skipped")');
     pickupCount = (pickups ?? []).length;
-    usedPieces = (pickups ?? []).reduce((sum, pickup) => sum + Number(pickup.pieces_counted ?? 0), 0);
+    usedPieces = (pickups ?? []).reduce((sum, pickup) => sum + Math.max(0, Number(pickup.pieces_counted ?? 0) - Number(pickup.overage_pieces ?? 0) - Number(pickup.excluded_pieces ?? 0)), 0);
   }
 
   return (
@@ -63,10 +74,10 @@ export default async function RequestPage() {
               <p className="text-sm text-ink-soft">Your monthly plan</p>
               <h2 className="text-xl font-semibold">{plan?.name ?? "Active plan"}</h2>
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Garment allowance left</p><p className="mt-1 text-2xl font-semibold">{Math.max(0, Number(plan?.pieces_per_month ?? 0) - usedPieces)}</p></div>
+                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Garment allowance left</p><p className="mt-1 text-2xl font-semibold">{Math.max(0, Number(plan?.pieces_per_month ?? 0) - usedPieces)}</p><p className="text-xs text-ink-mute">This monthly cycle</p></div>
                 <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Pickups used</p><p className="mt-1 text-2xl font-semibold">{pickupCount} of 2</p></div>
               </div>
-              <p className="text-sm text-ink-soft">Pickup and delivery for included garments are covered. The agent counts all garments at collection; any pieces above your remaining allowance are billed online separately.</p>
+              <p className="text-sm text-ink-soft">Up to {Number((Array.isArray(active?.plans) ? active.plans[0] : active?.plans)?.weekly_allowance ?? plan?.pieces_per_month ?? 0)} pieces are included per pickup, subject to your remaining monthly allowance. Pieces above either limit and excluded categories are billed separately.</p>
             </section>
             {pickupCount >= 2 ? (
               <p className="card p-5 text-sm text-ink-soft">You have used both pickup requests for this billing period. You can request another pickup when your next monthly period begins.</p>
