@@ -49,7 +49,10 @@ declare
   _result jsonb;
   _sub_id uuid;
   _invoice_id uuid;
-  _monthly bigint;\n  _plan_monthly_discount numeric;\n  _plan_six_month_discount numeric;\n  _plan_yearly_discount numeric;
+  _monthly bigint;
+  _plan_monthly_discount numeric;
+  _plan_six_month_discount numeric;
+  _plan_yearly_discount numeric;
   _months integer;
   _discount numeric;
   _total bigint;
