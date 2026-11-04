@@ -14,7 +14,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   const { supabase, user } = await requireUser(`/subscriptions${params.billing ? `?billing=${encodeURIComponent(params.billing)}` : ""}`);
 
   const [{ data: plans }, { data: active }, { data: subscriptionSettings }] = await Promise.all([
-    supabase.from("plans").select("id,slug,name,blurb,monthly_price_kobo,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,pieces_per_month,active,sort_order,category_limits,weekly_allowance,overage_price_kobo").eq("active", true).order("sort_order"),
+    supabase.from("plans").select("id,slug,name,blurb,monthly_price_kobo,pieces_per_month,active,sort_order,category_limits,weekly_allowance,overage_price_kobo").eq("active", true).order("sort_order"),
     supabase.from("subscriptions").select("id,status,current_period_end,plans(name)").eq("customer_id", user.id).in("status", ["active", "pending"]).order("current_period_end", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("settings").select("value").eq("key", "subscription").maybeSingle(),
   ]);
@@ -59,10 +59,10 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
             weekly_allowance: plan.weekly_allowance,
             category_limits: (plan.category_limits ?? {}) as Record<string, number>,
             overage_price_kobo: Number(plan.overage_price_kobo),
-            monthly_discount_pct: Number(plan.monthly_discount_pct ?? 0),
-            three_month_discount_pct: Number(plan.three_month_discount_pct ?? 2),
-            six_month_discount_pct: Number(plan.six_month_discount_pct ?? 5),
-            yearly_discount_pct: Number(plan.yearly_discount_pct ?? 10),
+            monthly_discount_pct: 0,
+            three_month_discount_pct: 2,
+            six_month_discount_pct: 5,
+            yearly_discount_pct: Number(config.yearly_discount_pct ?? 10),
           }))} pickupsPerMonth={pickupsPerMonth} yearlyDiscountPct={yearlyDiscountPct} initialBillingPeriod={billingPeriod} />
         </section>
 
