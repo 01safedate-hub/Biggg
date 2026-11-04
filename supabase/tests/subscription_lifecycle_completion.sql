@@ -6,6 +6,7 @@ do $$
 declare
   v_lifecycle text;
   v_checkout text;
+  v_pickup_spacing text;
 begin
   if to_regprocedure('public.create_subscription_pickup_followup()') is null then
     raise exception 'FAIL: create_subscription_pickup_followup() is missing';
@@ -50,7 +51,18 @@ begin
     raise exception 'FAIL: renewal lifecycle has no legacy monthly-price fallback';
   end if;
 
-  raise notice 'RESULT: subscription privilege and term-price separation checks PASS';
+  if to_regprocedure('private.enforce_subscription_pickup_spacing()') is null then
+    raise exception 'FAIL: subscription pickup spacing trigger function is missing';
+  end if;
+  v_pickup_spacing := pg_get_functiondef('private.enforce_subscription_pickup_spacing()'::regprocedure);
+  if position('14 * 24 * 60 * 60' in v_pickup_spacing) = 0 then
+    raise exception 'FAIL: subscription pickup spacing is not enforced at 14 days';
+  end if;
+  if position('monthly_pickup_limit_reached' in v_pickup_spacing) = 0 then
+    raise exception 'FAIL: subscription pickup count is not enforced at the database boundary';
+  end if;
+
+  raise notice 'RESULT: subscription privilege, term-price separation and pickup-spacing checks PASS';
 end;
 $$;
 
