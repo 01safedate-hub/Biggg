@@ -20,7 +20,8 @@ begin
     raise exception 'subscription_not_active' using errcode = 'P0001';
   end if;
 
-  if new.scheduled_for < _sub.current_period_start
+  if _sub.current_period_start is null or _sub.current_period_end is null
+     or new.scheduled_for < _sub.current_period_start
      or new.scheduled_for >= _sub.current_period_end then
     raise exception 'pickup_outside_subscription_period' using errcode = 'P0001';
   end if;
@@ -28,6 +29,8 @@ begin
   select count(*) into _active_count
     from public.subscription_pickups sp
    where sp.subscription_id = new.subscription_id
+     and sp.scheduled_for >= _sub.current_period_start
+     and sp.scheduled_for < _sub.current_period_end
      and sp.status not in ('missed', 'skipped')
      and sp.id is distinct from new.id;
 
@@ -39,6 +42,8 @@ begin
     select 1
       from public.subscription_pickups sp
      where sp.subscription_id = new.subscription_id
+       and sp.scheduled_for >= _sub.current_period_start
+       and sp.scheduled_for < _sub.current_period_end
        and sp.status not in ('missed', 'skipped')
        and sp.id is distinct from new.id
        and abs(extract(epoch from (new.scheduled_for - sp.scheduled_for))) < 14 * 24 * 60 * 60
