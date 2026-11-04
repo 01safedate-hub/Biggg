@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
   }
   if (provider === "paystack" && !PAYSTACK) return json(503, { error: "provider_not_configured" }, origin);
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" }, origin);
-  if (purpose === "subscription" && (!/^[a-z0-9_]{2,40}$/.test(planSlug) || !["monthly", "six_month", "yearly"].includes(billingPeriod))) {
+  if (purpose === "subscription" && (!/^[a-z0-9_]{2,40}$/.test(planSlug) || !["monthly", "three_month", "six_month", "yearly"].includes(billingPeriod))) {
     return json(400, { error: "plan_not_found" }, origin);
   }
   if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) {
