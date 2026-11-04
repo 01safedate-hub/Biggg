@@ -43,6 +43,11 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
           </section>
         ) : null}
 
+        <section className="space-y-3 border-t border-line pt-5">
+          <p className="text-sm text-ink-soft">A subscription is optional. You can continue using LaundryPoint without choosing a plan.</p>
+          <Link href="/dashboard" className="btn-secondary inline-block">Skip subscription for now</Link>
+        </section>
+
         <section className="space-y-4">
           <SubscriptionPlanCards plans={(plans ?? []).map((plan) => ({
             id: plan.id,
@@ -57,10 +62,6 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
           }))} pickupsPerMonth={pickupsPerMonth} yearlyDiscountPct={yearlyDiscountPct} initialBillingPeriod={billingPeriod} />
         </section>
 
-        <section className="space-y-3 border-t border-line pt-5">
-          <p className="text-sm text-ink-soft">A subscription is optional. You can continue using LaundryPoint without choosing a plan.</p>
-          <Link href="/dashboard" className="btn-secondary inline-block">Skip subscription for now</Link>
-        </section>
         <p className="text-xs text-ink-mute">Plan activation requires verified online payment. Never pay an agent in cash.</p>
       </div>
     </main>
