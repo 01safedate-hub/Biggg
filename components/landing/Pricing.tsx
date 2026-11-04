@@ -19,7 +19,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             <p className="eyebrow">Monthly plans</p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Predictable pricing for regular laundry</h2>
             <p className="mt-4 max-w-xl text-ink-soft">
-              Plans include two pickups per month, scheduled about 14 days (2 weeks) apart. Your monthly piece allowance is shared across both pickups; unused pieces do not roll over.
+              Plans include two pickups per month, scheduled about 14 days (2 weeks) apart. Your monthly piece allowance is shared across both pickups. Each pickup has its own included-piece limit; unused pieces do not roll over.
             </p>
           </div>
           <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
