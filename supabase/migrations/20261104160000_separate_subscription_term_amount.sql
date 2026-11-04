@@ -6,11 +6,14 @@ alter table public.subscriptions
 
 alter table public.plans
   add column if not exists monthly_discount_pct numeric(5,2) not null default 0,
+  add column if not exists three_month_discount_pct numeric(5,2) not null default 2,
   add column if not exists six_month_discount_pct numeric(5,2) not null default 5;
 
 alter table public.plans
   drop constraint if exists plans_monthly_discount_pct_check,
   add constraint plans_monthly_discount_pct_check check (monthly_discount_pct >= 0 and monthly_discount_pct < 100),
+  drop constraint if exists plans_three_month_discount_pct_check,
+  add constraint plans_three_month_discount_pct_check check (three_month_discount_pct >= 0 and three_month_discount_pct < 100),
   drop constraint if exists plans_six_month_discount_pct_check,
   add constraint plans_six_month_discount_pct_check check (six_month_discount_pct >= 0 and six_month_discount_pct < 100),
   drop constraint if exists plans_yearly_discount_pct_check,
@@ -51,6 +54,7 @@ declare
   _invoice_id uuid;
   _monthly bigint;
   _plan_monthly_discount numeric;
+  _plan_three_month_discount numeric;
   _plan_six_month_discount numeric;
   _plan_yearly_discount numeric;
   _months integer;
@@ -58,7 +62,7 @@ declare
   _total bigint;
   _end_date date;
 begin
-  if _billing_period not in ('monthly', 'six_month', 'yearly') then
+  if _billing_period not in ('monthly', 'three_month', 'six_month', 'yearly') then
     raise exception 'invalid_billing_period' using errcode = 'P0001';
   end if;
 
@@ -67,9 +71,10 @@ begin
   _result := public.create_subscription_payment_intent(_plan_slug, _provider);
   _sub_id := (_result->>'subscription_id')::uuid;
 
-  select s.price_kobo, i.id
-    into _monthly, _invoice_id
+  select s.price_kobo, i.id, p.monthly_discount_pct, p.three_month_discount_pct, p.six_month_discount_pct, p.yearly_discount_pct
+    into _monthly, _invoice_id, _plan_monthly_discount, _plan_three_month_discount, _plan_six_month_discount, _plan_yearly_discount
     from public.subscriptions s
+    join public.plans p on p.id = s.plan_id
     join public.subscription_invoices i on i.subscription_id = s.id
    where s.id = _sub_id
    order by i.created_at desc
@@ -80,8 +85,9 @@ begin
     raise exception 'subscription_invoice_not_found' using errcode = 'P0001';
   end if;
 
-  _months := case _billing_period when 'six_month' then 6 when 'yearly' then 12 else 1 end;
+  _months := case _billing_period when 'three_month' then 3 when 'six_month' then 6 when 'yearly' then 12 else 1 end;
   _discount := case
+    when _billing_period = 'three_month' then coalesce(_plan_three_month_discount, 2)
     when _billing_period = 'six_month' then coalesce(_plan_six_month_discount, 5)
     when _billing_period = 'yearly' then coalesce(_plan_yearly_discount, 10)
     else coalesce(_plan_monthly_discount, 0)
@@ -154,6 +160,7 @@ begin
    order by s.current_period_end for update
  loop
   v_term:=case v_sub.billing_period
+    when 'three_month' then interval '3 months'
     when 'six_month' then interval '6 months'
     when 'yearly' then interval '12 months'
     else interval '1 month'
