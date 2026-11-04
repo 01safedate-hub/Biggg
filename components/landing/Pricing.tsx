@@ -43,7 +43,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {plans.map((p, i) => {
               const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
-              const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : billingPeriod === "six_month" ? 5 : 0;
+              const discountPct = billingPeriod === "yearly" ? Number(p.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(p.six_month_discount_pct ?? 5) : Number(p.monthly_discount_pct ?? 0);
               const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
               const featured = i === 1;
               return (
@@ -61,15 +61,16 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{p.pieces_per_month.toLocaleString()} pieces per month</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Monthly allowance shared across both pickups</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups each month · about 14 days apart</li>
-                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra, excluded and over-cap items billed at current item prices</li>
+                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra garments beyond the plan allowance: {naira(p.overage_price_kobo)} each</li>
                   </ul>
+                  {Object.keys(p.category_limits ?? {}).length > 0 ? <details className="mt-4 rounded-lg border border-line p-3"><summary className="cursor-pointer text-sm font-semibold">View category limits and exclusions</summary><ul className="mt-3 space-y-1 text-xs text-ink-soft">{Object.entries(p.category_limits ?? {}).map(([key, limit]) => <li key={key} className="flex justify-between gap-3"><span>{key.replaceAll("_", " ").replaceAll("-", " ")}</span><span className="font-medium">{Number(limit) === 0 ? "Excluded" : `Up to ${limit} per month`}</span></li>)}</ul></details> : null}
                   <Link href={`/subscriptions/checkout?plan=${p.slug}&billing_period=${billingPeriod}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {p.name}</Link>
                 </div>
               );
             })}
           </div>
         )}
-        <p className="mt-6 text-xs text-ink-mute">Starter and Pro exclude bedding, suits and heavy items. Family plan category limits apply as shown in the subscription details. Pickup and delivery transport are charged separately by distance.</p>
+        <p className="mt-6 text-xs text-ink-mute">Pickup and delivery transport are charged separately by distance. Open each plan’s category details to see excluded categories and category limits.</p>
       </div>
     </section>
   );
