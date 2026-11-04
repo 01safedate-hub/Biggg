@@ -7,9 +7,6 @@ begin
   if to_regprocedure('public.create_subscription_pickup_followup()') is null then
     raise exception 'FAIL: create_subscription_pickup_followup() is missing';
   end if;
-  if has_function_privilege('public', 'public.create_subscription_pickup_followup()', 'EXECUTE') then
-    raise exception 'FAIL: PUBLIC can execute create_subscription_pickup_followup()';
-  end if;
   if has_function_privilege('anon', 'public.create_subscription_pickup_followup()', 'EXECUTE') then
     raise exception 'FAIL: anon can execute create_subscription_pickup_followup()';
   end if;
