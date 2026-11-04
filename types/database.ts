@@ -1941,6 +1941,7 @@ export type Database = {
         Update: {
           active?: boolean
           monthly_discount_pct?: number
+          three_month_discount_pct?: number
           six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
