@@ -34,6 +34,9 @@ export async function updatePlan(formData: FormData) {
   if (error) throw new Error("Could not update plan. Check the database constraints and try again.");
   revalidatePath("/admin/subscription-plans");
   revalidatePath("/admin/subscriptions");
+  revalidatePath("/");
+  revalidatePath("/subscriptions");
+  revalidatePath("/subscriptions/checkout");
 }
 
 export async function createPlan(formData: FormData) {
