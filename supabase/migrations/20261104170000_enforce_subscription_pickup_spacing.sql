@@ -34,7 +34,7 @@ begin
      and sp.status not in ('missed', 'skipped')
      and sp.id is distinct from new.id;
 
-  if tg_op = 'INSERT' and _active_count >= 2 then
+  if _active_count >= 2 then
     raise exception 'monthly_pickup_limit_reached' using errcode = 'P0001';
   end if;
 
