@@ -22,6 +22,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
     const f = new FormData(form);
     if (roles.length === 0) return setMsg({ ok: false, text: "Choose at least one role." });
     if (roles.includes("super_admin") && !window.confirm("A super admin has full control, including approving expenses and seeing all money. Continue?")) return;
+    if (roles.includes("washer") && roles.length > 1 && !window.confirm("Washer has limited wash-queue access. Adding another role also grants that role’s access. Continue?")) return;
     setBusy(true);
     const base = { email: String(f.get("email") ?? ""), full_name: String(f.get("full_name") ?? ""), phone: String(f.get("phone") ?? ""), roles, station_zone_id: stationZoneId || null };
     if (mode === "password") {
