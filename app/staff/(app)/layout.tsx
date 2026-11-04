@@ -4,7 +4,7 @@ import { enforceStaffGate } from "@/lib/staff-gate";
 export default async function StaffLayout({children}:{children:React.ReactNode}){
  const {supabase,name,roles}=await requireRole(["super_admin","admin","secretary","cashier","delivery_agent","commission_agent","washer"]);
  const washerOnly=roles.includes("washer")&&!roles.some(r=>["super_admin","admin","secretary","cashier","delivery_agent","commission_agent"].includes(r));
- await enforceStaffGate(supabase,{skipOnboarding:roles.includes("super_admin")||washerOnly});
+ await enforceStaffGate(supabase,{skipOnboarding:roles.includes("super_admin")});
  const work:NavGroup["items"]=[{href:"/staff",label:"Home",icon:"home",exact:true},{href:"/staff/my-shifts",label:"My shifts",icon:"weekly"},{href:"/staff/leave",label:"Leave and swaps",icon:"weekly"}];
  if(washerOnly){work.splice(1);work.push({href:"/staff/hub",label:"Wash queue",icon:"hub"});}
  if(roles.some(r=>["cashier","secretary","admin","super_admin"].includes(r)))work.push({href:"/staff/subscription-pickup-calls",label:"Subscription pickup calls",icon:"weekly"});
