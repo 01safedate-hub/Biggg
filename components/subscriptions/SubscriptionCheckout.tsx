@@ -16,9 +16,9 @@ function FlutterwaveMark() {
   return <img src="https://upload.wikimedia.org/wikipedia/commons/9/9e/Flutterwave_Logo.png" alt="Flutterwave" width="136" height="32" className="h-8 w-[136px] shrink-0 object-contain object-left" />;
 }
 
-export function SubscriptionCheckout({ plans, initialPlanSlug, yearlyDiscountPct = 10 }: { plans: Plan[]; initialPlanSlug?: string; yearlyDiscountPct?: number }) {
+export function SubscriptionCheckout({ plans, initialPlanSlug, initialBillingPeriod = "monthly", yearlyDiscountPct = 10 }: { plans: Plan[]; initialPlanSlug?: string; initialBillingPeriod?: BillingPeriod; yearlyDiscountPct?: number }) {
   const [planSlug, setPlanSlug] = useState(plans.some((plan) => plan.slug === initialPlanSlug) ? initialPlanSlug! : plans[0]?.slug ?? "");
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(initialBillingPeriod);
   const [message, setMessage] = useState("");
   const [busyProvider, setBusyProvider] = useState<"paystack" | "flutterwave" | null>(null);
   const selectedPlan = plans.find((plan) => plan.slug === planSlug);
