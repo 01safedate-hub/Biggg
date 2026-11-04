@@ -2388,6 +2388,7 @@ export type Database = {
           id: string
           order_id: string | null
           excluded_kobo: number
+          excluded_pieces: number
           overage_kobo: number
           overage_pieces: number
           pieces_counted: number | null
