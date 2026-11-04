@@ -135,7 +135,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           {o.status === "counted" && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               {o.source === "subscription" ? (
-                Number(subscriptionPickup?.overage_pieces ?? 0) > 0
+                (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 || Number(subscriptionPickup?.excluded_kobo ?? 0) > 0)
                   ? <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Your pickup has {subscriptionPickup?.overage_pieces} extra eligible piece(s) charged at the plan extra-piece rate and excluded-category garments charged at their full catalogue price ({naira(Number(subscriptionPickup?.excluded_kobo ?? 0))}). Review and pay the separate online bill under <Link className="font-semibold underline" href="/account/extra-clothes">Extra-clothes bills</Link>. Your clothes proceed once that bill is paid. Never pay the agent in cash.</p>
                   : <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">The recorded garments are covered by your monthly plan. No laundry or transport payment is due for this pickup.</p>
               ) : o.source === "online" && !o.count_accepted_at ? <AcceptCount orderId={id} /> : (
