@@ -6,11 +6,11 @@ import { CategoryLimitsEditor } from "@/components/admin/CategoryLimitsEditor";
 export const metadata = { title: "Subscription plans" };
 export const dynamic = "force-dynamic";
 
-type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number };
+type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; monthly_discount_pct: number; six_month_discount_pct: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number };
 
 export default async function AdminSubscriptionPlansPage() {
   const { supabase } = await requireRole(["super_admin"]);
-  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,yearly_discount_pct,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
+  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,monthly_discount_pct,six_month_discount_pct,yearly_discount_pct,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
   const plans = (data ?? []) as Plan[];
   return <div className="space-y-6">
     <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices and allowances. Prices are stored in kobo; changes may affect new checkouts, so verify the configured values before saving.</p></div>
@@ -24,7 +24,9 @@ export default async function AdminSubscriptionPlansPage() {
           <label className="block text-sm font-medium">Pieces per month<input name="pieces_per_month" type="number" min="1" step="1" required placeholder="75" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required placeholder="25" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
           <label className="block text-sm font-medium">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required placeholder="15000" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
-          <label className="block text-sm font-medium">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required placeholder="10" className="mt-1.5 block min-h-12 w-full min-w-0 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-base text-gray-900 shadow-sm outline-none focus:border-brand focus:bg-white focus:ring-2 focus:ring-brand/20" /></label>
+          <label className="block text-sm font-medium">1-month discount (%)<input name="monthly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="0" className="input mt-1 w-full" /></label>
+          <label className="block text-sm font-medium">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="5" className="input mt-1 w-full" /></label>
+          <label className="block text-sm font-medium">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required placeholder="10" className="input mt-1 w-full" /></label>
           <CategoryLimitsEditor />
           <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"><input type="checkbox" name="active" defaultChecked className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Active for sale</label>
         </div>
@@ -40,7 +42,9 @@ export default async function AdminSubscriptionPlansPage() {
         <label className="text-sm">Pieces per month<input name="pieces_per_month" type="number" min="1" step="1" required defaultValue={plan.pieces_per_month} className="input mt-1 w-full" /></label>
         <label className="text-sm">Weekly allowance<input name="weekly_allowance" type="number" min="1" step="1" required defaultValue={plan.weekly_allowance} className="input mt-1 w-full" /></label>
         <label className="text-sm">Overage price (kobo per piece)<input name="overage_price_kobo" type="number" min="0" step="1" required defaultValue={plan.overage_price_kobo} className="input mt-1 w-full" /></label>
-        <label className="text-sm">Yearly discount (%)<input name="yearly_discount_pct" type="number" min="0" max="100" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
+        <label className="text-sm">1-month discount (%)<input name="monthly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.monthly_discount_pct ?? 0} className="input mt-1 w-full" /></label>
+        <label className="text-sm">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.six_month_discount_pct ?? 5} className="input mt-1 w-full" /></label>
+        <label className="text-sm">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
         <CategoryLimitsEditor initial={plan.category_limits ?? {}} />
       </div>
       <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Save plan</button></div>
