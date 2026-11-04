@@ -58,7 +58,10 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
             pieces_per_month: Number(plan.pieces_per_month),
             weekly_allowance: plan.weekly_allowance,
             category_limits: (plan.category_limits ?? {}) as Record<string, number>,
-            overage_price_kobo: Number(plan.overage_price_kobo),\n            monthly_discount_pct: Number(plan.monthly_discount_pct ?? 0),\n            six_month_discount_pct: Number(plan.six_month_discount_pct ?? 5),\n            yearly_discount_pct: Number(plan.yearly_discount_pct ?? 10),
+            overage_price_kobo: Number(plan.overage_price_kobo),
+            monthly_discount_pct: Number(plan.monthly_discount_pct ?? 0),
+            six_month_discount_pct: Number(plan.six_month_discount_pct ?? 5),
+            yearly_discount_pct: Number(plan.yearly_discount_pct ?? 10),
           }))} pickupsPerMonth={pickupsPerMonth} yearlyDiscountPct={yearlyDiscountPct} initialBillingPeriod={billingPeriod} />
         </section>
 
