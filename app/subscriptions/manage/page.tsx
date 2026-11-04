@@ -27,7 +27,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   ]);
 
   let usedPieces = 0;
-  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; overage_kobo: number; excluded_kobo: number; order_id: string | null }[] = [];
+  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; overage_kobo: number; excluded_kobo: number; excluded_pieces: number; order_id: string | null }[] = [];
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
   let cycleStart = active?.current_period_start ?? new Date().toISOString();
   let cycleEnd = active?.current_period_end ?? "9999-12-31";
@@ -42,7 +42,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   if (active?.id) {
     const { data: pickupRows, error: pickupError } = await supabase
       .from("subscription_pickups")
-      .select("id,scheduled_for,status,pieces_counted,overage_pieces,overage_kobo,excluded_kobo,order_id")
+      .select("id,scheduled_for,status,pieces_counted,overage_pieces,overage_kobo,excluded_kobo,excluded_pieces,order_id")
       .eq("subscription_id", active.id)
       .gte("scheduled_for", cycleStart)
       .lt("scheduled_for", cycleEnd)
@@ -50,13 +50,14 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
     if (!pickupError) pickups = pickupRows ?? [];
 
     // Use the persisted overage figure as the authoritative billing result.
-    // Reconstruct allowance usage from recorded total minus separately chargeable pieces.
+    // Exclude both over-limit eligible garments and excluded-category garments from plan usage.
     usedPieces = pickups
       .filter((pickup) => !["missed", "skipped"].includes(pickup.status))
       .reduce((sum, pickup) => {
         const recorded = Number(pickup.pieces_counted ?? 0);
         const separatelyChargeable = Number(pickup.overage_pieces ?? 0);
-        return sum + Math.max(0, recorded - separatelyChargeable);
+        const excluded = Number(pickup.excluded_pieces ?? 0);
+        return sum + Math.max(0, recorded - separatelyChargeable - excluded);
       }, 0);
   }
   const allowance = Number(activePlan?.pieces_per_month ?? 0);
