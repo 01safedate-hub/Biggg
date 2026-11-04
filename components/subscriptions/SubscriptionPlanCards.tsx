@@ -13,12 +13,8 @@ type Plan = {
   blurb: string | null;
   monthly_price_kobo: number;
   pieces_per_month: number;
-  weekly_allowance: number | null;
   category_limits: Record<string, number> | null;
   overage_price_kobo: number;
-  monthly_discount_pct?: number;
-  six_month_discount_pct?: number;
-  yearly_discount_pct?: number;
   monthly_discount_pct?: number;
   six_month_discount_pct?: number;
   yearly_discount_pct?: number;
@@ -52,7 +48,6 @@ export function SubscriptionPlanCards({
 }) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(initialBillingPeriod);
   const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
-  
 
   return (
     <>
@@ -60,10 +55,10 @@ export function SubscriptionPlanCards({
         <div>
           <p className="eyebrow">Subscription plans</p>
           <h2 className="mt-3 max-w-xl text-2xl font-bold tracking-tight sm:text-3xl">Choose the plan that works for you</h2>
-          <p className="mt-3 max-w-xl text-sm text-ink-soft">Switch billing duration instantly to compare your total and monthly equivalent.</p>
+          <p className="mt-3 max-w-xl text-sm text-ink-soft">Switch between 1, 6 and 12-month billing to compare your total.</p>
         </div>
         <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
-          {([{ value: "monthly", label: "Monthly" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "Annual" }] as const).map((option) => (
+          {([{ value: "monthly", label: "1 month" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
             <button key={option.value} type="button" onClick={() => setBillingPeriod(option.value)} aria-pressed={billingPeriod === option.value}
               className={`rounded px-3 py-1.5 transition-colors ${billingPeriod === option.value ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}>
               {option.label}
@@ -78,7 +73,7 @@ export function SubscriptionPlanCards({
             const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : Number(plan.monthly_discount_pct ?? 0);
             const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
             const featured = index === 1;
-            const isStarterOrPro = plan.slug === "starter" || plan.slug === "pro";
+            const categories = Object.entries(plan.category_limits ?? {});
             return (
               <article key={plan.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
@@ -94,19 +89,17 @@ export function SubscriptionPlanCards({
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{plan.pieces_per_month.toLocaleString()} eligible pieces per month</li>
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups per month, scheduled about 14 days (2 weeks) apart</li>
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Monthly piece allowance is shared across both pickups; unused pieces do not roll over</li>
-                  {plan.slug === "family-max" ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Senator sets count as everyday pieces</li> : null}
-                  {isStarterOrPro ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Bedding, suits and heavy items are not included in the plan allowance</li> : null}
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra garments beyond the plan allowance: {naira(plan.overage_price_kobo)} each</li>
                 </ul>
-                {isFamily && Object.keys(caps).length > 0 ? (
-                  <div className="mt-5 rounded-lg border border-line p-3">
-                    <h4 className="text-sm font-semibold text-ink">Monthly category limits</h4>
-                    <ul className="mt-2 space-y-1 text-xs text-ink-soft">
-                      {Object.entries(caps).map(([label, limit]) => <li key={label} className="flex justify-between gap-2"><span>{label}</span><span className="font-medium">Up to {limit}</span></li>)}
+                {categories.length > 0 ? (
+                  <details className="mt-5 rounded-lg border border-line p-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-ink">View category limits and exclusions</summary>
+                    <ul className="mt-3 space-y-1 text-xs text-ink-soft">
+                      {categories.map(([slug, limit]) => <li key={slug} className="flex justify-between gap-2"><span>{categoryLabels[slug] ?? slug.replaceAll("-", " ").replaceAll("_", " ")}</span><span className="font-medium">{Number(limit) === 0 ? "Excluded" : `Up to ${limit} per month`}</span></li>)}
                     </ul>
-                  </div>
+                  </details>
                 ) : null}
-                <p className="mt-4 text-xs text-ink-mute">Pick your first pickup date at checkout. Your second pickup is scheduled approximately two weeks later, subject to available service days.</p>
+                <p className="mt-4 text-xs text-ink-mute">Your first pickup date is selected during scheduling. The second pickup is planned about two weeks later, subject to available service days.</p>
                 <Link href={`/subscriptions/checkout?plan=${encodeURIComponent(plan.slug)}&billing_period=${billingPeriod}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {plan.name}</Link>
               </article>
             );
