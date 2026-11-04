@@ -165,7 +165,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
               {list.map((i) => (
                 <li key={i.id} className="py-2">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged per piece" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
+                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged at full catalogue price" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
 </div>
                     <div className="flex items-center gap-2">
                       <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>
