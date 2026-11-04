@@ -12,7 +12,8 @@ const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]
 
 export default async function SubscriptionsPage({ searchParams }: { searchParams: Promise<{ reference?: string; tx_ref?: string; status?: string; billing?: string }> }) {
   const params = await searchParams;
-  const paymentReference = params.reference ?? params.tx_ref ?? "";\n  const billingPeriod = params.billing === "six_month" || params.billing === "yearly" ? params.billing : "monthly";
+  const paymentReference = params.reference ?? params.tx_ref ?? "";
+  const billingPeriod = params.billing === "six_month" || params.billing === "yearly" ? params.billing : "monthly";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const [{ data: plans }, { data: active }, { data: subscriptionSettings }] = await Promise.all([
@@ -20,7 +21,12 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
     user ? supabase.from("subscriptions").select("id,plan_id,status,current_period_start,current_period_end,plans(name,pieces_per_month,monthly_price_kobo,category_limits)").eq("customer_id", user.id).eq("status", "active").order("current_period_end", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("settings").select("value").eq("key", "subscription").maybeSingle(),
   ]);
-  const subscriptionConfig = (subscriptionSettings?.value as { pickups_per_month?: number; yearly_discount_pct?: number } | null) ?? {};\n  const pickupsPerMonth = Math.max(1, Number(subscriptionConfig.pickups_per_month ?? 2));\n  const yearlyDiscountPct = Math.min(99, Math.max(0, Number(subscriptionConfig.yearly_discount_pct ?? 10)));\n  const termMonths = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;\n  const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : billingPeriod === "six_month" ? 5 : 0;\n  const termLabel = billingPeriod === "yearly" ? "12 months · Annual" : billingPeriod === "six_month" ? "6 months" : "1 month · Monthly";
+  const subscriptionConfig = (subscriptionSettings?.value as { pickups_per_month?: number; yearly_discount_pct?: number } | null) ?? {};
+  const pickupsPerMonth = Math.max(1, Number(subscriptionConfig.pickups_per_month ?? 2));
+  const yearlyDiscountPct = Math.min(99, Math.max(0, Number(subscriptionConfig.yearly_discount_pct ?? 10)));
+  const termMonths = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
+  const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : billingPeriod === "six_month" ? 5 : 0;
+  const termLabel = billingPeriod === "yearly" ? "12 months · Annual" : billingPeriod === "six_month" ? "6 months" : "1 month · Monthly";
   let usedPieces = 0;
   if (active?.id) {
     const { data: pickups } = await supabase.from("subscription_pickups").select("id,scheduled_for,status").eq("subscription_id", active.id).gte("scheduled_for", active.current_period_start ?? new Date().toISOString()).lt("scheduled_for", active.current_period_end ?? "9999-12-31").not("status", "in", '("missed","skipped")');
@@ -55,10 +61,52 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
       <div className="space-y-2"><p className="text-sm font-medium text-brand-dark"><Link href="/services" className="hover:underline">← Review our services</Link></p><h1 className="text-3xl font-bold tracking-tight">Monthly laundry plans</h1><p className="max-w-2xl text-sm text-ink-soft">One monthly payment covers pickup, laundry and delivery for eligible clothes included in your plan. Excluded categories are charged separately and do not use the monthly allowance.</p><p className="max-w-2xl text-sm text-ink-soft">New to LaundryPoint? <Link href="/services" className="font-medium text-brand-dark underline">See what services we offer</Link> before choosing a plan.</p></div>
       {paymentReference ? <SubscriptionPaymentReturn reference={paymentReference} /> : null}
       {active && activePlan ? <section className="card space-y-3 p-5"><p className="text-sm font-semibold text-ink-mute">YOUR ACTIVE PLAN</p><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">{activePlan.name}</h2><p className="text-sm text-ink-soft">{active.current_period_end ? `Renews/ends ${new Date(active.current_period_end).toLocaleDateString("en-NG")}` : "Current billing period"}</p></div><p className="text-lg font-bold">{remaining} pieces remaining</p></div><div className="h-2 overflow-hidden rounded-full bg-canvas"><div className="h-full rounded-full bg-brand" style={{ width: `${allowance > 0 ? Math.min(100, usedPieces / allowance * 100) : 0}%` }} /></div><p className="text-sm text-ink-soft">{usedPieces} of {allowance} eligible pieces used this period. Excluded categories and category-cap excess are charged separately.</p></section> : null}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(plans ?? []).map((plan) => <section key={plan.id} className="card space-y-3 p-5"><h2 className="text-lg font-semibold">{plan.name}</h2><p className="text-2xl font-bold">{naira(Number(plan.monthly_price_kobo))}<span className="ml-1 text-sm font-normal text-ink-soft">/ month</span></p><p className="text-sm">{plan.pieces_per_month} eligible clothes per month</p><p className="text-sm text-ink-soft">Includes up to {pickupsPerMonth} pickups per monthly billing period. Weekly allowance: {plan.weekly_allowance ?? "As scheduled"}.</p>{plan.blurb ? <p className="text-sm text-ink-soft">{plan.blurb}</p> : null}{Object.entries((plan.category_limits ?? {}) as Record<string, number>).length > 0 ? <div className="rounded-lg border border-line p-3"><h3 className="text-sm font-semibold">Category limits included in this plan</h3><ul className="mt-2 space-y-1 text-sm">{Object.entries((plan.category_limits ?? {}) as Record<string, number>).map(([slug, limit]) => <li key={slug} className="flex justify-between gap-3"><span>{slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ")}</span><span className="font-medium">{Number(limit) === 0 ? "Not included · charged from first piece" : `Up to ${limit} included pieces`}</span></li>)}</ul><p className="mt-2 text-xs text-ink-soft">Categories not listed have no separate category cap and use the overall plan allowance. Excluded categories are charged from the first piece; pieces above a positive category cap are charged at the plan overage rate.</p></div> : <p className="text-sm text-ink-soft">No separate category caps. The total plan allowance applies to eligible garments.</p>}<p className="text-sm text-ink-soft">Use the allowance over {pickupsPerMonth} pickups. Pieces above the remaining allowance must be recorded and billed separately online.</p>{active ? <Link href="/subscriptions/manage" className="btn-secondary inline-block">Manage subscription</Link> : user ? <Link href={`/subscriptions/checkout?plan=${plan.slug}&billing_period=${billingPeriod}`} className="btn-primary inline-block">Choose plan</Link> : <Link href="/login?next=/subscriptions" className="btn-primary inline-block">Sign in to choose</Link>}</section>)}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-xl font-semibold">Choose your billing duration</h2>
+          <p className="text-sm text-ink-soft">Compare monthly, six-month and annual subscription prices.</p>
+        </div>
+        <div role="group" aria-label="Billing duration" className="grid grid-cols-3 gap-2">
+          {[{ value: "monthly", label: "Monthly" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "Annual" }].map((option) => (
+            <Link key={option.value} aria-current={billingPeriod === option.value ? "page" : undefined} href={`/subscriptions?billing=${option.value}`} className={`rounded-lg border px-3 py-3 text-center text-sm font-semibold ${billingPeriod === option.value ? "border-brand bg-brand-tint text-brand-dark" : "border-line bg-white text-ink-soft"}`}>
+              {option.label}
+            </Link>
+          ))}
+        </div>
+        <p className="text-xs text-ink-soft">{discountPct}% discount · {termLabel}</p>
       </div>
-      <div className="space-y-2 border-t border-line pt-4"><p className="text-sm text-ink-soft">A monthly plan is optional. You can explore LaundryPoint and use the dashboard without subscribing.</p><Link href="/dashboard" className="inline-flex font-medium text-brand-dark underline underline-offset-4">Skip for now and go to dashboard</Link></div>
+      <div className="space-y-2 border-t border-line pt-4">
+        <p className="text-sm text-ink-soft">A subscription is optional. You can continue without choosing a plan.</p>
+        <Link href="/dashboard" className="btn-secondary inline-block">Skip subscription for now</Link>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {(plans ?? []).map((plan) => {
+          const total = Math.round(Number(plan.monthly_price_kobo) * termMonths * (1 - discountPct / 100));
+          return (
+            <section key={plan.id} className="card space-y-3 p-5">
+              <h2 className="text-lg font-semibold">{plan.name}</h2>
+              <p className="text-2xl font-bold">{naira(total)}<span className="ml-1 text-sm font-normal text-ink-soft">/ {termMonths === 1 ? "month" : `${termMonths} months`}</span></p>
+              {termMonths > 1 ? <p className="text-xs text-ink-soft">{naira(Math.round(total / termMonths))} average per month · {discountPct}% saved</p> : null}
+              <p className="text-sm">{plan.pieces_per_month} eligible clothes per month</p>
+              <p className="text-sm text-ink-soft">Includes up to {pickupsPerMonth} pickups per monthly billing period. Weekly allowance: {plan.weekly_allowance ?? "As scheduled"}.</p>
+              {plan.blurb ? <p className="text-sm text-ink-soft">{plan.blurb}</p> : null}
+              {Object.entries((plan.category_limits ?? {}) as Record<string, number>).length > 0 ? (
+                <div className="rounded-lg border border-line p-3">
+                  <h3 className="text-sm font-semibold">Category limits included in this plan</h3>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {Object.entries((plan.category_limits ?? {}) as Record<string, number>).map(([slug, limit]) => (
+                      <li key={slug} className="flex justify-between gap-3"><span>{slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ")}</span><span className="font-medium">{Number(limit) === 0 ? "Not included · charged from first piece" : `Up to ${limit} included pieces`}</span></li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-ink-soft">Categories not listed have no separate category cap and use the overall plan allowance. Excluded categories are charged from the first piece; pieces above a positive category cap are charged at the plan overage rate.</p>
+                </div>
+              ) : <p className="text-sm text-ink-soft">No separate category caps. The total plan allowance applies to eligible garments.</p>}
+              <p className="text-sm text-ink-soft">Use the allowance over {pickupsPerMonth} pickups. Pieces above the remaining allowance must be recorded and billed separately online.</p>
+              {active ? <Link href="/subscriptions/manage" className="btn-secondary inline-block">Manage subscription</Link> : user ? <Link href={`/subscriptions/checkout?plan=${plan.slug}&billing_period=${billingPeriod}`} className="btn-primary inline-block">Choose plan</Link> : <Link href="/login?next=/subscriptions" className="btn-primary inline-block">Sign in to choose</Link>}
+            </section>
+          );
+        })}
+      </div>
       <p className="text-xs text-ink-mute">Plan activation requires verified online payment. Never pay an agent in cash.</p>
       </div>
     </main>
