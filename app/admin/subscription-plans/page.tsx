@@ -10,7 +10,7 @@ type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number
 
 export default async function AdminSubscriptionPlansPage() {
   const { supabase } = await requireRole(["super_admin"]);
-  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
+  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
   const plans = (data ?? []) as Plan[];
   return <div className="space-y-6">
     <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices and allowances. Prices are stored in kobo; changes may affect new checkouts, so verify the configured values before saving.</p></div>
