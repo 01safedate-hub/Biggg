@@ -13,7 +13,7 @@ export default async function AdminSubscriptionPlansPage() {
   const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
   const plans = (data ?? []) as Plan[];
   return <div className="space-y-6">
-    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices, monthly piece allowances and the maximum included pieces per pickup. The monthly allowance is shared across two pickups; extra pieces above either limit are billed separately.</p></div>
+    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices, monthly piece allowances and the maximum included pieces per pickup. The monthly allowance is shared across two pickups. This per-pickup value is a cap within the monthly allowance, not an additional allowance. Extra pieces above either limit are billed separately.</p></div>
     <section className="card space-y-4 p-4 sm:p-5">
       <div><h2 className="text-lg font-semibold">Create a plan</h2><p className="mt-1 text-sm text-ink-soft">Add a new subscription option. Use a unique slug and verify the allowance and price before creating it.</p></div>
       <form action={createPlan} className="space-y-4">
