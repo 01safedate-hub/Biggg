@@ -1906,7 +1906,7 @@ export type Database = {
           created_at: string
           category_limits: Json
           id: string
-          monthly_price_kobo: number
+          monthly_discount_pct: number\n          six_month_discount_pct: number\n          monthly_discount_pct: number\n          six_month_discount_pct: number\n          monthly_price_kobo: number
           name: string
           overage_price_kobo: number
           pieces_per_month: number
@@ -1917,7 +1917,7 @@ export type Database = {
           yearly_discount_pct: number
         }
         Insert: {
-          active?: boolean
+          active?: boolean\n          monthly_discount_pct?: number\n          six_month_discount_pct?: number\n          monthly_discount_pct?: number\n          six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
           category_limits?: Json
