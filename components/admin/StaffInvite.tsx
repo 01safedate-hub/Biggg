@@ -54,7 +54,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
         <div><label htmlFor="inv-phone" className={labelCls}>Phone</label><input id="inv-phone" name="phone" type="tel" required className={inputCls} /></div>
         {mode === "password" && <div><label htmlFor="inv-pw" className={labelCls}>First password</label><input id="inv-pw" name="password" type="text" required minLength={10} autoComplete="off" className={inputCls} placeholder="At least 10 characters, letters and numbers" /></div>}
       </div>
-      <div><label htmlFor="staff-station" className={labelCls}>Pickup station / service area</label><select id="staff-station" value={stationZoneId} onChange={(e) => setStationZoneId(e.target.value)} className={inputCls}><option value="">No station assigned</option>{stations.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><p className="mt-1 text-xs text-ink-mute">Delivery agents will be matched to pickup jobs in this live service area.</p></div>
+      {roles.includes("delivery_agent") && <div><label htmlFor="staff-station" className={labelCls}>Pickup station / service area</label><select id="staff-station" value={stationZoneId} onChange={(e) => setStationZoneId(e.target.value)} className={inputCls}><option value="">No station assigned</option>{stations.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><p className="mt-1 text-xs text-ink-mute">Delivery agents will be matched to pickup jobs in this live service area.</p></div>}
       <fieldset>
         <legend className={labelCls}>Role</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
