@@ -13,11 +13,18 @@ Feature branch: `feat/subscription-lifecycle-completion`
 - Never allow cash collection by pickup agents for subscription overages.
 - Keep subscription triggers private from direct anonymous/authenticated invocation unless a specific authenticated API contract requires it.
 
+## Confirmed subscription policy
+- **Two pickups per subscription month.**
+- **The second pickup is scheduled 14 days after the first.**
+- The monthly clothes allowance is shared across both pickups; it is not doubled for each pickup.
+- Pickup generation must be deterministic and idempotent, with no duplicate orders or extra allowance when a pickup is skipped, missed, retried, or regenerated.
+- This is the target policy for the feature implementation. Do not rewrite existing production subscriptions or live settings during development.
+
 ## Implementation sequence
 1. Payment recovery: subscription invoice lookup and verify endpoint; authorize the current customer; provider-side verification; idempotent call to settlement; tests for pending/success/failed/mismatch/foreign-owner/replayed callbacks.
 2. Billing periods: model explicit 1/6/12 month duration; calculate total and any approved discount server-side; persist invoice period; settle without hardcoded one-month extension; adjust renewal reminder and expiry lifecycle; update checkout UI.
-3. Plan policy: capture decisions for Starter 70 vs live 75, category caps for Family plans, Family Max annual discount, and two vs four pickups per month. Do not mutate existing plan data until policy is approved.
-4. Pickup generation: generate no more than the approved number of pickup slots per billing cycle; spaced per handover; deterministic/idempotent keys; create or link orders only once; handle skip/missed/cancelled.
+3. Plan policy: capture decisions for Starter 70 vs live 75, category caps for Family plans, and Family Max annual discount. Do not mutate existing plan data until policy is approved.
+4. Pickup generation: generate exactly two scheduled pickup opportunities per subscription month, 14 days apart; deterministic/idempotent keys; create or link orders only once; handle skip/missed/cancelled without granting extra pickups or allowance.
 5. Renewal communications: in-app/email/WhatsApp with explicit stages; user consent and opt-out respected; idempotent event identifiers; retry and delivery status.
 6. Overage: calculate eligible allowance usage separately from excluded categories and category cap excess; ensure no double charge; online-only checkout and settlement.
 7. Custom plan workflow: lead enquiry → schedule/home visit → quote → approval → invoice/payment → activation; role restrictions and audit trail.
@@ -25,9 +32,8 @@ Feature branch: `feat/subscription-lifecycle-completion`
 9. Automated tests: SQL/pgTAP + TypeScript/Edge Function + app tests; include payment, billing-period, renewal, pickup, category, overage, cancellation, ownership/security and non-subscription regression cases.
 10. Operator runbook: explain configuration, manual recovery, payment reconciliation, retry handling and rollout/rollback.
 
-## Open policy decisions to record before release
+## Remaining policy decisions to record before release
 - Starter allowance: handover states 70, production database currently says 75.
-- Subscription pickups: handover states 2 per month, live setting currently says 4.
 - Family Bond / Family Max category limits: handover says separate caps, live category_limits currently empty.
 - Family Max annual discount: live database currently says 0%, other plans say 10%.
 - Confirm multi-period discount calculation and whether discounts compound with annual discount.
