@@ -59,7 +59,7 @@ export function SubscriptionPlanCards({
           <p className="mt-3 max-w-xl text-sm text-ink-soft">Switch between 1, 3, 6 and 12-month billing to compare your total.</p>
         </div>
         <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
-          {([{ value: "monthly", label: "1 month" }, { value: "three_month", label: "3 months · 2% off" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
+          {([{ value: "monthly", label: "1 month" }, { value: "three_month", label: "3 months" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
             <button key={option.value} type="button" onClick={() => setBillingPeriod(option.value)} aria-pressed={billingPeriod === option.value}
               className={`rounded px-3 py-1.5 transition-colors ${billingPeriod === option.value ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}>
               {option.label}
