@@ -15,7 +15,13 @@ type Plan = {
   pieces_per_month: number;
   weekly_allowance: number | null;
   category_limits: Record<string, number> | null;
-  overage_price_kobo: number;\n  monthly_discount_pct?: number;\n  six_month_discount_pct?: number;\n  yearly_discount_pct?: number;
+  overage_price_kobo: number;
+  monthly_discount_pct?: number;
+  six_month_discount_pct?: number;
+  yearly_discount_pct?: number;
+  monthly_discount_pct?: number;
+  six_month_discount_pct?: number;
+  yearly_discount_pct?: number;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -32,18 +38,6 @@ const categoryLabels: Record<string, string> = {
   footwear: "Shoes",
   "footwear-bags": "Shoes",
 };
-
-const familyCaps: Record<string, Record<string, number>> = {
-  "family-bond": { bedding: 5, curtain: 10, duvet: 3, pillow: 5, suit: 4, shoes: 5 },
-  "family-max": { bedding: 10, curtain: 15, duvet: 10, pillow: 10, suit: 10, shoes: 10 },
-};
-
-function capsFor(plan: Plan): Record<string, number> {
-  const configured = plan.category_limits ?? {};
-  const entries = Object.entries(configured).filter(([key]) => categoryLabels[key]);
-  if (entries.length) return Object.fromEntries(entries.map(([key, value]) => [categoryLabels[key], Number(value)]));
-  return Object.fromEntries(Object.entries(familyCaps[plan.slug] ?? {}).map(([key, value]) => [categoryLabels[key], value]));
-}
 
 export function SubscriptionPlanCards({
   plans,
@@ -81,10 +75,9 @@ export function SubscriptionPlanCards({
       {plans.length === 0 ? <p className="mt-12 text-ink-mute">Plans will be listed here shortly.</p> : (
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {plans.map((plan, index) => {
-            const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : Number(plan.monthly_discount_pct ?? 0);\n            const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
+            const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : Number(plan.monthly_discount_pct ?? 0);
+            const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
             const featured = index === 1;
-            const caps = capsFor(plan);
-            const isFamily = plan.slug === "family-bond" || plan.slug === "family-max";
             const isStarterOrPro = plan.slug === "starter" || plan.slug === "pro";
             return (
               <article key={plan.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
