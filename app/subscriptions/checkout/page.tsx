@@ -12,7 +12,7 @@ export default async function SubscriptionCheckoutPage({ searchParams }: { searc
   const initialBillingPeriod = requestedBillingPeriod === "six_month" || requestedBillingPeriod === "yearly" ? requestedBillingPeriod : "monthly";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return <main id="main" className="container-page max-w-xl space-y-4 py-10"><h1 className="text-2xl font-bold">Sign in to continue</h1><Link className="btn-primary inline-block" href="/login?next=/subscriptions/checkout">Sign in</Link></main>;
+  if (!user) return <main id="main" className="container-page max-w-xl space-y-4 py-10"><h1 className="text-2xl font-bold">Sign in to continue</h1><Link className="btn-primary inline-block" href={`/login?next=${encodeURIComponent(`/subscriptions/checkout?plan=${requestedPlan ?? ""}&billing_period=${initialBillingPeriod}`)}`}>Sign in</Link></main>;
   const { data: existingSubscription } = await supabase.from("subscriptions").select("id,status").eq("customer_id", user.id).in("status", ["active", "pending"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (existingSubscription) redirect("/subscriptions/manage");
   const [{ data: plans }, { data: subscriptionSettings }] = await Promise.all([
