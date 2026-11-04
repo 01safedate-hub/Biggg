@@ -109,7 +109,8 @@ grant execute on function public.create_extra_clothes_payment_intent(uuid,text) 
 
 comment on column public.subscription_pickups.excluded_kobo is 'Full catalogue-price amount for excluded-category garments; separate from the plan extra-piece rate.';
 
-create or replace function public.agent_subscription_pickup_summary(p_order_id uuid)
+drop function if exists public.agent_subscription_pickup_summary(uuid);
+create function public.agent_subscription_pickup_summary(p_order_id uuid)
 returns table(pieces_counted integer, overage_pieces integer, overage_kobo bigint, excluded_kobo bigint, subscription_id uuid)
 language plpgsql stable security definer set search_path = ''
 as $function$
