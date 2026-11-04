@@ -19,7 +19,7 @@ const FALLBACK: PublicSettings = {
   hub: { maps_url: null, address: null },
   whatsapp: { number: null },
   contact: { phone: null },
-  subscription: { pickups_per_month: 4, yearly_discount_pct: 10 },
+  subscription: { pickups_per_month: 2, yearly_discount_pct: 10 },
 };
 
 export async function getSiteData() {
