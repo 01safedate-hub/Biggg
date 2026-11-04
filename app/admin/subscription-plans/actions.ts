@@ -25,12 +25,13 @@ export async function updatePlan(formData: FormData) {
   const weekly = Number(formData.get("weekly_allowance"));
   const overage = Number(formData.get("overage_price_kobo"));
   const monthlyDiscount = Number(formData.get("monthly_discount_pct"));
+  const threeMonthDiscount = Number(formData.get("three_month_discount_pct"));
   const sixMonthDiscount = Number(formData.get("six_month_discount_pct"));
   const yearlyDiscount = Number(formData.get("yearly_discount_pct"));
   const categoryLimits = parseCategoryLimits(formData.get("category_limits"));
   const active = formData.get("active") === "on";
-  if (!id || !name || !Number.isSafeInteger(monthlyPrice) || monthlyPrice < 0 || !Number.isSafeInteger(pieces) || pieces < 1 || !Number.isSafeInteger(weekly) || weekly < 1 || !Number.isSafeInteger(overage) || overage < 0 || ![monthlyDiscount, sixMonthDiscount, yearlyDiscount].every((value) => Number.isFinite(value) && value >= 0 && value < 100)) throw new Error("Invalid plan details. Check prices, allowances, and 1, 6 and 12-month discounts.");
-  const { error } = await supabase.from("plans").update({ name, monthly_price_kobo: monthlyPrice, pieces_per_month: pieces, weekly_allowance: weekly, overage_price_kobo: overage, monthly_discount_pct: monthlyDiscount, six_month_discount_pct: sixMonthDiscount, yearly_discount_pct: yearlyDiscount, active, category_limits: categoryLimits }).eq("id", id);
+  if (!id || !name || !Number.isSafeInteger(monthlyPrice) || monthlyPrice < 0 || !Number.isSafeInteger(pieces) || pieces < 1 || !Number.isSafeInteger(weekly) || weekly < 1 || !Number.isSafeInteger(overage) || overage < 0 || ![monthlyDiscount, threeMonthDiscount, sixMonthDiscount, yearlyDiscount].every((value) => Number.isFinite(value) && value >= 0 && value < 100)) throw new Error("Invalid plan details. Check prices, allowances, and 1, 3, 6 and 12-month discounts.");
+  const { error } = await supabase.from("plans").update({ name, monthly_price_kobo: monthlyPrice, pieces_per_month: pieces, weekly_allowance: weekly, overage_price_kobo: overage, monthly_discount_pct: monthlyDiscount, three_month_discount_pct: threeMonthDiscount, six_month_discount_pct: sixMonthDiscount, yearly_discount_pct: yearlyDiscount, active, category_limits: categoryLimits }).eq("id", id);
   if (error) throw new Error("Could not update plan. Check the database constraints and try again.");
   revalidatePath("/admin/subscription-plans");
   revalidatePath("/admin/subscriptions");
