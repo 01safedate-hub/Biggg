@@ -34,6 +34,7 @@ export function StaffRow({ s, isMe, onboarding, stations }: { s: StaffRowData; i
   const saveRoles = () => {
     if (roles.length === 0 && !window.confirm("Removing every role makes this person a customer with no staff access. Continue?")) return;
     if (roles.includes("super_admin") && !s.roles.includes("super_admin") && !window.confirm("A super admin has full control. Continue?")) return;
+    if (roles.includes("washer") && roles.length > 1 && !s.roles.includes("washer") && !window.confirm("Washer has limited wash-queue access. Adding another role also grants that role’s access. Continue?")) return;
     run(() => changeRoles(s.id, roles), () => setEditing(false));
   };
 
