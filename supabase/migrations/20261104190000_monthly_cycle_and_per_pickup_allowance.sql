@@ -134,3 +134,66 @@ create trigger subscription_pickups_enforce_spacing
 
 comment on function private.finalize_subscription_pickup_count() is
   'Bills excluded/category-capped pieces and any eligible pieces above the monthly cycle allowance or per-pickup included-piece limit.';
+
+-- Count booking slots inside the pickup's own monthly cycle, not the whole prepaid term.
+create or replace function public.book_pickup(_lat double precision, _lng double precision, _address text, _notes text)
+returns uuid language plpgsql security definer set search_path = ''
+as $function$
+declare
+  _q jsonb; _id uuid; _pickup uuid; _sub public.subscriptions; _plan public.plans;
+  _a text := nullif(trim(_address), ''); _scheduled timestamptz; _count int;
+  _timezone text := 'Africa/Lagos';
+  _cycle_months integer; _cycle_start timestamptz; _cycle_end timestamptz;
+begin
+  if auth.uid() is null or not private.is_active() then raise exception 'account_restricted' using errcode = 'P0001'; end if;
+  if _a is null or length(_a) < 5 or length(_a) > 300 then raise exception 'address_required' using errcode = 'P0001'; end if;
+  if length(coalesce(_notes, '')) > 500 then raise exception 'notes_too_long' using errcode = 'P0001'; end if;
+
+  select * into _sub from public.subscriptions s
+   where s.customer_id = auth.uid() and s.status = 'active'
+     and s.current_period_start <= now() and s.current_period_end > now()
+   order by s.current_period_end desc limit 1 for update;
+  if not found then raise exception 'subscription_required' using errcode = 'P0001'; end if;
+  select * into _plan from public.plans where id = _sub.plan_id;
+  if not found or coalesce(_plan.pieces_per_month, 0) < 1 then raise exception 'subscription_plan_invalid' using errcode = 'P0001'; end if;
+
+  _q := public.quote_pickup(_lat, _lng);
+  if not coalesce((_q->>'served')::boolean, false) then raise exception 'not_served' using errcode = 'P0001'; end if;
+  if _q->>'zone_id' is null then raise exception 'service_area_unavailable' using errcode = 'P0001'; end if;
+
+  select coalesce(value->>'timezone', 'Africa/Lagos') into _timezone from public.settings where key = 'business';
+  _scheduled := coalesce(nullif(_q->>'scheduled_for','')::timestamptz, now());
+  _cycle_months := greatest(0, (extract(year from age(_scheduled, _sub.current_period_start))::integer * 12)
+                                + extract(month from age(_scheduled, _sub.current_period_start))::integer);
+  _cycle_start := _sub.current_period_start + make_interval(months => _cycle_months);
+  _cycle_end := _sub.current_period_start + make_interval(months => _cycle_months + 1);
+
+  select count(*) into _count from public.subscription_pickups sp
+   where sp.subscription_id = _sub.id
+     and sp.scheduled_for >= _cycle_start and sp.scheduled_for < _cycle_end
+     and sp.status not in ('missed','skipped');
+  if _count >= 2 then raise exception 'monthly_pickup_limit_reached' using errcode = 'P0001'; end if;
+
+  insert into public.orders (
+    customer_id, source, status, zone_id, pickup_lat, pickup_lng, pickup_address,
+    pickup_distance_km, after_hours, scheduled_for, pickup_fare_kobo,
+    delivery_fare_kobo, notes, created_by
+  ) values (
+    auth.uid(), 'subscription', 'awaiting_dispatch', (_q->>'zone_id')::uuid,
+    _lat, _lng, _a, nullif(_q->>'distance_km','')::numeric,
+    coalesce((_q->>'after_hours')::boolean, false), _scheduled, 0, 0,
+    nullif(trim(_notes), ''), auth.uid()
+  ) returning id into _id;
+
+  insert into public.subscription_pickups (
+    subscription_id, week_start, scheduled_for, status, order_id, pieces_counted, overage_pieces, overage_kobo
+  ) values (
+    _sub.id, date_trunc('week', _scheduled at time zone _timezone)::date,
+    _scheduled, 'scheduled', _id, 0, 0, 0
+  ) returning id into _pickup;
+  update public.orders set subscription_pickup_id = _pickup where id = _id;
+  return _id;
+end
+$function$;
+grant execute on function public.book_pickup(double precision,double precision,text,text) to authenticated;
+revoke execute on function public.book_pickup(double precision,double precision,text,text) from anon, public;
