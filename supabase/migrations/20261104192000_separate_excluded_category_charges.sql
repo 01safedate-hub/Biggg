@@ -108,3 +108,21 @@ revoke execute on function public.create_extra_clothes_payment_intent(uuid,text)
 grant execute on function public.create_extra_clothes_payment_intent(uuid,text) to authenticated;
 
 comment on column public.subscription_pickups.excluded_kobo is 'Full catalogue-price amount for excluded-category garments; separate from the plan extra-piece rate.';
+
+create or replace function public.agent_subscription_pickup_summary(p_order_id uuid)
+returns table(pieces_counted integer, overage_pieces integer, overage_kobo bigint, excluded_kobo bigint, subscription_id uuid)
+language plpgsql stable security definer set search_path = ''
+as $function$
+begin
+  if not exists (
+    select 1 from public.orders o where o.id = p_order_id and o.source = 'subscription'
+      and (o.pickup_agent_id = auth.uid() or o.delivery_agent_id = auth.uid())
+  ) then raise exception 'not_authorized' using errcode = '42501'; end if;
+  return query
+    select sp.pieces_counted, sp.overage_pieces, sp.overage_kobo, sp.excluded_kobo, sp.subscription_id
+      from public.orders o join public.subscription_pickups sp on sp.id = o.subscription_pickup_id
+     where o.id = p_order_id;
+end
+$function$;
+revoke all on function public.agent_subscription_pickup_summary(uuid) from public, anon;
+grant execute on function public.agent_subscription_pickup_summary(uuid) to authenticated;
