@@ -7,7 +7,8 @@ export const metadata = { title: "Manage subscription" };
 export const dynamic = "force-dynamic";
 
 const naira = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount / 100);
-const date = (value: string | null) => value ? new Date(value).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }) : "Not scheduled";\nconst billingLabel = (value: string | null) => value === "yearly" ? "12 months · Annual" : value === "six_month" ? "6 months" : "1 month · Monthly";
+const date = (value: string | null) => value ? new Date(value).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }) : "Not scheduled";
+const billingLabel = (value: string | null) => value === "yearly" ? "12 months · Annual" : value === "six_month" ? "6 months" : "1 month · Monthly";
 const notices: Record<string, string> = {
   cancellation_scheduled: "Cancellation is scheduled for the end of your current billing period. Your plan remains active until then.",
   cancellation_reversed: "Your scheduled cancellation has been reversed.",
