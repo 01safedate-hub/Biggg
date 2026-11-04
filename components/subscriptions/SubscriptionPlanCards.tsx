@@ -15,7 +15,7 @@ type Plan = {
   pieces_per_month: number;
   weekly_allowance: number | null;
   category_limits: Record<string, number> | null;
-  overage_price_kobo: number;
+  overage_price_kobo: number;\n  monthly_discount_pct?: number;\n  six_month_discount_pct?: number;\n  yearly_discount_pct?: number;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -58,7 +58,7 @@ export function SubscriptionPlanCards({
 }) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(initialBillingPeriod);
   const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
-  const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : billingPeriod === "six_month" ? 5 : 0;
+  
 
   return (
     <>
@@ -81,7 +81,7 @@ export function SubscriptionPlanCards({
       {plans.length === 0 ? <p className="mt-12 text-ink-mute">Plans will be listed here shortly.</p> : (
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {plans.map((plan, index) => {
-            const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
+            const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : Number(plan.monthly_discount_pct ?? 0);\n            const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
             const featured = index === 1;
             const caps = capsFor(plan);
             const isFamily = plan.slug === "family-bond" || plan.slug === "family-max";
@@ -103,7 +103,7 @@ export function SubscriptionPlanCards({
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Monthly piece allowance is shared across both pickups; unused pieces do not roll over</li>
                   {plan.slug === "family-max" ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Senator sets count as everyday pieces</li> : null}
                   {isStarterOrPro ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Bedding, suits and heavy items are not included in the plan allowance</li> : null}
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra, excluded or over-cap items are charged separately at the current item price list</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra garments beyond the plan allowance: {naira(plan.overage_price_kobo)} each</li>
                 </ul>
                 {isFamily && Object.keys(caps).length > 0 ? (
                   <div className="mt-5 rounded-lg border border-line p-3">
