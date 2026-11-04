@@ -23,12 +23,12 @@ function cleanPhone(v: string) {
 
 async function persistStation(admin: ReturnType<typeof createClient>, userId: string, value: unknown, roles: string[]) {
   const stationId = clean(value);
+  if (!roles.includes("delivery_agent")) return null;
   if (stationId && !/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
   if (stationId) {
     const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
     if (zoneError || !zone) return "invalid_station";
   }
-  if (!roles.includes("delivery_agent") && stationId) return "station_requires_delivery_agent";
   const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId || null }, { onConflict: "user_id" });
   return error ? "station_save_failed" : null;
 }
