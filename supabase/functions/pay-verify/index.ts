@@ -1,6 +1,5 @@
-// Fallback for a late or missed webhook. When the customer returns from the payment page, the app asks us
-// to check any pending payment on that order directly with the provider. We only credit what the provider
-// confirms, for the exact amount, through the same settle_online_payment the webhooks use.
+// Fallback for a late or missed webhook. Supports both ordinary orders and invoice-linked
+// subscription payments. The caller must own the payment; provider verification is authoritative.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
@@ -15,36 +14,56 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
   const auth = req.headers.get("Authorization");
   if (!auth) return json(401, { error: "not_signed_in" });
+
   let b: Record<string, unknown>;
   try { b = await req.json(); } catch { return json(400, { error: "bad_request" }); }
-  const order = String(b.order_id ?? "");
-  if (!/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });
 
-  // Row-level security limits this to the signed-in customer's own payments.
+  const order = String(b.order_id ?? "");
+  const reference = String(b.reference ?? "");
+  if (!reference && !/^[0-9a-f-]{36}$/i.test(order)) return json(400, { error: "bad_request" });
+  if (reference && (reference.length > 128 || !/^[A-Za-z0-9_-]+$/.test(reference))) return json(400, { error: "bad_request" });
+
+  // Resolve the authenticated customer first, then explicitly constrain the payment query to them.
   const user = createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-  const { data: pending, error } = await user.from("payments").select("reference,mode,amount_kobo").eq("order_id", order).eq("kind", "payment").eq("status", "pending");
-  if (error) return json(400, { error: error.message });
+  const { data: authData, error: authError } = await user.auth.getUser();
+  if (authError || !authData.user) return json(401, { error: "not_signed_in" });
+
+  let query = user.from("payments").select("reference,mode,amount_kobo")
+    .eq("customer_id", authData.user.id).eq("kind", "payment").eq("status", "pending");
+  query = reference ? query.eq("reference", reference) : query.eq("order_id", order);
+  const { data: pending, error } = await query;
+  if (error) return json(400, { error: "payment_lookup_failed" });
+  if (!pending?.length) return json(200, { checked: 0, settled: 0, message: "no_pending_payment" });
 
   const db = createClient(URL_, SERVICE, { auth: { persistSession: false } });
   let settled = 0;
-  for (const p of pending ?? []) {
+  for (const p of pending) {
     try {
       if (p.mode === "paystack" && PAYSTACK) {
         const v = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(p.reference)}`, { headers: { Authorization: `Bearer ${PAYSTACK}` } });
         const j = await v.json().catch(() => null);
-        if (v.ok && j?.data?.status === "success" && j.data.currency === "NGN") {
-          const { error: e } = await db.rpc("settle_online_payment", { _reference: p.reference, _provider: "paystack", _amount_kobo: j.data.amount });
-          if (!e) settled++;
+        if (v.ok && j?.data?.status === "success" && j.data.currency === "NGN" && j.data.reference === p.reference) {
+          const { error: settleError } = await db.rpc("settle_online_payment", {
+            _reference: p.reference, _provider: "paystack", _amount_kobo: Number(j.data.amount),
+          });
+          if (!settleError) settled++;
         }
       } else if (p.mode === "flutterwave" && FLW) {
         const v = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(p.reference)}`, { headers: { Authorization: `Bearer ${FLW}` } });
         const j = await v.json().catch(() => null);
         if (v.ok && j?.data?.status === "successful" && j.data.currency === "NGN" && j.data.tx_ref === p.reference) {
-          const { error: e } = await db.rpc("settle_online_payment", { _reference: p.reference, _provider: "flutterwave", _amount_kobo: Math.round(Number(j.data.amount) * 100) });
-          if (!e) settled++;
+          const amountKobo = Math.round(Number(j.data.amount) * 100);
+          if (Number.isSafeInteger(amountKobo) && amountKobo > 0) {
+            const { error: settleError } = await db.rpc("settle_online_payment", {
+              _reference: p.reference, _provider: "flutterwave", _amount_kobo: amountKobo,
+            });
+            if (!settleError) settled++;
+          }
         }
       }
-    } catch { /* leave it pending; the webhook or the next check will settle it */ }
+    } catch {
+      // Keep it pending; the provider webhook or a later customer retry can settle it.
+    }
   }
-  return json(200, { checked: (pending ?? []).length, settled });
+  return json(200, { checked: pending.length, settled });
 });
