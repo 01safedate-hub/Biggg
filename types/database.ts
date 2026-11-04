@@ -2445,6 +2445,8 @@ export type Database = {
           pickup_weekday: number | null
           plan_id: string
           price_kobo: number
+          term_amount_kobo?: number | null
+          term_amount_kobo: number | null
           started_at: string | null
           status: string
           updated_at: string
@@ -2462,6 +2464,7 @@ export type Database = {
           pickup_weekday?: number | null
           plan_id: string
           price_kobo: number
+          term_amount_kobo?: number | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -2479,6 +2482,7 @@ export type Database = {
           pickup_weekday?: number | null
           plan_id?: string
           price_kobo?: number
+          term_amount_kobo?: number | null
           started_at?: string | null
           status?: string
           updated_at?: string
