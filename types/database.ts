@@ -1919,7 +1919,9 @@ export type Database = {
           yearly_discount_pct: number
         }
         Insert: {
-          active?: boolean\n          monthly_discount_pct?: number\n          six_month_discount_pct?: number\n          monthly_discount_pct?: number\n          six_month_discount_pct?: number
+          active?: boolean
+          monthly_discount_pct?: number
+          six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
           category_limits?: Json
@@ -1936,6 +1938,8 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          monthly_discount_pct?: number
+          six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
           category_limits?: Json
