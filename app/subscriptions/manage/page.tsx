@@ -27,7 +27,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   ]);
 
   let usedPieces = 0;
-  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; order_id: string | null }[] = [];
+  let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; overage_kobo: number; excluded_kobo: number; order_id: string | null }[] = [];
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
   let cycleStart = active?.current_period_start ?? new Date().toISOString();
   let cycleEnd = active?.current_period_end ?? "9999-12-31";
@@ -42,7 +42,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   if (active?.id) {
     const { data: pickupRows, error: pickupError } = await supabase
       .from("subscription_pickups")
-      .select("id,scheduled_for,status,pieces_counted,overage_pieces,order_id")
+      .select("id,scheduled_for,status,pieces_counted,overage_pieces,overage_kobo,excluded_kobo,order_id")
       .eq("subscription_id", active.id)
       .gte("scheduled_for", cycleStart)
       .lt("scheduled_for", cycleEnd)
@@ -81,7 +81,7 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
 
         {pending ? <section className="card space-y-3 border border-amber-200 p-5"><div><p className="text-xs font-semibold uppercase tracking-wider text-amber-800">UNPAID CHECKOUT</p><h2 className="mt-1 text-xl font-semibold">{Array.isArray(pending.plans) ? pending.plans[0]?.name : pending.plans?.name ?? "Subscription plan"}</h2><p className="mt-1 text-sm text-ink-soft">This subscription has not been paid for and is not active. No plan benefits or pickups are available until payment is verified.</p><p className="text-sm font-medium">{naira(Number(pending.term_amount_kobo ?? pending.price_kobo ?? 0))} · {pending.billing_period.replace("_", " ")}</p></div><Link href={`/subscriptions/checkout?plan=${encodeURIComponent(Array.isArray(pending.plans) ? pending.plans[0]?.slug ?? "" : pending.plans?.slug ?? "")}&billing_period=${encodeURIComponent(pending.billing_period)}`} className="btn-secondary inline-block">Continue to payment</Link></section> : null}
 
-        {active ? <section className="card space-y-3 p-5"><div><h2 className="text-xl font-semibold">Pickup schedule</h2><p className="text-sm text-ink-soft">Your plan includes two pickups per month, scheduled about 14 days (2 weeks) apart. The monthly piece allowance is shared across both pickups. Unused pieces do not roll over; extra, excluded or over-cap items are charged separately.</p></div>{pickups.length ? <div className="divide-y divide-line">{pickups.map((pickup) => <div key={pickup.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{date(pickup.scheduled_for)}</p><p className="text-xs text-ink-soft">{pickup.pieces_counted ?? 0} total pieces recorded · {pickup.overage_pieces ?? 0} chargeable separately{pickup.order_id ? " · Order linked" : " · Pickup request pending"}</p></div><span className="rounded-full bg-canvas px-3 py-1 text-xs font-medium capitalize">{pickup.status.replaceAll("_", " ")}</span></div>)}</div> : <p className="text-sm text-ink-soft">No pickups are scheduled for this billing period yet.</p>}<Link href="/request" className="btn-secondary inline-block">Request a pickup</Link></section> : null}
+        {active ? <section className="card space-y-3 p-5"><div><h2 className="text-xl font-semibold">Pickup schedule</h2><p className="text-sm text-ink-soft">Your plan includes two pickups per month, scheduled about 14 days (2 weeks) apart. The monthly piece allowance is shared across both pickups. Unused pieces do not roll over; extra eligible pieces use the plan extra-piece rate; excluded categories are charged at their full catalogue price.</p></div>{pickups.length ? <div className="divide-y divide-line">{pickups.map((pickup) => <div key={pickup.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="font-medium">{date(pickup.scheduled_for)}</p><p className="text-xs text-ink-soft">{pickup.pieces_counted ?? 0} total pieces recorded · {pickup.overage_pieces ?? 0} extra eligible pieces · {naira(Number(pickup.overage_kobo ?? 0))} extra-piece charge · {naira(Number(pickup.excluded_kobo ?? 0))} excluded-category full-price charge{pickup.order_id ? " · Order linked" : " · Pickup request pending"}</p></div><span className="rounded-full bg-canvas px-3 py-1 text-xs font-medium capitalize">{pickup.status.replaceAll("_", " ")}</span></div>)}</div> : <p className="text-sm text-ink-soft">No pickups are scheduled for this billing period yet.</p>}<Link href="/request" className="btn-secondary inline-block">Request a pickup</Link></section> : null}
 
 
 
