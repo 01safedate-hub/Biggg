@@ -163,7 +163,6 @@ begin
       and sp.scheduled_for<_sub.current_period_end and sp.status not in ('missed','skipped') group by 1) counts;
   return jsonb_build_object('plan_id',_plan.id,'plan_name',_plan.name,'pieces_per_month',_plan.pieces_per_month,
     'per_pickup_allowance',coalesce(_plan.weekly_allowance,_plan.pieces_per_month),
-    'per_pickup_allowance',coalesce(_plan.weekly_allowance,_plan.pieces_per_month),
     'category_limits',coalesce(_plan.category_limits,'{}'::jsonb),'period_pieces_used',_used,
     'category_pieces_used',_category_used,'period_pieces_remaining',greatest(0,_plan.pieces_per_month-_used));
 end
