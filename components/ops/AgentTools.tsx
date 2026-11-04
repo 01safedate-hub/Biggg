@@ -159,7 +159,8 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
         <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs"><span><strong>Monthly balance:</strong> {Math.max(0, piecesPerMonth - periodPiecesUsed)} of {piecesPerMonth} pieces remaining</span>
           <span><strong>Per-pickup limit:</strong> {perPickupAllowance || piecesPerMonth} pieces</span></div>
         <p className="mt-1 text-xs text-ink-soft">Previous eligible usage: {periodPiecesUsed} pieces. This pickup's included amount is the lower of the per-pickup limit and monthly balance. Excluded categories are charged at full catalogue price; eligible excess uses the plan extra-piece rate.</p>
-      </div>}\n      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
+      </div>}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items" aria-label="Search items" className="w-full rounded-md border border-line px-3 py-2.5 text-sm" />
       {cats.map((c) => {
         const list = items.filter((i) => i.category_id === c.id && (!term || i.name.toLowerCase().includes(term)));
         if (!list.length) return null;
