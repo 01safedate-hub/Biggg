@@ -1,0 +1,26 @@
+-- Subscription lifecycle completion regression checklist.
+-- This file intentionally contains no writes against live customer data.
+-- Execute only against an isolated local/test Supabase database.
+--
+-- Required test groups (expand into pgTAP assertions as implementation lands):
+-- 1. Billing periods: 1, 6, 12 months; server-calculated amount; correct invoice dates.
+-- 2. Subscription payment verification: Paystack/Flutterwave success, pending,
+--    failed, wrong provider, wrong reference, wrong NGN amount, foreign owner.
+-- 3. Idempotency: repeated webhook and repeated pay-verify settle only once.
+-- 4. Renewal: invoice created once; each reminder stage created once; paid invoice
+--    extends period using stored billing_period; unpaid invoice expires subscription.
+-- 5. Pickup schedule: approved count, spacing, billing-period boundaries,
+--    idempotent order linkage, missed/skipped pickup behaviour.
+-- 6. Category caps: excluded category, positive cap, cap excess, combined plan
+--    allowance excess; verify no duplicate charge between category and monthly caps.
+-- 7. Overage settlement: online-only payment; correct linked invoice/pickup/order;
+--    amount mismatch rejected; successful payment releases count-confirmed order.
+-- 8. Cancellation: cancel at period end, reverse cancellation, expiry; no refund.
+-- 9. Authorization: customer cannot inspect/settle another customer's invoice;
+--    staff pickup access requires assigned order; anonymous cannot invoke internal
+--    SECURITY DEFINER trigger/lifecycle routines.
+-- 10. Regression: one-time pickup, standard order payment, active subscriptions,
+--     existing monthly invoices, and historical subscriptions are unaffected.
+--
+-- Use pgTAP transaction isolation and synthetic auth.users/profiles/payments.
+-- Never point test setup at the production project.
