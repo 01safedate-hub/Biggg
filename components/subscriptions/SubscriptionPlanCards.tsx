@@ -18,6 +18,33 @@ type Plan = {
   overage_price_kobo: number;
 };
 
+const categoryLabels: Record<string, string> = {
+  bedding: "Bedding",
+  "bedding-home": "Bedding",
+  curtain: "Curtains",
+  curtains: "Curtains",
+  duvet: "Duvets",
+  pillow: "Pillows",
+  pillows: "Pillows",
+  suit: "Suits and formal wear",
+  "suits-formal": "Suits and formal wear",
+  shoes: "Shoes",
+  footwear: "Shoes",
+  "footwear-bags": "Shoes",
+};
+
+const familyCaps: Record<string, Record<string, number>> = {
+  "family-bond": { bedding: 5, curtain: 10, duvet: 3, pillow: 5, suit: 4, shoes: 5 },
+  "family-max": { bedding: 10, curtain: 15, duvet: 10, pillow: 10, suit: 10, shoes: 10 },
+};
+
+function capsFor(plan: Plan): Record<string, number> {
+  const configured = plan.category_limits ?? {};
+  const entries = Object.entries(configured).filter(([key]) => categoryLabels[key]);
+  if (entries.length) return Object.fromEntries(entries.map(([key, value]) => [categoryLabels[key], Number(value)]));
+  return Object.fromEntries(Object.entries(familyCaps[plan.slug] ?? {}).map(([key, value]) => [categoryLabels[key], value]));
+}
+
 export function SubscriptionPlanCards({
   plans,
   pickupsPerMonth,
@@ -56,6 +83,9 @@ export function SubscriptionPlanCards({
           {plans.map((plan, index) => {
             const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
             const featured = index === 1;
+            const caps = capsFor(plan);
+            const isFamily = plan.slug === "family-bond" || plan.slug === "family-max";
+            const isStarterOrPro = plan.slug === "starter" || plan.slug === "pro";
             return (
               <article key={plan.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
@@ -68,19 +98,22 @@ export function SubscriptionPlanCards({
                 </p>
                 {months > 1 && <p className="mt-1 text-xs text-ink-mute">Billed for {months} months. Saves {discountPct}% · {naira(Math.round(total / months))} average per month.</p>}
                 <ul className="mt-6 space-y-3 text-sm text-ink-soft">
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{plan.pieces_per_month.toLocaleString()} pieces per month</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Up to {(plan.weekly_allowance ?? 0).toLocaleString()} pieces per weekly pickup</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} scheduled pickups each month</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra pieces at {naira(plan.overage_price_kobo)} each</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{plan.pieces_per_month.toLocaleString()} eligible pieces per month</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups per month, scheduled about 14 days (2 weeks) apart</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Monthly piece allowance is shared across both pickups; unused pieces do not roll over</li>
+                  {plan.slug === "family-max" ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Senator sets count as everyday pieces</li> : null}
+                  {isStarterOrPro ? <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Bedding, suits and heavy items are not included in the plan allowance</li> : null}
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra, excluded or over-cap items are charged separately at the current item price list</li>
                 </ul>
-                {plan.category_limits && Object.keys(plan.category_limits).length > 0 ? (
+                {isFamily && Object.keys(caps).length > 0 ? (
                   <div className="mt-5 rounded-lg border border-line p-3">
-                    <h4 className="text-sm font-semibold text-ink">Category limits</h4>
+                    <h4 className="text-sm font-semibold text-ink">Monthly category limits</h4>
                     <ul className="mt-2 space-y-1 text-xs text-ink-soft">
-                      {Object.entries(plan.category_limits).map(([slug, limit]) => <li key={slug} className="flex justify-between gap-2"><span>{slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ")}</span><span className="font-medium">{Number(limit) === 0 ? "Not included" : `Up to ${limit}`}</span></li>)}
+                      {Object.entries(caps).map(([label, limit]) => <li key={label} className="flex justify-between gap-2"><span>{label}</span><span className="font-medium">Up to {limit}</span></li>)}
                     </ul>
                   </div>
                 ) : null}
+                <p className="mt-4 text-xs text-ink-mute">Pick your first pickup date at checkout. Your second pickup is scheduled approximately two weeks later, subject to available service days.</p>
                 <Link href={`/subscriptions/checkout?plan=${encodeURIComponent(plan.slug)}&billing_period=${billingPeriod}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {plan.name}</Link>
               </article>
             );
