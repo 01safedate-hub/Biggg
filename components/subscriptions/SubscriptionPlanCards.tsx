@@ -12,7 +12,8 @@ type Plan = {
   name: string;
   blurb: string | null;
   monthly_price_kobo: number;
-  pieces_per_month: number;\n  weekly_allowance?: number;
+  pieces_per_month: number;
+  weekly_allowance?: number;
   category_limits: Record<string, number> | null;
   overage_price_kobo: number;
   monthly_discount_pct?: number;
