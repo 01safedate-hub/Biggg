@@ -9,7 +9,7 @@ import type { Database } from "@/types/database";
 type Plan = Database["public"]["Tables"]["plans"]["Row"];
 
 export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: Plan[]; pickupsPerMonth: number; yearlyDiscountPct: number }) {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "six_month" | "yearly">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "three_month" | "six_month" | "yearly">("monthly");
 
   return (
     <section id="pricing" className="section">
@@ -23,7 +23,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             </p>
           </div>
           <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
-            {([{ value: "monthly", label: "Monthly" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "Annual" }] as const).map((option) => (
+            {([{ value: "monthly", label: "1 month" }, { value: "three_month", label: "3 months" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -42,8 +42,8 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
         ) : (
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {plans.map((p, i) => {
-              const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
-              const discountPct = billingPeriod === "yearly" ? Number(p.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(p.six_month_discount_pct ?? 5) : Number(p.monthly_discount_pct ?? 0);
+              const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : billingPeriod === "three_month" ? 3 : 1;
+              const discountPct = billingPeriod === "yearly" ? Number(p.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(p.six_month_discount_pct ?? 5) : billingPeriod === "three_month" ? Number(p.three_month_discount_pct ?? 2) : Number(p.monthly_discount_pct ?? 0);
               const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
               const featured = i === 1;
               return (
