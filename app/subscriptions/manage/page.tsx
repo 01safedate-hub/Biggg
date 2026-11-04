@@ -29,13 +29,23 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   let usedPieces = 0;
   let pickups: { id: string; scheduled_for: string; status: string; pieces_counted: number | null; overage_pieces: number; order_id: string | null }[] = [];
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
+  let cycleStart = active?.current_period_start ?? new Date().toISOString();
+  let cycleEnd = active?.current_period_end ?? "9999-12-31";
+  if (active?.current_period_start) {
+    const anchor = new Date(active.current_period_start); const now = new Date();
+    let months = (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + now.getUTCMonth() - anchor.getUTCMonth();
+    let start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months);
+    if (start > now) { months -= 1; start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months); }
+    const end = new Date(anchor); end.setUTCMonth(anchor.getUTCMonth() + months + 1);
+    cycleStart = start.toISOString(); cycleEnd = end.toISOString();
+  }
   if (active?.id) {
     const { data: pickupRows, error: pickupError } = await supabase
       .from("subscription_pickups")
       .select("id,scheduled_for,status,pieces_counted,overage_pieces,order_id")
       .eq("subscription_id", active.id)
-      .gte("scheduled_for", active.current_period_start ?? new Date().toISOString())
-      .lt("scheduled_for", active.current_period_end ?? "9999-12-31")
+      .gte("scheduled_for", cycleStart)
+      .lt("scheduled_for", cycleEnd)
       .order("scheduled_for");
     if (!pickupError) pickups = pickupRows ?? [];
 
