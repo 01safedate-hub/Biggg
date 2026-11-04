@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { naira } from "@/lib/format";
 
-type BillingPeriod = "monthly" | "six_month" | "yearly";
+type BillingPeriod = "monthly" | "three_month" | "six_month" | "yearly";
 type Plan = {
   id: string;
   slug: string;
@@ -16,6 +16,7 @@ type Plan = {
   category_limits: Record<string, number> | null;
   overage_price_kobo: number;
   monthly_discount_pct?: number;
+  three_month_discount_pct?: number;
   six_month_discount_pct?: number;
   yearly_discount_pct?: number;
 };
@@ -47,7 +48,7 @@ export function SubscriptionPlanCards({
   initialBillingPeriod?: BillingPeriod;
 }) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>(initialBillingPeriod);
-  const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
+  const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : billingPeriod === "three_month" ? 3 : 1;
 
   return (
     <>
@@ -55,10 +56,10 @@ export function SubscriptionPlanCards({
         <div>
           <p className="eyebrow">Subscription plans</p>
           <h2 className="mt-3 max-w-xl text-2xl font-bold tracking-tight sm:text-3xl">Choose the plan that works for you</h2>
-          <p className="mt-3 max-w-xl text-sm text-ink-soft">Switch between 1, 6 and 12-month billing to compare your total.</p>
+          <p className="mt-3 max-w-xl text-sm text-ink-soft">Switch between 1, 3, 6 and 12-month billing to compare your total.</p>
         </div>
         <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
-          {([{ value: "monthly", label: "1 month" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
+          {([{ value: "monthly", label: "1 month" }, { value: "three_month", label: "3 months · 2% off" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "12 months" }] as const).map((option) => (
             <button key={option.value} type="button" onClick={() => setBillingPeriod(option.value)} aria-pressed={billingPeriod === option.value}
               className={`rounded px-3 py-1.5 transition-colors ${billingPeriod === option.value ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}>
               {option.label}
@@ -70,7 +71,7 @@ export function SubscriptionPlanCards({
       {plans.length === 0 ? <p className="mt-12 text-ink-mute">Plans will be listed here shortly.</p> : (
         <div className="mt-8 grid gap-6 md:grid-cols-3">
           {plans.map((plan, index) => {
-            const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : Number(plan.monthly_discount_pct ?? 0);
+            const discountPct = billingPeriod === "yearly" ? Number(plan.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(plan.six_month_discount_pct ?? 5) : billingPeriod === "three_month" ? Number(plan.three_month_discount_pct ?? 2) : Number(plan.monthly_discount_pct ?? 0);
             const total = Math.round(Number(plan.monthly_price_kobo) * months * (100 - discountPct) / 100);
             const featured = index === 1;
             const categories = Object.entries(plan.category_limits ?? {});
