@@ -48,7 +48,7 @@ export async function createPlan(formData: FormData) {
   const pieces = Number(formData.get("pieces_per_month"));
   const weekly = Number(formData.get("weekly_allowance"));
   const overage = Number(formData.get("overage_price_kobo"));
-  const monthlyDiscount = Number(formData.get("monthly_discount_pct")));
+  const monthlyDiscount = Number(formData.get("monthly_discount_pct"));
   const threeMonthDiscount = Number(formData.get("three_month_discount_pct"));
   const sixMonthDiscount = Number(formData.get("six_month_discount_pct"));
   const yearlyDiscount = Number(formData.get("yearly_discount_pct"));
