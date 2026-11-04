@@ -43,18 +43,12 @@ begin
   _cycle_start := _sub.current_period_start + make_interval(months => _cycle_months);
   _cycle_end := _sub.current_period_start + make_interval(months => _cycle_months + 1);
 
-  select coalesce(sum(case
-      when coalesce((_plan.category_limits ->> usage.category_key)::integer, -1) = 0 then 0
-      when coalesce((_plan.category_limits ->> usage.category_key)::integer, -1) > 0 then least(usage.pieces, (_plan.category_limits ->> usage.category_key)::integer)
-      else usage.pieces end), 0)::integer into _used
-    from (select lower(regexp_replace(coalesce(ic.slug, oi.category_name, 'uncategorized'), '[^a-z0-9]+', '-', 'g')) as category_key,
-                 sum(oi.qty)::integer as pieces
-            from public.subscription_pickups sp join public.orders o on o.subscription_pickup_id = sp.id
-            join public.order_items oi on oi.order_id = o.id and oi.removed_at is null
-            left join public.items i on i.id = oi.item_id left join public.item_categories ic on ic.id = i.category_id
-           where sp.subscription_id = _sub.id and sp.id <> _pickup.id
-             and sp.scheduled_for >= _cycle_start and sp.scheduled_for < _cycle_end
-             and sp.status not in ('missed','skipped') group by 1) usage;
+  select coalesce(sum(greatest(coalesce(sp.pieces_counted, 0) - coalesce(sp.overage_pieces, 0), 0)), 0)::integer
+    into _used
+    from public.subscription_pickups sp
+   where sp.subscription_id = _sub.id and sp.id <> _pickup.id
+     and sp.scheduled_for >= _cycle_start and sp.scheduled_for < _cycle_end
+     and sp.status not in ('missed','skipped');
 
   select coalesce(jsonb_object_agg(category_key, pieces), '{}'::jsonb)
     into _category_used
