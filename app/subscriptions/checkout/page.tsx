@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SubscriptionCheckout } from "@/components/subscriptions/SubscriptionCheckout";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 
-export const metadata = { title: "Choose a monthly plan" };
+export const metadata = { title: "Choose a subscription plan" };
 export const dynamic = "force-dynamic";
 
 export default async function SubscriptionCheckoutPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
@@ -19,8 +19,8 @@ export default async function SubscriptionCheckoutPage({ searchParams }: { searc
     <main id="main" className="min-h-screen">
       <CustomerSidebar />
       <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-2 sm:pt-4">
-        <Link href="/subscriptions" className="inline-block text-sm font-medium text-ink-soft hover:text-ink">&larr; Monthly plans</Link>
-        <div><h1 className="text-3xl font-bold tracking-tight">Choose your monthly plan</h1><p className="mt-2 text-sm text-ink-soft">Payment is verified with the payment provider before your plan is activated. Covered pickup and delivery are included in your allowance.</p></div>
+        <Link href="/subscriptions" className="inline-block text-sm font-medium text-ink-soft hover:text-ink">&larr; Subscription plans</Link>
+        <div><h1 className="text-3xl font-bold tracking-tight">Choose your subscription plan</h1><p className="mt-2 text-sm text-ink-soft">Choose a 1, 6 or 12-month billing term. The server calculates your final price and verifies payment before activating your subscription.</p></div>
         <SubscriptionCheckout plans={(plans ?? []).map(p => ({ slug: p.slug, name: p.name, priceKobo: Number(p.monthly_price_kobo), pieces: p.pieces_per_month }))} initialPlanSlug={requestedPlan} />
       </div>
     </main>
