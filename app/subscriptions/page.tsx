@@ -19,8 +19,8 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
     supabase.from("settings").select("value").eq("key", "subscription").maybeSingle(),
   ]);
 
-  const config = (subscriptionSettings?.value as { pickups_per_month?: number; yearly_discount_pct?: number } | null) ?? {};
-  const pickupsPerMonth = Math.max(1, Number(config.pickups_per_month ?? 2));
+  const config = (subscriptionSettings?.value as { yearly_discount_pct?: number } | null) ?? {};
+  const pickupsPerMonth = 2;
   const yearlyDiscountPct = Math.min(99, Math.max(0, Number(config.yearly_discount_pct ?? 10)));
   const activePlan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
 
