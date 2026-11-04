@@ -44,9 +44,11 @@ export async function createPlan(formData: FormData) {
   const pieces = Number(formData.get("pieces_per_month"));
   const weekly = Number(formData.get("weekly_allowance"));
   const overage = Number(formData.get("overage_price_kobo"));
-  const discount = Number(formData.get("yearly_discount_pct"));
+  const monthlyDiscount = Number(formData.get("monthly_discount_pct"));
+  const sixMonthDiscount = Number(formData.get("six_month_discount_pct"));
+  const yearlyDiscount = Number(formData.get("yearly_discount_pct"));
   const categoryLimits = parseCategoryLimits(formData.get("category_limits"));
-  if (!name || !slug || !Number.isSafeInteger(monthlyPrice) || monthlyPrice < 0 || !Number.isSafeInteger(pieces) || pieces < 1 || !Number.isSafeInteger(weekly) || weekly < 1 || !Number.isSafeInteger(overage) || overage < 0 || !Number.isFinite(discount) || discount < 0 || discount > 100) throw new Error("Invalid plan details. Check the name, unique URL slug, prices, allowances, and yearly discount.");
+  if (!name || !slug || !Number.isSafeInteger(monthlyPrice) || monthlyPrice < 0 || !Number.isSafeInteger(pieces) || pieces < 1 || !Number.isSafeInteger(weekly) || weekly < 1 || !Number.isSafeInteger(overage) || overage < 0 || ![monthlyDiscount, sixMonthDiscount, yearlyDiscount].every((value) => Number.isFinite(value) && value >= 0 && value < 100)) throw new Error("Invalid plan details. Check the name, unique URL slug, prices, allowances, and 1, 6 and 12-month discounts.");
   const { data: existing, error: lookupError } = await supabase.from("plans").select("id").eq("slug", slug).maybeSingle();
   if (lookupError) throw new Error("Could not validate the plan slug. Please try again.");
   if (existing) throw new Error("That plan slug already exists. Choose a different slug.");
