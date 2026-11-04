@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Plan = { slug: string; name: string; priceKobo: number; pieces: number | null; yearlyDiscountPct?: number };
+type Plan = { slug: string; name: string; priceKobo: number; pieces: number | null; monthlyDiscountPct?: number; sixMonthDiscountPct?: number; yearlyDiscountPct?: number };
 type BillingPeriod = "monthly" | "six_month" | "yearly";
 const naira = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 const months: Record<BillingPeriod, number> = { monthly: 1, six_month: 6, yearly: 12 };
@@ -23,7 +23,7 @@ export function SubscriptionCheckout({ plans, initialPlanSlug, initialBillingPer
   const [busyProvider, setBusyProvider] = useState<"paystack" | "flutterwave" | null>(null);
   const selectedPlan = plans.find((plan) => plan.slug === planSlug);
   const monthsCount = months[billingPeriod];
-  const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : discount[billingPeriod];
+  const discountPct = billingPeriod === "yearly" ? Number(selectedPlan?.yearlyDiscountPct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(selectedPlan?.sixMonthDiscountPct ?? discount.six_month) : Number(selectedPlan?.monthlyDiscountPct ?? 0);
   const totalKobo = selectedPlan ? Math.round(selectedPlan.priceKobo * monthsCount * (1 - discountPct / 100)) : 0;
 
   async function pay(provider: "paystack" | "flutterwave") {
