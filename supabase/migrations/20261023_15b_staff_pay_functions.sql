@@ -341,21 +341,12 @@ begin
 end $$;
 
 create or replace function public.my_staff_state() returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare _u uuid := auth.uid(); _sp public.staff_profiles; _pay public.staff_pay; _washer boolean;
+declare _u uuid := auth.uid(); _sp public.staff_profiles; _pay public.staff_pay;
 begin
   if _u is null or not private.is_staff() then raise exception 'not_staff' using errcode = 'P0001'; end if;
-  _washer := private.has_role('washer'::public.staff_role)
-    and not (private.has_role('delivery_agent'::public.staff_role)
-      or private.has_role('commission_agent'::public.staff_role)
-      or private.has_role('cashier'::public.staff_role)
-      or private.has_role('secretary'::public.staff_role)
-      or private.has_role('admin'::public.staff_role)
-      or private.has_role('super_admin'::public.staff_role));
   select * into _sp from public.staff_profiles where user_id = _u;
   select * into _pay from public.staff_pay where user_id = _u;
-  return jsonb_build_object(
-    'onboarding_status', case when _washer then 'verified' else coalesce(_sp.onboarding_status, 'incomplete') end,
-    'review_note', _sp.review_note,
+  return jsonb_build_object('onboarding_status', coalesce(_sp.onboarding_status, 'incomplete'), 'review_note', _sp.review_note,
     'must_change_password', coalesce(_sp.must_change_password, false),
     'job_title', _pay.job_title, 'base_salary_kobo', _pay.base_salary_kobo, 'target_salary_kobo', _pay.boosted_salary_kobo,
     'profile', to_jsonb(_sp) - 'user_id' - 'initial_pw_hash' - 'verified_by' - 'created_at' - 'updated_at');
