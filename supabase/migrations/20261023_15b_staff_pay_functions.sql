@@ -340,7 +340,7 @@ begin
                            from (select * from public.weekly_payouts where staff_id = _u order by week_start desc limit 12) x), '[]'::jsonb));
 end $$;
 
-create or replace function public.my_staff_state() returns jsonb language plpgsql stable security definer set search_path = '' as $
+create or replace function public.my_staff_state() returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare _u uuid := auth.uid(); _sp public.staff_profiles; _pay public.staff_pay; _washer boolean;
 begin
   if _u is null or not private.is_staff() then raise exception 'not_staff' using errcode = 'P0001'; end if;
@@ -359,7 +359,7 @@ begin
     'must_change_password', coalesce(_sp.must_change_password, false),
     'job_title', _pay.job_title, 'base_salary_kobo', _pay.base_salary_kobo, 'target_salary_kobo', _pay.boosted_salary_kobo,
     'profile', to_jsonb(_sp) - 'user_id' - 'initial_pw_hash' - 'verified_by' - 'created_at' - 'updated_at');
-end $;
+end $$;
 
 create or replace function public.admin_staff_detail(_user uuid) returns jsonb language plpgsql stable security definer set search_path = '' as $$
 begin
