@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
+import { SubscriptionPaymentReturn } from "@/components/subscriptions/SubscriptionPaymentReturn";
 
 export const metadata = { title: "Monthly laundry plans" };
 export const dynamic = "force-dynamic";
@@ -9,7 +10,9 @@ const naira = (amount: number) => new Intl.NumberFormat("en-NG", { style: "curre
 const excludedCategories = new Set(["accessories", "native-wear", "bedding-home", "suits-formal", "footwear-bags", "uniforms-workwear", "underwear-sleepwear"]);
 const slugify = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default async function SubscriptionsPage() {
+export default async function SubscriptionsPage({ searchParams }: { searchParams: Promise<{ reference?: string; tx_ref?: string; status?: string }> }) {
+  const params = await searchParams;
+  const paymentReference = params.reference ?? params.tx_ref ?? "";
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const [{ data: plans }, { data: active }] = await Promise.all([
@@ -48,6 +51,7 @@ export default async function SubscriptionsPage() {
       <CustomerSidebar />
       <div className="container-page mx-auto max-w-4xl space-y-6 pb-10 pt-4 sm:pt-6">
       <div className="space-y-2"><p className="text-sm font-medium text-brand-dark"><Link href="/services" className="hover:underline">← Review our services</Link></p><h1 className="text-3xl font-bold tracking-tight">Monthly laundry plans</h1><p className="max-w-2xl text-sm text-ink-soft">One monthly payment covers pickup, laundry and delivery for eligible clothes included in your plan. Excluded categories are charged separately and do not use the monthly allowance.</p><p className="max-w-2xl text-sm text-ink-soft">New to LaundryPoint? <Link href="/services" className="font-medium text-brand-dark underline">See what services we offer</Link> before choosing a plan.</p></div>
+      {paymentReference ? <SubscriptionPaymentReturn reference={paymentReference} /> : null}
       {active && activePlan ? <section className="card space-y-3 p-5"><p className="text-sm font-semibold text-ink-mute">YOUR ACTIVE PLAN</p><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold">{activePlan.name}</h2><p className="text-sm text-ink-soft">{active.current_period_end ? `Renews/ends ${new Date(active.current_period_end).toLocaleDateString("en-NG")}` : "Current billing period"}</p></div><p className="text-lg font-bold">{remaining} pieces remaining</p></div><div className="h-2 overflow-hidden rounded-full bg-canvas"><div className="h-full rounded-full bg-brand" style={{ width: `${allowance > 0 ? Math.min(100, usedPieces / allowance * 100) : 0}%` }} /></div><p className="text-sm text-ink-soft">{usedPieces} of {allowance} eligible pieces used this period. Excluded categories and category-cap excess are charged separately.</p></section> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         {(plans ?? []).map((plan) => <section key={plan.id} className="card space-y-3 p-5"><h2 className="text-lg font-semibold">{plan.name}</h2><p className="text-2xl font-bold">{naira(Number(plan.monthly_price_kobo))}<span className="ml-1 text-sm font-normal text-ink-soft">/ month</span></p><p className="text-sm">{plan.pieces_per_month} eligible clothes per month</p><p className="text-sm text-ink-soft">Includes up to two pickups per monthly billing period. Weekly allowance: {plan.weekly_allowance ?? "As scheduled"}.</p>{plan.blurb ? <p className="text-sm text-ink-soft">{plan.blurb}</p> : null}{Object.entries((plan.category_limits ?? {}) as Record<string, number>).length > 0 ? <div className="rounded-lg border border-line p-3"><h3 className="text-sm font-semibold">Category limits included in this plan</h3><ul className="mt-2 space-y-1 text-sm">{Object.entries((plan.category_limits ?? {}) as Record<string, number>).map(([slug, limit]) => <li key={slug} className="flex justify-between gap-3"><span>{slug.split("-").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ")}</span><span className="font-medium">{Number(limit) === 0 ? "Not included · charged from first piece" : `Up to ${limit} included pieces`}</span></li>)}</ul><p className="mt-2 text-xs text-ink-soft">Categories not listed have no separate category cap and use the overall plan allowance. Excluded categories are charged from the first piece; pieces above a positive category cap are charged at the plan overage rate.</p></div> : <p className="text-sm text-ink-soft">No separate category caps. The total plan allowance applies to eligible garments.</p>}<p className="text-sm text-ink-soft">Use the allowance over two pickups. Pieces above the remaining allowance must be recorded and billed separately online.</p>{active ? <Link href="/subscriptions/manage" className="btn-secondary inline-block">Manage subscription</Link> : user ? <Link href={`/subscriptions/checkout?plan=${plan.slug}`} className="btn-primary inline-block">Choose plan</Link> : <Link href="/login?next=/subscriptions" className="btn-primary inline-block">Sign in to choose</Link>}</section>)}
