@@ -9,6 +9,7 @@ update public.subscriptions s
          (select i.amount_kobo
             from public.subscription_invoices i
            where i.subscription_id = s.id
+             and i.subscription_pickup_id is null
            order by i.period_start desc, i.created_at desc
            limit 1),
          p.monthly_price_kobo
