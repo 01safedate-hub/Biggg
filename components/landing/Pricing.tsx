@@ -8,7 +8,7 @@ import type { Database } from "@/types/database";
 
 type Plan = Database["public"]["Tables"]["plans"]["Row"];
 
-export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerMonth: number }) {
+export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: Plan[]; pickupsPerMonth: number; yearlyDiscountPct: number }) {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "six_month" | "yearly">("monthly");
 
   return (
@@ -42,7 +42,9 @@ export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerM
         ) : (
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {plans.map((p, i) => {
-              const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;\n              const discountPct = billingPeriod === "yearly" ? p.yearly_discount_pct : billingPeriod === "six_month" ? 5 : 0;\n              const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
+              const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;
+              const discountPct = billingPeriod === "yearly" ? yearlyDiscountPct : billingPeriod === "six_month" ? 5 : 0;
+              const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
               const featured = i === 1;
               return (
                 <div key={p.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
