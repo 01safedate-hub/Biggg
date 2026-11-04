@@ -22,20 +22,12 @@ begin
   _cycle_start := _sub.current_period_start + make_interval(months => _cycle_months);
   _cycle_end := _sub.current_period_start + make_interval(months => _cycle_months + 1);
   select coalesce(sum(qty),0)::integer into _pieces from public.order_items where order_id = new.id and removed_at is null;
-  select coalesce(sum(case
-      when coalesce((_plan.category_limits ->> usage.category_key)::integer, -1) = 0 then 0
-      when coalesce((_plan.category_limits ->> usage.category_key)::integer, -1) > 0 then least(usage.pieces, (_plan.category_limits ->> usage.category_key)::integer)
-      else usage.pieces end), 0)::integer into _used
-    from (select lower(regexp_replace(coalesce(ic.slug, oi.category_name, 'uncategorized'), '[^a-z0-9]+', '-', 'g')) as category_key,
-                 sum(oi.qty)::integer as pieces
-            from public.subscription_pickups prior
-            join public.orders o on o.subscription_pickup_id = prior.id
-            join public.order_items oi on oi.order_id = o.id and oi.removed_at is null
-            left join public.items i on i.id = oi.item_id
-            left join public.item_categories ic on ic.id = i.category_id
-           where prior.subscription_id = _sub.id and prior.id <> _sp.id
-             and prior.scheduled_for >= _cycle_start and prior.scheduled_for < _cycle_end
-             and prior.status not in ('missed','skipped') group by 1) usage;
+  select coalesce(sum(greatest(coalesce(prior.pieces_counted, 0) - coalesce(prior.overage_pieces, 0), 0)), 0)::integer
+    into _used
+    from public.subscription_pickups prior
+   where prior.subscription_id = _sub.id and prior.id <> _sp.id
+     and prior.scheduled_for >= _cycle_start and prior.scheduled_for < _cycle_end
+     and prior.status not in ('missed','skipped');
   _available := greatest(0, least(_plan.pieces_per_month - _used, coalesce(_plan.weekly_allowance, _plan.pieces_per_month)));
   for _line in
     select lower(regexp_replace(coalesce(ic.slug, oi.category_name, 'uncategorized'), '[^a-z0-9]+', '-', 'g')) as category_key, sum(oi.qty)::integer as qty
@@ -50,8 +42,8 @@ begin
         from public.order_items oi left join public.items i on i.id = oi.item_id left join public.item_categories ic on ic.id = i.category_id
        where oi.removed_at is null and lower(regexp_replace(coalesce(ic.slug, oi.category_name, 'uncategorized'), '[^a-z0-9]+', '-', 'g')) = _category_key
          and oi.order_id in (select prior_order.id from public.subscription_pickups prior join public.orders prior_order on prior_order.subscription_pickup_id = prior.id
-          where prior.subscription_id = _sub.id and prior.id <> _sp.id and prior.scheduled_for >= _sub.current_period_start
-            and prior.scheduled_for < _sub.current_period_end and prior.status not in ('missed','skipped'));
+          where prior.subscription_id = _sub.id and prior.id <> _sp.id and prior.scheduled_for >= _cycle_start
+            and prior.scheduled_for < _cycle_end and prior.status not in ('missed','skipped'));
       if _category_limit = 0 then null;
       else _category_overage := _category_overage + greatest(0, _line.qty + _category_used - _category_limit);
            _included_pieces := _included_pieces + least(_line.qty, greatest(0, _category_limit - _category_used)); end if;
