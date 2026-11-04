@@ -1907,6 +1907,7 @@ export type Database = {
           category_limits: Json
           id: string
           monthly_discount_pct: number
+          three_month_discount_pct: number
           six_month_discount_pct: number
           monthly_price_kobo: number
           name: string
@@ -1921,6 +1922,7 @@ export type Database = {
         Insert: {
           active?: boolean
           monthly_discount_pct?: number
+          three_month_discount_pct?: number
           six_month_discount_pct?: number
           blurb?: string | null
           created_at?: string
