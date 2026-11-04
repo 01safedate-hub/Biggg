@@ -19,7 +19,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             <p className="eyebrow">Monthly plans</p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Predictable pricing for regular laundry</h2>
             <p className="mt-4 max-w-xl text-ink-soft">
-              Plans are counted in pieces. A weekly pickup is included. Pieces beyond your allowance are billed per piece.
+              Plans include two pickups per month, scheduled about 14 days (2 weeks) apart. Your monthly piece allowance is shared across both pickups; unused pieces do not roll over.
             </p>
           </div>
           <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
@@ -59,9 +59,9 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
                   {months > 1 && <p className="mt-1 text-xs text-ink-mute">Billed for {months} months. Saves {discountPct}% · {naira(Math.round(total / months))} average per month.</p>}
                   <ul className="mt-6 space-y-3 text-sm text-ink-soft">
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{p.pieces_per_month.toLocaleString()} pieces per month</li>
-                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Up to {p.weekly_allowance.toLocaleString()} pieces per weekly pickup</li>
-                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} scheduled pickups each month</li>
-                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra pieces at {naira(p.overage_price_kobo)} each</li>
+                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Monthly allowance shared across both pickups</li>
+                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups each month · about 14 days apart</li>
+                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra, excluded and over-cap items billed at current item prices</li>
                   </ul>
                   <Link href={`/subscriptions/checkout?plan=${p.slug}&billing_period=${billingPeriod}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {p.name}</Link>
                 </div>
@@ -69,7 +69,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             })}
           </div>
         )}
-        <p className="mt-6 text-xs text-ink-mute">Pickup and delivery transport are charged separately by distance and paid before the agent leaves.</p>
+        <p className="mt-6 text-xs text-ink-mute">Starter and Pro exclude bedding, suits and heavy items. Family plan category limits apply as shown in the subscription details. Pickup and delivery transport are charged separately by distance.</p>
       </div>
     </section>
   );
