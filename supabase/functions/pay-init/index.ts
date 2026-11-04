@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.com";
+const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
 const PAYSTACK = Deno.env.get("PAYSTACK_SECRET_KEY");
 const FLW = Deno.env.get("FLUTTERWAVE_SECRET_KEY");
 
@@ -13,8 +13,8 @@ function allowedOrigin(origin: string | null): string | null {
     const u = new URL(origin);
     const host = u.hostname.toLowerCase();
     if (u.protocol === "https:" && (
-      host === "laundrypoint.com" ||
-      host === "www.laundrypoint.com" ||
+      host === "laundrypoint.app" ||
+      host === "www.laundrypoint.app" ||
       host.endsWith(".netlify.app")
     )) return u.origin;
   } catch { /* invalid origin is rejected */ }
@@ -34,7 +34,7 @@ const baseHeaders = {
   "Content-Type": "application/json",
 };
 const json = (status: number, body: unknown, origin: string | null) => {
-  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.com" };
+  const headers = { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.app" };
   return new Response(JSON.stringify(body), { status, headers });
 };
 
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       status: 200,
-      headers: { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.com" },
+      headers: { ...baseHeaders, "Access-Control-Allow-Origin": allowedOrigin(origin) ?? "https://laundrypoint.app" },
     });
   }
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" }, origin);
