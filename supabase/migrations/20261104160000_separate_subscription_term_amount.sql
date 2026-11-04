@@ -66,8 +66,17 @@ begin
     raise exception 'invalid_billing_period' using errcode = 'P0001';
   end if;
 
+  -- A customer may return from a cancelled/abandoned provider checkout and try
+  -- again. Retire their older pending subscription attempts before creating a
+  -- fresh one; an active subscription is never affected.
+  update public.subscriptions
+     set status = 'cancelled',
+         updated_at = now()
+   where customer_id = auth.uid()
+     and status = 'pending';
+
   -- The existing two-argument RPC remains responsible for customer, plan,
-  -- provider, pending-attempt and reference validation.
+  -- provider and reference validation.
   _result := public.create_subscription_payment_intent(_plan_slug, _provider);
   _sub_id := (_result->>'subscription_id')::uuid;
 
