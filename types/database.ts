@@ -2387,6 +2387,7 @@ export type Database = {
         Row: {
           id: string
           order_id: string | null
+          excluded_kobo: number
           overage_kobo: number
           overage_pieces: number
           pieces_counted: number | null
@@ -2398,6 +2399,7 @@ export type Database = {
         Insert: {
           id?: string
           order_id?: string | null
+          excluded_kobo?: number
           overage_kobo?: number
           overage_pieces?: number
           pieces_counted?: number | null
