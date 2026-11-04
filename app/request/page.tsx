@@ -38,13 +38,13 @@ export default async function RequestPage() {
   }
   if (active?.id) {
     const { data: pickups } = await supabase.from("subscription_pickups")
-      .select("pieces_counted,overage_pieces,status")
+      .select("pieces_counted,overage_pieces,excluded_pieces,status")
       .eq("subscription_id", active.id)
       .gte("scheduled_for", cycleStart)
       .lt("scheduled_for", cycleEnd)
       .not("status", "in", '("missed","skipped")');
     pickupCount = (pickups ?? []).length;
-    usedPieces = (pickups ?? []).reduce((sum, pickup) => sum + Math.max(0, Number(pickup.pieces_counted ?? 0) - Number(pickup.overage_pieces ?? 0)), 0);
+    usedPieces = (pickups ?? []).reduce((sum, pickup) => sum + Math.max(0, Number(pickup.pieces_counted ?? 0) - Number(pickup.overage_pieces ?? 0) - Number(pickup.excluded_pieces ?? 0)), 0);
   }
 
   return (
@@ -74,7 +74,7 @@ export default async function RequestPage() {
               <p className="text-sm text-ink-soft">Your monthly plan</p>
               <h2 className="text-xl font-semibold">{plan?.name ?? "Active plan"}</h2>
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Garment allowance left</p><p className="mt-1 text-2xl font-semibold">{Math.max(0, Number(plan?.pieces_per_month ?? 0) - usedPieces)}</p><p className="text-xs text-ink-mute">This monthly cycle</p><p className="text-xs text-ink-mute">This monthly cycle</p></div>
+                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Garment allowance left</p><p className="mt-1 text-2xl font-semibold">{Math.max(0, Number(plan?.pieces_per_month ?? 0) - usedPieces)}</p><p className="text-xs text-ink-mute">This monthly cycle</p></div>
                 <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Pickups used</p><p className="mt-1 text-2xl font-semibold">{pickupCount} of 2</p></div>
               </div>
               <p className="text-sm text-ink-soft">Up to {Number((Array.isArray(active?.plans) ? active.plans[0] : active?.plans)?.weekly_allowance ?? plan?.pieces_per_month ?? 0)} pieces are included per pickup, subject to your remaining monthly allowance. Pieces above either limit and excluded categories are billed separately.</p>
