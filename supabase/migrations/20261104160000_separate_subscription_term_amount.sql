@@ -4,6 +4,18 @@
 alter table public.subscriptions
   add column if not exists term_amount_kobo bigint;
 
+alter table public.plans
+  add column if not exists monthly_discount_pct numeric(5,2) not null default 0,
+  add column if not exists six_month_discount_pct numeric(5,2) not null default 5;
+
+alter table public.plans
+  drop constraint if exists plans_monthly_discount_pct_check,
+  add constraint plans_monthly_discount_pct_check check (monthly_discount_pct >= 0 and monthly_discount_pct < 100),
+  drop constraint if exists plans_six_month_discount_pct_check,
+  add constraint plans_six_month_discount_pct_check check (six_month_discount_pct >= 0 and six_month_discount_pct < 100),
+  drop constraint if exists plans_yearly_discount_pct_check,
+  add constraint plans_yearly_discount_pct_check check (yearly_discount_pct >= 0 and yearly_discount_pct < 100);
+
 update public.subscriptions s
    set term_amount_kobo = coalesce(
          (select i.amount_kobo
@@ -37,7 +49,7 @@ declare
   _result jsonb;
   _sub_id uuid;
   _invoice_id uuid;
-  _monthly bigint;
+  _monthly bigint;\n  _plan_monthly_discount numeric;\n  _plan_six_month_discount numeric;\n  _plan_yearly_discount numeric;
   _months integer;
   _discount numeric;
   _total bigint;
@@ -67,12 +79,9 @@ begin
 
   _months := case _billing_period when 'six_month' then 6 when 'yearly' then 12 else 1 end;
   _discount := case
-    when _billing_period = 'six_month' then 5
-    when _billing_period = 'yearly' then coalesce(
-      (select nullif(value->>'yearly_discount_pct','')::numeric
-         from public.settings where key = 'subscription'), 10
-    )
-    else 0
+    when _billing_period = 'six_month' then coalesce(_plan_six_month_discount, 5)
+    when _billing_period = 'yearly' then coalesce(_plan_yearly_discount, 10)
+    else coalesce(_plan_monthly_discount, 0)
   end;
   if _discount < 0 or _discount >= 100 then
     raise exception 'invalid_subscription_discount' using errcode = 'P0001';
