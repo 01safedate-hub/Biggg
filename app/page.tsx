@@ -26,7 +26,7 @@ export default async function Home() {
         <Hero eta={settings.agent.eta_minutes} open={b.opening_time} close={b.closing_time} tz={b.timezone} whatsapp={settings.whatsapp.number} />
         <HowItWorks eta={settings.agent.eta_minutes} />
         <Security />
-        <Pricing plans={plans} pickupsPerMonth={settings.subscription.pickups_per_month} yearlyDiscountPct={settings.subscription.yearly_discount_pct} />
+        <Pricing plans={plans} pickupsPerMonth={2} yearlyDiscountPct={settings.subscription.yearly_discount_pct} />
         <Coverage areas={zones} />
         <Faq />
       </main>
