@@ -9,7 +9,7 @@ import type { Database } from "@/types/database";
 type Plan = Database["public"]["Tables"]["plans"]["Row"];
 
 export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerMonth: number }) {
-  const [yearly, setYearly] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "six_month" | "yearly">("monthly");
 
   return (
     <section id="pricing" className="section">
@@ -22,15 +22,16 @@ export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerM
               Plans are counted in pieces. A weekly pickup is included. Pieces beyond your allowance are billed per piece.
             </p>
           </div>
-          <div role="group" aria-label="Billing period" className="inline-flex rounded-md border border-line p-1 text-sm font-medium">
-            {([false, true] as const).map((y) => (
+          <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
+            {([{ value: "monthly", label: "Monthly" }, { value: "six_month", label: "6 months" }, { value: "yearly", label: "Annual" }] as const).map((option) => (
               <button
-                key={String(y)}
-                onClick={() => setYearly(y)}
-                aria-pressed={yearly === y}
-                className={`rounded px-4 py-1.5 transition-colors ${yearly === y ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}
+                key={option.value}
+                type="button"
+                onClick={() => setBillingPeriod(option.value)}
+                aria-pressed={billingPeriod === option.value}
+                className={`rounded px-3 py-1.5 transition-colors ${billingPeriod === option.value ? "bg-ink text-white" : "text-ink-soft hover:text-ink"}`}
               >
-                {y ? "Yearly" : "Monthly"}
+                {option.label}
               </button>
             ))}
           </div>
@@ -41,7 +42,7 @@ export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerM
         ) : (
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             {plans.map((p, i) => {
-              const perMonth = yearly ? Math.round((p.monthly_price_kobo * (100 - p.yearly_discount_pct)) / 100) : p.monthly_price_kobo;
+              const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : 1;\n              const discountPct = billingPeriod === "yearly" ? p.yearly_discount_pct : billingPeriod === "six_month" ? 5 : 0;\n              const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
               const featured = i === 1;
               return (
                 <div key={p.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
@@ -51,16 +52,16 @@ export function Pricing({ plans, pickupsPerMonth }: { plans: Plan[]; pickupsPerM
                   </div>
                   <p className="mt-1 text-sm text-ink-mute">{p.blurb}</p>
                   <p className="mt-6 text-3xl font-bold tracking-tight">
-                    {naira(perMonth)}<span className="text-base font-medium text-ink-mute"> / month</span>
+                    {naira(total)}<span className="text-base font-medium text-ink-mute"> / {months === 1 ? "month" : `${months} months`}</span>
                   </p>
-                  {yearly && <p className="mt-1 text-xs text-ink-mute">Billed yearly. Saves {p.yearly_discount_pct}%.</p>}
+                  {months > 1 && <p className="mt-1 text-xs text-ink-mute">Billed for {months} months. Saves {discountPct}% · {naira(Math.round(total / months))} average per month.</p>}
                   <ul className="mt-6 space-y-3 text-sm text-ink-soft">
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{p.pieces_per_month.toLocaleString()} pieces per month</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Up to {p.weekly_allowance.toLocaleString()} pieces per weekly pickup</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} scheduled pickups each month</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Extra pieces at {naira(p.overage_price_kobo)} each</li>
                   </ul>
-                  <Link href={`/request?plan=${p.slug}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {p.name}</Link>
+                  <Link href={`/subscriptions/checkout?plan=${p.slug}&billing_period=${billingPeriod}`} className={`mt-8 ${featured ? "btn-primary" : "btn-secondary"}`}>Choose {p.name}</Link>
                 </div>
               );
             })}
