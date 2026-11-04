@@ -16,7 +16,7 @@ export default async function SubscriptionCheckoutPage({ searchParams }: { searc
   const { data: existingSubscription } = await supabase.from("subscriptions").select("id,status").eq("customer_id", user.id).in("status", ["active", "pending"]).order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (existingSubscription) redirect("/subscriptions/manage");
   const [{ data: plans }, { data: subscriptionSettings }] = await Promise.all([
-    supabase.from("plans").select("slug,name,monthly_price_kobo,pieces_per_month,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,active,sort_order").eq("active", true).order("sort_order"),
+    supabase.from("plans").select("slug,name,monthly_price_kobo,pieces_per_month,active,sort_order").eq("active", true).order("sort_order"),
     supabase.from("settings").select("value").eq("key", "subscription").maybeSingle(),
   ]);
   const yearlyDiscountPct = Math.min(99, Math.max(0, Number((subscriptionSettings?.value as { yearly_discount_pct?: number } | null)?.yearly_discount_pct ?? 10)));
@@ -26,7 +26,7 @@ export default async function SubscriptionCheckoutPage({ searchParams }: { searc
       <div className="container-page mx-auto max-w-3xl space-y-6 pb-10 pt-2 sm:pt-4">
         <Link href="/subscriptions" className="inline-block text-sm font-medium text-ink-soft hover:text-ink">&larr; Subscription plans</Link>
         <div><h1 className="text-3xl font-bold tracking-tight">Choose your subscription plan</h1><p className="mt-2 text-sm text-ink-soft">Choose a 1, 3, 6 or 12-month billing term. The server calculates your final price and verifies payment before activating your subscription.</p></div>
-        <SubscriptionCheckout plans={(plans ?? []).map(p => ({ slug: p.slug, name: p.name, priceKobo: Number(p.monthly_price_kobo), pieces: p.pieces_per_month, monthlyDiscountPct: Number(p.monthly_discount_pct ?? 0), threeMonthDiscountPct: Number(p.three_month_discount_pct ?? 2), sixMonthDiscountPct: Number(p.six_month_discount_pct ?? 5), yearlyDiscountPct: Number(p.yearly_discount_pct ?? yearlyDiscountPct) }))} initialPlanSlug={requestedPlan} initialBillingPeriod={initialBillingPeriod} yearlyDiscountPct={yearlyDiscountPct} />
+        <SubscriptionCheckout plans={(plans ?? []).map(p => ({ slug: p.slug, name: p.name, priceKobo: Number(p.monthly_price_kobo), pieces: p.pieces_per_month, monthlyDiscountPct: 0, threeMonthDiscountPct: 2, sixMonthDiscountPct: 5, yearlyDiscountPct }))} initialPlanSlug={requestedPlan} initialBillingPeriod={initialBillingPeriod} yearlyDiscountPct={yearlyDiscountPct} />
       </div>
     </main>
   );
