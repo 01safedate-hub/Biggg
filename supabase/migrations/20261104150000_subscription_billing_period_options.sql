@@ -58,7 +58,7 @@ begin
   end if;
 
   _total := round(_monthly * _months * (1 - _discount / 100));
-  _end_date := (current_date + make_interval(months => _months)) - 1;
+  _end_date := (current_date + make_interval(months => _months))::date - 1;
 
   update public.subscriptions
      set billing_period = _billing_period,
