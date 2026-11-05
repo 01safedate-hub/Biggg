@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { claimOwnClientReturn, deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
+import { claimOwnClientReturn, deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, resendClientInvite, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { StainFlag } from "@/components/ops/StainFlag";
 import { naira } from "@/lib/format";
 
@@ -27,6 +27,25 @@ export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I hav
   );
 }
 
+
+
+export function ResendClientInviteButton({ inviteId, resendCount }: { inviteId: string; resendCount: number }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {resendCount < 2 ? <button type="button" className="rounded border border-line px-3 py-1.5 text-xs font-semibold" disabled={busy} onClick={async () => {
+        setBusy(true); setMessage(null);
+        const result = await resendClientInvite(inviteId);
+        setBusy(false);
+        setMessage(result.message);
+        if (result.ok) router.refresh();
+      }}>{busy ? "Resending…" : "Resend invitation"}</button> : <span className="text-xs text-ink-soft">Resend limit reached</span>}
+      {message && <span role="status" className="text-xs text-ink-soft">{message}</span>}
+    </div>
+  );
+}
 
 export function ClaimOwnClientReturn({ orderId }: { orderId: string }) {
   const router = useRouter();
