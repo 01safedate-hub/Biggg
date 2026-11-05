@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/roles";
 import { HubVerificationPanel } from "@/components/admin/HubVerificationPanel";
 import { AgentOrientationChecklist } from "@/components/admin/AgentOrientationChecklist";
 import { AgentHubFacePhoto } from "@/components/admin/AgentHubFacePhoto";
+import { AgentNinDocumentCapture } from "@/components/admin/AgentNinDocumentCapture";
 
 export const metadata = { title: "Verify commission agent" };
 export const dynamic = "force-dynamic";
@@ -19,7 +20,7 @@ type Detail = {
 export default async function VerifyAgent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
+  const { supabase, roles } = await requireRole(["secretary", "admin", "super_admin"]);
   const { data, error } = await supabase.rpc("secretary_agent_verification_detail", { _user: id });
   if (error || !data) notFound();
   const d = data as unknown as Detail;
@@ -30,6 +31,12 @@ export default async function VerifyAgent({ params }: { params: Promise<{ id: st
   }
 
   const { data: hubPhoto } = d.hub_face_photo_path ? await supabase.storage.from("staff-docs").createSignedUrl(d.hub_face_photo_path, 600) : { data: null };
+  let ninDocumentUrl: string | null = null;
+  if (roles.includes("super_admin")) {
+    const { data: ninDocument } = await (supabase as any).rpc("super_admin_agent_nin_document", { _user: id });
+    const path = (ninDocument as { photo_path?: string } | null)?.photo_path;
+    if (path) ninDocumentUrl = (await supabase.storage.from("staff-docs").createSignedUrl(path, 300)).data?.signedUrl ?? null;
+  }
 
   return (
     <main className="space-y-6">
@@ -54,6 +61,8 @@ export default async function VerifyAgent({ params }: { params: Promise<{ id: st
         </div>
         <p className="text-xs text-ink-mute">Handle NIN information privately. Do not copy the full NIN into verification notes or messages.</p>
       </section>
+      <AgentNinDocumentCapture userId={id} />
+      {roles.includes("super_admin") && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">NIN document photo · super admin only</h2>{ninDocumentUrl ? <img src={ninDocumentUrl} alt="Applicant NIN document, restricted super-admin view" className="max-h-80 rounded-lg border border-line object-contain" /> : <p className="text-sm text-ink-soft">No NIN document photo has been recorded yet.</p>}<p className="text-xs text-ink-mute">This image is signed for a short viewing session and is not available to secretaries.</p></section>}
       <AgentHubFacePhoto userId={id} photoUrl={hubPhoto?.signedUrl ?? null} />
       <AgentOrientationChecklist userId={id} record={d.orientation} />
       <HubVerificationPanel userId={id} record={d.latest_hub_check ? { ...d.latest_hub_check, hub_location: "LaundryPoint hub" } : null} />
