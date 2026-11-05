@@ -71,3 +71,8 @@ Run only against staging orders and disposable test-agent accounts after applyin
 23. When an own-customer order is ready, the original agent can claim the return delivery only if the customer selected delivery and the delivery fare is paid (or the order is subscription-covered). Expected: delivery agent is set and the customer receives an in-app notification.
 24. Attempt to claim another agent's return, a collect-at-hub order, an unpaid return, or an order already assigned to another delivery agent. Expected: the claim is rejected.
 25. As desk staff, reassign the return leg to a staff delivery agent when the original agent is unavailable. Expected: the commission ownership remains with the original onboarder; the staff agent only performs the trip.
+
+26. Resend an active customer invitation as its owning verified agent. Expected: a fresh invite action link is queued through the existing email worker, resend count increments once, and the email displays the agent name and original expiry date.
+27. Attempt a third resend, a resend by another agent, and a resend after expiry. Expected: all are rejected and no email is queued.
+28. Let an invitation expire without confirming email. Expected: the old unconfirmed Auth user/profile is safely cleaned up when a new agent invites that same email/phone; confirmed or otherwise existing customers remain protected by `client_exists`.
+29. Verify an active invitation for an unconfirmed customer returns `invite_pending`, not `client_exists`.
