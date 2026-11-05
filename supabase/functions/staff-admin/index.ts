@@ -23,13 +23,11 @@ function cleanPhone(v: string) {
 
 async function persistStation(admin: ReturnType<typeof createClient>, userId: string, value: unknown, roles: string[]) {
   const stationId = clean(value);
-  if (!roles.includes("delivery_agent")) return null;
-  if (stationId && !/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
-  if (stationId) {
-    const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
-    if (zoneError || !zone) return "invalid_station";
-  }
-  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId || null }, { onConflict: "user_id" });
+  if (!stationId) return "station_required";
+  if (!/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
+  const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
+  if (zoneError || !zone) return "invalid_station";
+  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId }, { onConflict: "user_id" });
   return error ? "station_save_failed" : null;
 }
 
@@ -133,7 +131,6 @@ Deno.serve(async (req) => {
     if (list.error) return json(400, { error: list.error.message });
     const target = ((list.data ?? []) as { id: string; roles: string[] }[]).find((s) => s.id === id);
     if (!target) return json(404, { error: "user_not_found" });
-    if (!target.roles.includes("delivery_agent") && stationId) return json(400, { error: "station_requires_delivery_agent" });
     const stationError = await persistStation(admin, id, stationId || null, target.roles);
     if (stationError) return json(400, { error: stationError });
     return json(200, { ok: true });
