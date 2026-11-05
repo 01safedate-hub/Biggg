@@ -726,3 +726,49 @@ create trigger payments_agent_first_order_fraud
 after insert or update of status on public.payments
 for each row execute function public.check_agent_first_order_cancellation_from_refund();
 revoke all on function public.check_agent_first_order_cancellation_from_refund() from public,anon,authenticated;
+
+-- Let a verified agent take the return leg only for a customer they personally onboarded.
+-- Desk dispatch can still assign a staff delivery agent when the original agent is unavailable.
+create or replace function public.claim_own_client_return(_order uuid)
+returns void language plpgsql security definer set search_path = ''
+as $$
+declare _o public.orders;
+begin
+  if auth.uid() is null or not public.agent_gate() then
+    raise exception 'agent_verification_required' using errcode='42501';
+  end if;
+  select * into _o from public.orders where id=_order for update;
+  if not found or _o.pickup_agent_id is distinct from auth.uid()
+     or _o.delivery_agent_id is not null
+     or _o.status not in ('ready','out_for_delivery') then
+    raise exception 'return_job_not_available' using errcode='P0001';
+  end if;
+  if not exists(select 1 from public.profiles p where p.id=_o.customer_id and p.onboarded_by=auth.uid()) then
+    raise exception 'not_own_client' using errcode='42501';
+  end if;
+  if _o.source <> 'subscription' and _o.fulfillment_choice is distinct from 'deliver' then
+    raise exception 'customer_collects_order' using errcode='P0001';
+  end if;
+  if _o.source <> 'subscription' and not exists(
+    select 1 from public.payments p where p.order_id=_order
+      and p.purpose='delivery_fare' and p.kind='payment' and p.status='success'
+  ) then
+    raise exception 'delivery_payment_required' using errcode='P0001';
+  end if;
+  if private.has_open_dispute(_order) then raise exception 'dispute_open' using errcode='P0001'; end if;
+
+  update public.orders set delivery_agent_id=auth.uid(),
+    status=case when status='ready' then 'out_for_delivery'::public.order_status else status end
+    where id=_order and delivery_agent_id is null;
+  if not found then raise exception 'return_job_not_available' using errcode='P0001'; end if;
+
+  insert into public.user_notifications(user_id,title,body,kind,order_id)
+    values(_o.customer_id,'Your agent is bringing your clean clothes',
+      'Your LaundryPoint agent has taken responsibility for the return delivery. Do not pay cash.',
+      'order_status',_order);
+  insert into public.order_events(order_id,actor_id,event,detail)
+    values(_order,auth.uid(),'agent_claimed_return_delivery',jsonb_build_object('agent_id',auth.uid()));
+end;
+$$;
+revoke all on function public.claim_own_client_return(uuid) from public,anon;
+grant execute on function public.claim_own_client_return(uuid) to authenticated;
