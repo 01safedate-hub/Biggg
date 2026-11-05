@@ -4,6 +4,7 @@ import { requireRole } from "@/lib/roles";
 import { enforceStaffGate } from "@/lib/staff-gate";
 import { naira } from "@/lib/format";
 import { ProfileForm } from "@/components/staff/ProfileForm";
+import { AgentHubArrival } from "@/components/staff/AgentHubArrival";
 import { saveMyProfile, submitMyOnboarding } from "./actions";
 
 export const metadata = { title: "My details" };
