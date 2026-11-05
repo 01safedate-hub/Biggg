@@ -53,22 +53,22 @@ Deno.serve(async (req) => {
 
   // Expired invitations no longer reserve a prospective customer's details.
   const now = new Date().toISOString();
-  const expired = await admin.from("client_invites")
-    .update({ status: "expired" })
-    .eq("status", "invited")
-    .lte("expires_at", now)
-    .or(`email.eq.${email},phone.ilike.%${tail}`);
-  if (expired.error) return json(500, { error: "invite_check_failed" });
+  const [expiredEmail, expiredPhone] = await Promise.all([
+    admin.from("client_invites").update({ status: "expired" })
+      .eq("status", "invited").lte("expires_at", now).ilike("email", email),
+    admin.from("client_invites").update({ status: "expired" })
+      .eq("status", "invited").lte("expires_at", now).ilike("phone", `%${tail}`),
+  ]);
+  if (expiredEmail.error || expiredPhone.error) return json(500, { error: "invite_check_failed" });
 
-  const pending = await admin.from("client_invites")
-    .select("id")
-    .eq("status", "invited")
-    .gt("expires_at", now)
-    .or(`email.eq.${email},phone.ilike.%${tail}`)
-    .limit(1)
-    .maybeSingle();
-  if (pending.error) return json(500, { error: "invite_check_failed" });
-  if (pending.data) return json(409, { error: "invite_pending" });
+  const [pendingEmail, pendingPhone] = await Promise.all([
+    admin.from("client_invites").select("id").eq("status", "invited")
+      .gt("expires_at", now).ilike("email", email).limit(1).maybeSingle(),
+    admin.from("client_invites").select("id").eq("status", "invited")
+      .gt("expires_at", now).ilike("phone", `%${tail}`).limit(1).maybeSingle(),
+  ]);
+  if (pendingEmail.error || pendingPhone.error) return json(500, { error: "invite_check_failed" });
+  if (pendingEmail.data || pendingPhone.data) return json(409, { error: "invite_pending" });
 
   // Critical ordering: the auth.users insert fires private.accept_client_invite().
   // Insert the invite first so that trigger can atomically link the new profile.
