@@ -72,11 +72,7 @@ export default async function ReferralsPage() {
         <h2 className="text-xl font-semibold tracking-tight">Customer referrals</h2>
         <p className="mt-1 text-sm text-ink-soft">Invite customers to LaundryPoint and follow each invitation through signup and orders.</p>
       </header>
-      {agentGateData === true ? <AddClient /> : (
-        <div className="card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          Customer invitations are available after your staff onboarding, hub/NIN verification and super-admin approval are complete. You can still review your existing customer referrals below.
-        </div>
-      )}
+      {agentGateData === true && <AddClient />}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Customers joined", clients.length],
