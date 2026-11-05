@@ -55,3 +55,7 @@ Run only against staging orders and disposable test-agent accounts after applyin
 10. Record a lost/damaged item incident against the correct pickup or delivery custodian. Expected: an open investigation appears in the admin page. Resolve as liable or not liable with a note. No deduction is applied automatically because the PDF leaves the full-value-versus-share deduction policy open.
 11. Verify the new admin route is visible only to super admin, and all strike/incident RPCs reject unauthorized roles.
 12. Verify no WhatsApp function, trigger, webhook, or notification workflow was changed by this migration.
+
+13. Verify the pickup deadline uses the configured `commission.hub_dropoff_hours` and, when earlier, the same-day `business.closing_time`.
+14. Sign a return bag out from the hub and leave it undelivered across the Africa/Lagos date boundary. Expected: one overnight custody alert is sent to the desk and delivery agent; repeat cron runs do not duplicate it.
+15. Sign in as either a delivery agent or commission agent. Expected: the My commissions page is available and displays any active 14-day commission hold with its end date.
