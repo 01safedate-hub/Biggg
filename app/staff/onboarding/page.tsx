@@ -5,6 +5,7 @@ import { enforceStaffGate } from "@/lib/staff-gate";
 import { naira } from "@/lib/format";
 import { ProfileForm } from "@/components/staff/ProfileForm";
 import { AgentHubArrival } from "@/components/staff/AgentHubArrival";
+import { AgentAgreement } from "@/components/staff/AgentAgreement";
 import { saveMyProfile, submitMyOnboarding } from "./actions";
 
 export const metadata = { title: "My details" };
@@ -26,6 +27,9 @@ export default async function Onboarding() {
   if (photoPath) photoUrl = (await supabase.storage.from("staff-docs").createSignedUrl(photoPath, 600)).data?.signedUrl ?? null;
   const st = STATUS[s.onboarding_status] ?? STATUS.incomplete;
   const locked = s.onboarding_status === "submitted" || s.onboarding_status === "verified";
+  const { data: agreementAccepted } = roles.includes("commission_agent")
+    ? await (supabase as any).rpc("my_agent_agreement_accepted")
+    : { data: false };
 
   return (
     <main id="main" className="container-page max-w-3xl space-y-6 py-10">
@@ -47,6 +51,7 @@ export default async function Onboarding() {
           <p className="mt-1 text-xs text-ink-mute">Paid instead of the basic salary in a month the profit target is met. It starts only once the start-up costs have been recovered.</p></div>
       </section>
 
+      {roles.includes("commission_agent") && !locked && <AgentAgreement initiallyAccepted={agreementAccepted === true} />}
       {roles.includes("commission_agent") && s.onboarding_status === "submitted" && <AgentHubArrival />}
 
       <ProfileForm userId={user.id} initial={s.profile ?? {}} photoUrl={photoUrl} locked={locked}
