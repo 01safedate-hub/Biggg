@@ -1,6 +1,5 @@
 import { requireRole } from "@/lib/roles";
 import { AddClient } from "@/components/ops/AddClient";
-import { PhoneActions } from "@/components/ops/PhoneActions";
 import { naira } from "@/lib/format";
 
 export const metadata = { title: "Referrals" };
@@ -124,7 +123,7 @@ export default async function ReferralsPage() {
             <div key={invite.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
               <div className="min-w-0">
                 <p className="font-medium">{invite.name}</p>
-                <p className="break-all text-ink-soft">{invite.email} · <PhoneActions phone={invite.phone} /></p>
+                <p className="break-all text-ink-soft">{invite.email} · {invite.phone}</p>
                 <p className="mt-1 text-xs text-ink-soft">
                   Invited {date(invite.created_at)}
                   {invite.status === "invited" ? ` · Expires ${date(invite.expires_at)}` : ""}
@@ -153,7 +152,7 @@ export default async function ReferralsPage() {
             <div key={client.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
               <div className="min-w-0">
                 <p className="font-medium">{client.name || "Customer"}</p>
-                <p className="break-all text-ink-soft"><PhoneActions phone={client.phone} /> · {client.email || "No email"}</p>
+                <p className="break-all text-ink-soft">{client.phone || "No phone"} · {client.email || "No email"}</p>
               </div>
               <p className="text-ink-soft">
                 Joined {date(client.since)} · {client.orders} order{client.orders === 1 ? "" : "s"}
