@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
-import { recordAgentIncident, recordAgentStrike, resolveAgentIncident } from "./actions";
+import { clearAgentFraudFlag, recordAgentIncident, recordAgentStrike, resolveAgentIncident } from "./actions";
 
 export const metadata = { title: "Agent custody and discipline" };
 export const dynamic = "force-dynamic";
@@ -11,6 +11,7 @@ type Custody = {
   delivered_at: string | null; late_alert_at: string | null;
 };
 type Strike = { id: string; agent_id: string; order_id: string | null; kind: string; note: string; strike_number: number; created_at: string };
+type FraudFlag = { id: string; agent_id: string; flag_type: string; flag_day: string; detail: string; status: string; created_at: string };
 type Incident = {
   id: string; order_id: string; agent_id: string; custody_leg: string; kind: string;
   description: string; estimated_value_kobo: number | null; investigation_status: string;
@@ -25,10 +26,11 @@ export default async function AgentOperationsPage({ searchParams }: { searchPara
   const { notice, error } = await searchParams;
   const { supabase } = await requireRole(["super_admin"]);
   const db = supabase as any;
-  const [{ data: custodyRows }, { data: strikeRows }, { data: incidentRows }, { data: roleRows }] = await Promise.all([
+  const [{ data: custodyRows }, { data: strikeRows }, { data: incidentRows }, { data: flagRows }, { data: roleRows }] = await Promise.all([
     db.from("agent_bag_custody").select("*").order("updated_at", { ascending: false }).limit(100),
     db.from("agent_strikes").select("*").order("created_at", { ascending: false }).limit(100),
     db.from("agent_custody_incidents").select("*").order("created_at", { ascending: false }).limit(100),
+    db.from("agent_fraud_flags").select("*").order("created_at", { ascending: false }).limit(100),
     supabase.from("user_roles").select("user_id,role").in("role", ["delivery_agent", "commission_agent"]),
   ]);
   const ids = Array.from(new Set([
@@ -36,6 +38,7 @@ export default async function AgentOperationsPage({ searchParams }: { searchPara
     ...(custodyRows ?? []).flatMap((x: Custody) => [x.pickup_agent_id, x.delivery_agent_id].filter(Boolean)),
     ...(strikeRows ?? []).map((x: Strike) => x.agent_id),
     ...(incidentRows ?? []).map((x: Incident) => x.agent_id),
+    ...(flagRows ?? []).map((x: FraudFlag) => x.agent_id),
   ] as string[]));
   const [{ data: profiles }, { data: orders }] = await Promise.all([
     ids.length ? supabase.from("profiles").select("id,full_name").in("id", ids) : Promise.resolve({ data: [] }),
@@ -47,6 +50,7 @@ export default async function AgentOperationsPage({ searchParams }: { searchPara
   const custody = (custodyRows ?? []) as Custody[];
   const strikes = (strikeRows ?? []) as Strike[];
   const incidents = (incidentRows ?? []) as Incident[];
+  const flags = (flagRows ?? []) as FraudFlag[];
   const late = custody.filter((x) => x.late_alert_at && !x.hub_in_at);
 
   return <div className="space-y-6">
@@ -102,6 +106,15 @@ export default async function AgentOperationsPage({ searchParams }: { searchPara
           <button className="rounded bg-brand px-4 py-2 font-semibold text-white">Open investigation</button>
         </form>
       </div>
+    </section>
+
+    <section className="card overflow-hidden">
+      <div className="border-b border-line p-4"><h2 className="font-semibold">Fraud flags and commission holds</h2><p className="mt-1 text-sm text-ink-soft">More than 10 customer invitations in one Lagos day creates a review flag and blocks commission approval and payout until an administrator clears or dismisses it.</p></div>
+      <div className="divide-y divide-line">{flags.map((x) => <div key={x.id} className="space-y-2 p-4 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{names.get(x.agent_id) ?? x.agent_id} · {label(x.flag_type)} · {x.flag_day}</p><span className="rounded-full bg-amber-100 px-2 py-1 text-xs">{label(x.status)}</span></div>
+        <p>{x.detail}</p>
+        {x.status === "open" && <form action={clearAgentFraudFlag} className="flex flex-wrap items-end gap-2"><input type="hidden" name="flag_id" value={x.id}/><label className="min-w-48 flex-1 text-xs">Review note<input name="resolution_note" minLength={3} required className="mt-1 w-full rounded border border-line p-2"/></label><button name="decision" value="cleared" className="rounded bg-emerald-700 px-3 py-2 text-white">Clear flag</button><button name="decision" value="dismissed" className="rounded border border-line px-3 py-2">Dismiss flag</button></form>}
+      </div>)}{!flags.length && <p className="p-4 text-sm text-ink-soft">No fraud flags recorded.</p>}</div>
     </section>
 
     <section className="card overflow-hidden">
