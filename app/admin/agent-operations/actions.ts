@@ -24,7 +24,8 @@ export async function recordAgentStrike(formData: FormData): Promise<void> {
 }
 
 export async function recordAgentIncident(formData: FormData): Promise<void> {
-  const { supabase } = await requireRole(["super_admin"]);
+  const { supabase: client } = await requireRole(["super_admin"]);
+  const supabase = client as any;
   const order = String(formData.get("order_id") ?? "");
   const agent = String(formData.get("agent_id") ?? "");
   const leg = String(formData.get("custody_leg") ?? "");
@@ -45,7 +46,8 @@ export async function recordAgentIncident(formData: FormData): Promise<void> {
 }
 
 export async function resolveAgentIncident(formData: FormData): Promise<void> {
-  const { supabase } = await requireRole(["super_admin"]);
+  const { supabase: client } = await requireRole(["super_admin"]);
+  const supabase = client as any;
   const id = String(formData.get("incident_id") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const note = String(formData.get("decision_note") ?? "").trim();
