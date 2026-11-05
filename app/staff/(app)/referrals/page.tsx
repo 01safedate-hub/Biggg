@@ -51,7 +51,7 @@ function statusLabel(status: string) {
 }
 
 export default async function ReferralsPage() {
-  const { supabase, user } = await requireRole([
+  const { supabase, user, roles } = await requireRole([
     "delivery_agent",
     "commission_agent",
     "admin",
@@ -98,7 +98,7 @@ export default async function ReferralsPage() {
         </p>
       </header>
 
-      <AddClient />\n\n      <section className="space-y-3">\n        <div>\n          <h2 className="text-xl font-semibold">Agent referrals</h2>\n          <p className="mt-1 text-sm text-ink-soft">Refer prospective commission agents. There are no recruitment rewards; this is separate from customer commissions.</p>\n        </div>\n        <AddAgentReferral />\n        <div className="card overflow-hidden">\n          <div className="border-b border-line p-4"><h3 className="font-semibold">People you have referred</h3><p className="mt-1 text-sm text-ink-soft">A referral is not an active staff account. Application, hub/NIN verification by a secretary, and super-admin approval are required.</p></div>\n          <div className="divide-y divide-line">\n            {agentReferrals.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><div><p className="font-medium">{item.full_name}</p><p className="break-all text-ink-soft">{item.email} · {item.phone}</p><p className="mt-1 text-xs text-ink-soft">Referred {date(item.created_at)}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">{item.status.replaceAll("_", " ")}</span></div>)}\n            {agentReferrals.length === 0 && <p className="p-5 text-sm text-ink-soft">No agent referrals recorded yet.</p>}\n          </div>\n        </div>\n      </section>
+      <AddClient />\n\n      <section className="space-y-3">\n        <div>\n          <h2 className="text-xl font-semibold">Agent referrals</h2>\n          <p className="mt-1 text-sm text-ink-soft">Refer prospective commission agents. There are no recruitment rewards; this is separate from customer commissions.</p>\n        </div>\n        {roles.some((role) => role === "delivery_agent" || role === "commission_agent") && <AddAgentReferral />}\n        <div className="card overflow-hidden">\n          <div className="border-b border-line p-4"><h3 className="font-semibold">People you have referred</h3><p className="mt-1 text-sm text-ink-soft">A referral is not an active staff account. Application, hub/NIN verification by a secretary, and super-admin approval are required.</p></div>\n          <div className="divide-y divide-line">\n            {agentReferrals.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><div><p className="font-medium">{item.full_name}</p><p className="break-all text-ink-soft">{item.email} · {item.phone}</p><p className="mt-1 text-xs text-ink-soft">Referred {date(item.created_at)}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">{item.status.replaceAll("_", " ")}</span></div>)}\n            {agentReferrals.length === 0 && <p className="p-5 text-sm text-ink-soft">No agent referrals recorded yet.</p>}\n          </div>\n        </div>\n      </section>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
