@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/roles";
 import { AddClient } from "@/components/ops/AddClient";
+import { ResendClientInviteButton } from "@/components/ops/AgentTools";
 import { naira } from "@/lib/format";
 
 export const metadata = { title: "Referrals" };
@@ -126,12 +127,12 @@ export default async function ReferralsPage() {
                 <p className="break-all text-ink-soft">{invite.email} · {invite.phone}</p>
                 <p className="mt-1 text-xs text-ink-soft">
                   Invited {date(invite.created_at)}
-                  {invite.status === "invited" ? ` · Expires ${date(invite.expires_at)}` : ""}
+                  {invite.status === "invited" ? ` · Expires ${date(invite.expires_at)} · ${invite.resend_count}/2 resends used` : ""}
                 </p>
               </div>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${invite.status === "signed_up" ? "bg-emerald-50 text-emerald-800" : invite.status === "invited" ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
+              <div className="flex flex-col items-start gap-2"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${invite.status === "signed_up" ? "bg-emerald-50 text-emerald-800" : invite.status === "invited" ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-700"}`}>
                 {statusLabel(invite.status)}
-              </span>
+              </span>{invite.status === "invited" && <ResendClientInviteButton inviteId={invite.id} resendCount={invite.resend_count} />}</div>
             </div>
           ))}
           {invites.length === 0 && (
