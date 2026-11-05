@@ -2911,6 +2911,10 @@ export type Database = {
       }
     }
     Functions: {
+      check_agent_hub_arrival: { Args: { _lat: number; _lng: number }; Returns: Json }
+      record_agent_nin_document_photo: { Args: { _photo_path: string; _user: string }; Returns: undefined }
+      super_admin_agent_nin_document: { Args: { _user: string }; Returns: Json }
+
       accept_count: { Args: { _order: string }; Returns: undefined }
       accrue_demurrage: { Args: never; Returns: Json }
       acknowledge_password_changed: { Args: never; Returns: undefined }
