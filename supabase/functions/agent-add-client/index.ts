@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     auth: { persistSession: false },
   });
   const gate = await caller.rpc("agent_gate");
-  if (gate.error || gate.data !== true) return json(403, { error: "not_allowed" });
+  if (gate.error || gate.data !== true) return json(403, { error: "agent_verification_required" });
   const me = await caller.auth.getUser();
   const callerId = me.data.user?.id;
   if (!callerId) return json(401, { error: "not_signed_in" });
