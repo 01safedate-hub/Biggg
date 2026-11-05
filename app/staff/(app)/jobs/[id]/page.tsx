@@ -3,12 +3,13 @@ import { PhoneActions } from "@/components/ops/PhoneActions";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
 import { naira } from "@/lib/format";
-import { ArrivalCode, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
+import { ArrivalCode, ClaimOwnClientReturn, FailedDeliveryForm, FailedPickupForm, Itemiser, ReopenButton } from "@/components/ops/AgentTools";
 import { StainFlag } from "@/components/ops/StainFlag";
 import { StainList } from "@/components/orders/StainList";
 import { LocationSharer } from "@/components/ops/LocationSharer";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
+import { TimeLeft } from "@/components/ops/TimeLeft";
 
 export const metadata = { title: "Pickup job" };
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
-  const { supabase, user } = await requireRole(["delivery_agent"]);
+  const { supabase, user } = await requireRole(["delivery_agent", "commission_agent"]);
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).or(`pickup_agent_id.eq.${user.id},delivery_agent_id.eq.${user.id}`).maybeSingle();
   if (!o) notFound();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }] = await Promise.all([
@@ -27,6 +28,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
+  const { data: custody } = await (supabase as any).from("agent_bag_custody").select("picked_up_at,hub_dropoff_due_at,hub_in_at,hub_out_at,delivered_at,late_alert_at,overnight_alert_at").eq("order_id", id).maybeSingle();
   const { data: subscriptionPickupRows } = o.source === "subscription" && o.subscription_pickup_id
     ? await (supabase as any).rpc("agent_subscription_pickup_summary", { p_order_id: id })
     : { data: null };
@@ -39,6 +41,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
+  const canClaimReturn = o.pickup_agent_id === user.id && !o.delivery_agent_id && ["ready", "out_for_delivery"].includes(o.status) && (o.source === "subscription" || (o as any).fulfillment_choice === "deliver");
   if (delivering) {
     return (
       <div className="space-y-6">
@@ -68,6 +71,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
       <AgentPickupMap agentId={user.id} orderId={id} />
       <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category. Follow the category caps and total-piece allowance shown below; excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
+      {canClaimReturn && <section className="card space-y-3 p-5">
+        <h2 className="text-lg font-semibold">Return delivery for your customer</h2>
+        <p className="text-sm text-ink-soft">The clothes are ready. You may take this return job because this customer was onboarded by you.</p>
+        <ClaimOwnClientReturn orderId={id} />
+      </section>}
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
       {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} perPickupAllowance={Number(planInfo?.per_pickup_allowance ?? planInfo?.pieces_per_month ?? 0)} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
@@ -88,6 +96,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ? "The customer has paid the excess-piece bill online. No transport payment is due. Take the clothes to the hub and hand them to the secretary."
               : "These garments are within the monthly plan allowance. No payment is due for this pickup. Take the clothes to the hub and hand them to the secretary."
             : "The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary."}</p>
+          {custody?.picked_up_at && !custody?.hub_in_at && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-semibold">Hub drop-off deadline: within three hours of collection.</p>
+            <TimeLeft targetAt={custody.hub_dropoff_due_at || new Date(new Date(custody.picked_up_at).getTime() + 3 * 60 * 60 * 1000).toISOString()} label={false} />
+            {custody.late_alert_at && <p className="mt-1 font-semibold">The hub has been alerted that this bag is overdue.</p>}
+          </div>}
         </section>
       )}
       {["agent_arrived", "counted", "count_confirmed"].includes(o.status) && (
