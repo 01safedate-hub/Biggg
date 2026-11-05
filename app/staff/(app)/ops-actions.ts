@@ -383,3 +383,15 @@ export async function claimOwnClientReturn(orderId: string): Promise<R> {
   revalidatePath("/staff/dispatch");
   return { ok: true, message: "Return delivery assigned to you. Follow the delivery code process and do not collect cash." };
 }
+
+export async function resendClientInvite(inviteId: string): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
+  const { data, error } = await supabase.functions.invoke("agent-resend-client-invite", {
+    body: { invite_id: inviteId },
+  });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  const result = data as { ok?: boolean; error?: string; resend_count?: number } | null;
+  if (!result?.ok) return { ok: false, message: friendlyError(result?.error ?? "resend_failed") };
+  revalidatePath("/staff/referrals");
+  return { ok: true, message: `Invitation resent. ${result.resend_count ?? 0} of 2 resends used.` };
+}
