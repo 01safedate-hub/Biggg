@@ -64,3 +64,10 @@ Run only against staging orders and disposable test-agent accounts after applyin
 17. Create staging-only referred customers and cancel/refund enough of their first orders to exceed half of the agent's referred customers with a first order. Expected: a `first_order_cancellation_pattern` flag is created; the admin page shows the count ratio.
 18. Clear or dismiss each fraud flag with an admin note. Expected: the decision is audited in the flag row; commission approval/payout remains blocked if any other flag for that agent is still open.
 19. Verify device-overlap and shared-location-pin flags are not emitted until the application has explicit, privacy-reviewed device identifiers and a separate agent-location reference. Do not treat the agent's normal GPS arrival at a customer address as fraud.
+
+20. As a verified commission-only agent, have one of your referred customers book a subscription pickup. Expected: the order is assigned to that agent and appears in **My jobs** without entering the general dispatch pool.
+21. Repeat with a one-time customer booking. Expected: no pickup job is actionable before the pickup fare succeeds; after successful fare payment, the order is assigned to the referred customer's verified commission agent.
+22. Attempt to open or act on another agent's customer's order. Expected: RLS and `private.agent_order()` reject access.
+23. When an own-customer order is ready, the original agent can claim the return delivery only if the customer selected delivery and the delivery fare is paid (or the order is subscription-covered). Expected: delivery agent is set and the customer receives an in-app notification.
+24. Attempt to claim another agent's return, a collect-at-hub order, an unpaid return, or an order already assigned to another delivery agent. Expected: the claim is rejected.
+25. As desk staff, reassign the return leg to a staff delivery agent when the original agent is unavailable. Expected: the commission ownership remains with the original onboarder; the staff agent only performs the trip.
