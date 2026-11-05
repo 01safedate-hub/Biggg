@@ -80,7 +80,13 @@ export default async function RequestPage() {
               <p className="text-sm text-ink-soft">Up to {Number((Array.isArray(active?.plans) ? active.plans[0] : active?.plans)?.weekly_allowance ?? plan?.pieces_per_month ?? 0)} pieces are included per pickup, subject to your remaining monthly allowance. Pieces above either limit and excluded categories are billed separately.</p>
             </section>
             {pickupCount >= 2 ? (
-              <p className="card p-5 text-sm text-ink-soft">You have used both pickup requests for this billing period. You can request another pickup when your next monthly period begins.</p>
+              <section className="card space-y-3 p-5">
+                <div>
+                  <h3 className="font-semibold">Included pickups used</h3>
+                  <p className="mt-1 text-sm text-ink-soft">You have used both pickups included in this monthly cycle. You can wait for your next cycle, or arrange another pickup now as a one-time paid request. The transport fare is paid online before dispatch; garment cleaning is counted and billed separately after collection. This extra pickup does not use your plan allowance.</p>
+                </div>
+                <BookingForm mode="one_time" />
+              </section>
             ) : <BookingForm />}
           </>
         )}
