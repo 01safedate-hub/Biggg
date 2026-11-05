@@ -41,7 +41,7 @@ export default async function ReferralsPage() {
     "delivery_agent", "commission_agent", "admin", "super_admin",
   ]);
 
-  const [{ data: clientsData }, { data: invitesData }, { data: commissionsData }, { data: agentReferralsData }] =
+  const [{ data: clientsData }, { data: invitesData }, { data: commissionsData }, { data: agentReferralsData }, { data: agentGateData }] =
     await Promise.all([
       supabase.rpc("my_clients"),
       (supabase as any).from("client_invites")
@@ -51,6 +51,7 @@ export default async function ReferralsPage() {
       (supabase as any).from("agent_applications")
         .select("id,full_name,email,phone,status,created_at,applicant_user_id,invited_at")
         .eq("referred_by", user.id).order("created_at", { ascending: false }).limit(100),
+      supabase.rpc("agent_gate"),
     ]);
 
   const clients = (Array.isArray(clientsData) ? clientsData : []) as unknown as Client[];
@@ -71,7 +72,11 @@ export default async function ReferralsPage() {
         <h2 className="text-xl font-semibold tracking-tight">Customer referrals</h2>
         <p className="mt-1 text-sm text-ink-soft">Invite customers to LaundryPoint and follow each invitation through signup and orders.</p>
       </header>
-      <AddClient />
+      {agentGateData === true ? <AddClient /> : (
+        <div className="card border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Customer invitations are available after your staff onboarding, hub/NIN verification and super-admin approval are complete. You can still review your existing customer referrals below.
+        </div>
+      )}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["Customers joined", clients.length],
