@@ -49,7 +49,7 @@ begin
     or not (private.has_role('commission_agent'::public.staff_role) or private.has_role('delivery_agent'::public.staff_role)) then
     raise exception 'not_authorized' using errcode='42501';
   end if;
-  if length(v_name) < 2 or length(_name) > 80 then raise exception 'invalid_name'; end if;
+  if length(v_name) < 2 or length(v_name) > 80 then raise exception 'invalid_name'; end if;
   if v_email !~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]{2,}$' then raise exception 'invalid_email'; end if;
   if length(regexp_replace(v_phone,'[^0-9]','','g')) not between 10 and 15 then raise exception 'invalid_phone'; end if;
   if exists(select 1 from auth.users u where lower(u.email)=v_email) then raise exception 'account_already_exists'; end if;
