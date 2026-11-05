@@ -80,3 +80,12 @@ export async function recordAgentOrientation(userId: string, input: {
   revalidatePath(`/staff/agent-verification/${userId}`);
   return { ok: true, message: "Orientation checklist saved. A successful hub verification is enabled only after all five topics are recorded." };
 }
+
+
+export async function saveAgentHubFacePhoto(userId: string, photoPath: string): Promise<R> {
+  const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
+  const { error } = await supabase.rpc("record_agent_hub_face_photo", { _user: userId, _photo_path: photoPath });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/agent-verification/${userId}`);
+  return { ok: true, message: "Fresh hub face photo saved." };
+}
