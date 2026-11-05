@@ -41,7 +41,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
-  const canClaimReturn = o.pickup_agent_id === user.id && !o.delivery_agent_id && ["ready", "out_for_delivery"].includes(o.status) && (o.source === "subscription" || o.fulfillment_choice === "deliver");
+  const canClaimReturn = o.pickup_agent_id === user.id && !o.delivery_agent_id && ["ready", "out_for_delivery"].includes(o.status) && (o.source === "subscription" || (o as any).fulfillment_choice === "deliver");
   if (delivering) {
     return (
       <div className="space-y-6">
