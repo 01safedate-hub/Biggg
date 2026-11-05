@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/roles";
 import { HubVerificationPanel } from "@/components/admin/HubVerificationPanel";
+import { AgentOrientationChecklist } from "@/components/admin/AgentOrientationChecklist";
 
 export const metadata = { title: "Verify commission agent" };
 export const dynamic = "force-dynamic";
@@ -10,6 +11,7 @@ type Detail = {
   application: { id: string; full_name: string; email: string; phone: string; status: string; applied_at: string | null };
   profile: { nin: string | null; photo_path: string | null; home_address: string | null; date_of_birth: string | null; referee_name: string | null; referee_phone: string | null; referee_address: string | null; referee_relationship: string | null } | null;
   latest_hub_check: { outcome: string; person_present: boolean; nin_document_checked: boolean; nin_matches_profile: boolean; photo_matches_person: boolean; referee_checked: boolean; notes: string | null; verified_at: string } | null;
+  orientation: { bags_and_receiving_at: string | null; arrival_and_delivery_codes_at: string | null; counting_and_stain_photos_at: string | null; no_cash_app_payments_at: string | null; commission_rules_at: string | null } | null;
 };
 
 export default async function VerifyAgent({ params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +50,7 @@ export default async function VerifyAgent({ params }: { params: Promise<{ id: st
         </div>
         <p className="text-xs text-ink-mute">Handle NIN information privately. Do not copy the full NIN into verification notes or messages.</p>
       </section>
+      <AgentOrientationChecklist userId={id} record={d.orientation} />
       <HubVerificationPanel userId={id} record={d.latest_hub_check ? { ...d.latest_hub_check, hub_location: "LaundryPoint hub" } : null} />
       <p className="text-sm text-ink-soft">A successful secretary check only advances the application. A super admin must still review and approve the staff profile before the agent becomes active.</p>
     </main>
