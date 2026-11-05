@@ -7,7 +7,8 @@ import { friendlyError } from "@/lib/rpc-errors";
 
 
 export async function recordAgentStrike(formData: FormData): Promise<void> {
-  const { supabase } = await requireRole(["super_admin"]);
+  const { supabase: client } = await requireRole(["super_admin"]);
+  const supabase = client as any;
   const agent = String(formData.get("agent_id") ?? "");
   const order = String(formData.get("order_id") ?? "").trim();
   const kind = String(formData.get("kind") ?? "");
