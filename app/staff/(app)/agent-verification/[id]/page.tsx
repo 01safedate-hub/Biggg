@@ -54,7 +54,8 @@ export default async function VerifyAgent({ params }: { params: Promise<{ id: st
         </div>
         <p className="text-xs text-ink-mute">Handle NIN information privately. Do not copy the full NIN into verification notes or messages.</p>
       </section>
-      <AgentHubFacePhoto userId={id} photoUrl={hubPhoto?.signedUrl ?? null} />\n      <AgentOrientationChecklist userId={id} record={d.orientation} />
+      <AgentHubFacePhoto userId={id} photoUrl={hubPhoto?.signedUrl ?? null} />
+      <AgentOrientationChecklist userId={id} record={d.orientation} />
       <HubVerificationPanel userId={id} record={d.latest_hub_check ? { ...d.latest_hub_check, hub_location: "LaundryPoint hub" } : null} />
       <p className="text-sm text-ink-soft">A successful secretary check only advances the application. A super admin must still review and approve the staff profile before the agent becomes active.</p>
     </main>
