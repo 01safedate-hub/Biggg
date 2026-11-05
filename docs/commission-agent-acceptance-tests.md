@@ -59,3 +59,8 @@ Run only against staging orders and disposable test-agent accounts after applyin
 13. Verify the pickup deadline uses the configured `commission.hub_dropoff_hours` and, when earlier, the same-day `business.closing_time`.
 14. Sign a return bag out from the hub and leave it undelivered across the Africa/Lagos date boundary. Expected: one overnight custody alert is sent to the desk and delivery agent; repeat cron runs do not duplicate it.
 15. Sign in as either a delivery agent or commission agent. Expected: the My commissions page is available and displays any active 14-day commission hold with its end date.
+
+16. Create 11 invitations for one agent on the same Africa/Lagos calendar day. Expected: one `daily_client_adds` flag is created and commission approval/payout is blocked while it is open.
+17. Create staging-only referred customers and cancel/refund enough of their first orders to exceed half of the agent's referred customers with a first order. Expected: a `first_order_cancellation_pattern` flag is created; the admin page shows the count ratio.
+18. Clear or dismiss each fraud flag with an admin note. Expected: the decision is audited in the flag row; commission approval/payout remains blocked if any other flag for that agent is still open.
+19. Verify device-overlap and shared-location-pin flags are not emitted until the application has explicit, privacy-reviewed device identifiers and a separate agent-location reference. Do not treat the agent's normal GPS arrival at a customer address as fraud.
