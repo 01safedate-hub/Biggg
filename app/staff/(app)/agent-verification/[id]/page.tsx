@@ -29,6 +29,8 @@ export default async function VerifyAgent({ params }: { params: Promise<{ id: st
     photoUrl = signed?.signedUrl ?? null;
   }
 
+  const { data: hubPhoto } = d.hub_face_photo_path ? await supabase.storage.from("staff-docs").createSignedUrl(d.hub_face_photo_path, 600) : { data: null };
+
   return (
     <main className="space-y-6">
       <Link href="/staff/agent-verification" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; Verification queue</Link>
