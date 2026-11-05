@@ -26,7 +26,7 @@ export function AddAgentReferral() {
     <form onSubmit={submit} className="card space-y-3 p-5">
       <div>
         <h2 className="text-lg font-semibold">Refer a commission agent</h2>
-        <p className="mt-1 text-sm text-ink-soft">Record someone you are recommending. This does not create an account or grant staff access.</p>
+        <p className="mt-1 text-sm text-ink-soft">Send an application invitation to someone you recommend. They must complete staff onboarding, attend hub/NIN verification, and receive final approval before they can work.</p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="text-sm">Full name<input required minLength={2} maxLength={80} autoComplete="name" value={values.full_name} onChange={e=>setValues(v=>({...v,full_name:e.target.value}))} className={field}/></label>
