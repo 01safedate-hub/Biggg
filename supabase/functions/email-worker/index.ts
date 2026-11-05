@@ -76,13 +76,13 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       return { subject: p.order_no ? `${title} - order #${p.order_no}` : title, html: layout(esc(title), lines), text: `${title}.\nOrder reference: ${order}.` };
     }
     case "client_invite": {
-      const first = String(p.name ?? "").trim().split(/\\s+/)[0] || "there";
+      const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
       const agent = String(p.agent_name ?? "Your LaundryPoint agent");
       const action = String(p.action_link ?? "");
       const exp = p.expires_at ? new Date(String(p.expires_at)).toLocaleDateString("en-GB", {
         day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos",
       }) : "the invitation expiry date";
-      if (!/^https:\\/\\//.test(action)) {
+      if (!/^https:\/\//.test(action)) {
         return { subject: "Finish setting up your LaundryPoint account", html: layout("Your customer invitation", ["Please open LaundryPoint to finish setting up your account."]), text: "Please open LaundryPoint to finish setting up your account." };
       }
       const lines = [
