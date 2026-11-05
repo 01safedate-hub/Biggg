@@ -109,7 +109,7 @@ export default async function AgentOperationsPage({ searchParams }: { searchPara
     </section>
 
     <section className="card overflow-hidden">
-      <div className="border-b border-line p-4"><h2 className="font-semibold">Fraud flags and commission holds</h2><p className="mt-1 text-sm text-ink-soft">More than 10 customer invitations in one Lagos day creates a review flag and blocks commission approval and payout until an administrator clears or dismisses it.</p></div>
+      <div className="border-b border-line p-4"><h2 className="font-semibold">Fraud flags and commission holds</h2><p className="mt-1 text-sm text-ink-soft">Daily invitation volume above 10 and a majority of referred customers’ first orders being cancelled/refunded create review flags. Open flags block commission approval and payout until an administrator clears or dismisses them.</p></div>
       <div className="divide-y divide-line">{flags.map((x) => <div key={x.id} className="space-y-2 p-4 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">{names.get(x.agent_id) ?? x.agent_id} · {label(x.flag_type)} · {x.flag_day}</p><span className="rounded-full bg-amber-100 px-2 py-1 text-xs">{label(x.status)}</span></div>
         <p>{x.detail}</p>
