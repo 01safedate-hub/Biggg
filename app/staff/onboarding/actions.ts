@@ -38,3 +38,12 @@ export async function recordAgentHubArrival(lat: number, lng: number): Promise<{
   revalidatePath("/staff/onboarding");
   return { ok: true, message: `Hub location confirmed at ${result?.hub_name ?? "LaundryPoint"} (${result?.distance_m ?? "—"} metres away).` };
 }
+
+
+export async function acceptAgentAgreement(version: string): Promise<{ ok: boolean; message: string }> {
+  const { supabase } = await requireRole(["commission_agent"]);
+  const { error } = await (supabase as any).rpc("accept_agent_agreement", { _version: version });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/onboarding");
+  return { ok: true, message: "Agreement acceptance recorded." };
+}
