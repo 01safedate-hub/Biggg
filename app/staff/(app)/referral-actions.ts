@@ -16,9 +16,17 @@ export async function createAgentReferral(input: { full_name: string; email: str
   const { data, error: inviteError } = await supabase.functions.invoke("agent-referral-invite", {
     body: { application_id: applicationId },
   });
-  if (inviteError || !data?.ok) {
-    return { ok: false, message: inviteError?.message ?? data?.error ?? "The referral was saved, but the invitation could not be sent. Please try again." };
-  }
   revalidatePath("/staff/referrals");
+  if (inviteError || !data?.ok) {
+    return { ok: true, message: "Referral saved, but the invitation email was not sent. Refresh the list and use Send invitation to retry." };
+  }
   return { ok: true, message: "Invitation sent. The applicant must complete their details, attend hub/NIN verification with a secretary, and receive super-admin approval before activation." };
+}
+
+export async function resendAgentReferralInvite(applicationId: string) {
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
+  const { data, error } = await supabase.functions.invoke("agent-referral-invite", { body: { application_id: applicationId } });
+  if (error || !data?.ok) return { ok: false, message: error?.message ?? data?.error ?? "Invitation could not be sent." };
+  revalidatePath("/staff/referrals");
+  return { ok: true, message: "Application invitation sent." };
 }
