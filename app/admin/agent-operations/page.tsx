@@ -21,7 +21,8 @@ const date = (value: string | null) => value ? new Intl.DateTimeFormat("en-GB", 
 }).format(new Date(value)) : "—";
 const label = (v: string) => v.replaceAll("_", " ");
 
-export default async function AgentOperationsPage() {
+export default async function AgentOperationsPage({ searchParams }: { searchParams: Promise<{ notice?: string; error?: string }> }) {
+  const { notice, error } = await searchParams;
   const { supabase } = await requireRole(["super_admin"]);
   const db = supabase as any;
   const [{ data: custodyRows }, { data: strikeRows }, { data: incidentRows }, { data: roleRows }] = await Promise.all([
@@ -49,6 +50,8 @@ export default async function AgentOperationsPage() {
   const late = custody.filter((x) => x.late_alert_at && !x.hub_in_at);
 
   return <div className="space-y-6">
+    {notice && <p role="status" className="rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+    {error && <p role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
     <header>
       <h1 className="text-2xl font-bold tracking-tight">Agent custody and discipline</h1>
       <p className="mt-1 text-sm text-ink-soft">Track bag handovers, three-hour hub alerts, process strikes and loss/damage investigations.</p>
