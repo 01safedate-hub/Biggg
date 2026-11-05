@@ -374,8 +374,9 @@ export async function addClient(v: { name: string; email: string; phone: string 
 }
 
 export async function claimOwnClientReturn(orderId: string): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
-  const { error } = await supabase.rpc("claim_own_client_return", { _order: orderId } as any);
+  const { supabase: client } = await requireRole(["delivery_agent", "commission_agent"]);
+  const supabase = client as any;
+  const { error } = await supabase.rpc("claim_own_client_return", { _order: orderId });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/jobs");
   revalidatePath(`/staff/jobs/${orderId}`);
