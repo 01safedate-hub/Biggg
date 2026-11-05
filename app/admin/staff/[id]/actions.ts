@@ -58,3 +58,25 @@ export async function recordHubVerification(userId: string, input: {
   revalidatePath("/admin/staff");
   return { ok: true, message: input.outcome === "passed" ? "In-person hub verification recorded. You may now complete profile approval." : "Failed hub verification recorded; profile approval is blocked." };
 }
+
+
+export async function recordAgentOrientation(userId: string, input: {
+  bags_and_receiving: boolean;
+  arrival_and_delivery_codes: boolean;
+  counting_and_stain_photos: boolean;
+  no_cash_app_payments: boolean;
+  commission_rules: boolean;
+}): Promise<R> {
+  const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
+  const { error } = await supabase.rpc("record_agent_orientation", {
+    _user: userId,
+    _bags_and_receiving: input.bags_and_receiving,
+    _arrival_and_delivery_codes: input.arrival_and_delivery_codes,
+    _counting_and_stain_photos: input.counting_and_stain_photos,
+    _no_cash_app_payments: input.no_cash_app_payments,
+    _commission_rules: input.commission_rules,
+  });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath(`/staff/agent-verification/${userId}`);
+  return { ok: true, message: "Orientation checklist saved. A successful hub verification is enabled only after all five topics are recorded." };
+}
