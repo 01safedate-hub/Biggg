@@ -46,6 +46,8 @@ export default async function Onboarding() {
           <p className="mt-1 text-xs text-ink-mute">Paid instead of the basic salary in a month the profit target is met. It starts only once the start-up costs have been recovered.</p></div>
       </section>
 
+      {roles.includes("commission_agent") && s.onboarding_status === "submitted" && <AgentHubArrival />}
+
       <ProfileForm userId={user.id} initial={s.profile ?? {}} photoUrl={photoUrl} locked={locked}
         onSave={saveMyProfile} onSubmit={submitMyOnboarding} submitLabel="Save and send for review" />
 
