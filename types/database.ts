@@ -2938,6 +2938,7 @@ export type Database = {
       record_staff_hub_verification: { Args: { _user: string; _outcome: string; _person_present: boolean; _nin_document_checked: boolean; _nin_matches_profile: boolean; _photo_matches_person: boolean; _referee_checked?: boolean; _notes?: string | null }; Returns: string }
       create_agent_referral: { Args: { _full_name: string; _email: string; _phone: string }; Returns: string }
       secretary_agent_verification_detail: { Args: { _user: string }; Returns: Json }
+      record_agent_orientation: { Args: { _user: string; _bags_and_receiving: boolean; _arrival_and_delivery_codes: boolean; _counting_and_stain_photos: boolean; _no_cash_app_payments: boolean; _commission_rules: boolean }; Returns: undefined }
       review_commission: { Args: { _commission:string; _decision:string; _note?:string|null }; Returns: undefined }
       create_commission_payout: { Args: { _agent:string; _from:string; _to:string; _note?:string|null }; Returns: string }
       update_commission_payout: { Args: { _payout:string; _action:string; _method?:string|null; _reference?:string|null; _note?:string|null }; Returns: undefined }
