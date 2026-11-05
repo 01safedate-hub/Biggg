@@ -359,7 +359,7 @@ export async function flagStain(orderId: string, itemId: string | null, itemName
 }
 
 export async function addClient(v: { name: string; email: string; phone: string }): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent", "admin", "super_admin"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent", "admin", "super_admin"]);
   const { data, error } = await supabase.functions.invoke("agent-add-client", { body: { full_name: v.name.trim(), email: v.email.trim(), phone: v.phone.trim() } });
   if (error) {
     let code = error.message;
@@ -369,5 +369,6 @@ export async function addClient(v: { name: string; email: string; phone: string 
   }
   if (!(data as { ok?: boolean } | null)?.ok) return { ok: false, message: "Something went wrong. Please try again." };
   revalidatePath("/staff/clients");
+  revalidatePath("/staff/referrals");
   return { ok: true, message: "Added. We sent them an email to choose a password." };
 }
