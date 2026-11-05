@@ -31,7 +31,7 @@ export function SignupForm() {
     const { data, error: err } = await createClient().auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false", whatsapp_opt_in: whatsappOptIn } },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/account`, data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false", whatsapp_opt_in: whatsappOptIn } },
     });
     setBusy(false);
     if (err) return setError(err.message.toLowerCase().includes("rate") ? "Too many attempts. Please wait a few minutes and try again." : err.message);
