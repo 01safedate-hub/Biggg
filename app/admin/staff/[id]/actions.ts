@@ -42,7 +42,7 @@ export async function recordHubVerification(userId: string, input: {
   referee_checked: boolean;
   notes: string;
 }): Promise<R> {
-  const { supabase } = await requireRole(["super_admin"]);
+  const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
   const { error } = await supabase.rpc("record_staff_hub_verification", {
     _user: userId,
     _outcome: input.outcome,
