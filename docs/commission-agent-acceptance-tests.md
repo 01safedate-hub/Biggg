@@ -40,3 +40,18 @@ Run against disposable/staging Auth and database fixtures; do not invite real cu
 4. Complete signup through the invitation. Expected: the invitation changes to **Joined** and the customer appears in **Customers who joined** with order count and last-order information.
 5. Sign in as a different agent. Expected: the first agent's invitations and customers are not visible; `client_invites` reads are scoped to the authenticated `agent_id`.
 6. Verify the earnings summary reads only the signed-in agent's existing commission rows and does not create recruitment rewards or alter commission calculations.
+
+## Agent custody and discipline acceptance tests
+Run only against staging orders and disposable test-agent accounts after applying the agent custody migration.
+1. Move a paid test pickup through customer count acceptance to `count_confirmed`. Expected: one custody record is created with the assigned pickup agent and pickup timestamp.
+2. Mark the same order received at the hub. Expected: `hub_in_at` is recorded exactly once and the pickup leg is closed.
+3. Move a received test order to `out_for_delivery` with a delivery agent. Expected: the delivery agent and hub sign-out timestamp are recorded.
+4. Verify the delivery code. Expected: `delivered_at` is recorded and the delivery custody leg is closed.
+5. Leave a disposable paid pickup unreceived for more than three hours, then run `process_agent_custody_alerts()`. Expected: one late alert is recorded, order event written, and active desk/admin users plus the pickup agent receive a notification. Running it again must not duplicate alerts.
+6. Verify an assigned agent can read only their own custody row; a different agent cannot read it; super admin can inspect all rows.
+7. Record a first strike. Expected: warning notification and strike number 1; no commission hold or deactivation.
+8. Record a second strike. Expected: a commission hold ending 14 days later; approval and payout creation are blocked while the hold is active.
+9. Record a third strike. Expected: profile becomes restricted and agent onboarding is no longer verified, blocking agent-gated actions.
+10. Record a lost/damaged item incident against the correct pickup or delivery custodian. Expected: an open investigation appears in the admin page. Resolve as liable or not liable with a note. No deduction is applied automatically because the PDF leaves the full-value-versus-share deduction policy open.
+11. Verify the new admin route is visible only to super admin, and all strike/incident RPCs reject unauthorized roles.
+12. Verify no WhatsApp function, trigger, webhook, or notification workflow was changed by this migration.
