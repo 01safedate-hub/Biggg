@@ -7,7 +7,7 @@ export const metadata = { title: "My jobs" };
 export default async function JobsPage() {
   const { supabase, user } = await requireRole(["delivery_agent", "commission_agent"]);
   const { data } = await supabase.from("orders").select("id,order_no,status,pickup_address,created_at")
-    .or("and(pickup_agent_id.eq." + user.id + ",status.in.(agent_assigned,agent_arrived,counted,count_confirmed)),and(delivery_agent_id.eq." + user.id + ",status.eq.out_for_delivery)").order("created_at");
+    .or("and(pickup_agent_id.eq." + user.id + ",status.in.(agent_assigned,agent_arrived,counted,count_confirmed)),and(delivery_agent_id.eq." + user.id + ",status.eq.out_for_delivery),and(pickup_agent_id.eq." + user.id + ",delivery_agent_id.is.null,status.in.(ready,out_for_delivery))").order("created_at");
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold tracking-tight">My jobs</h1><p className="mt-1 text-sm text-ink-soft">Select a job to view its map and complete the pickup or delivery steps.</p></div>
