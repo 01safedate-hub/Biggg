@@ -576,7 +576,7 @@ begin
       values(new.agent_id,'daily_client_adds',_day,
         'Agent created more than 10 customer invitations on this day ('||_n||'). Review the activity before clearing the commission hold.')
       on conflict(agent_id,flag_type,flag_day) do update
-        set detail=excluded.detail;
+        set detail=excluded.detail,status='open',resolved_by=null,resolved_at=null,resolution_note=null;
   end if;
   return new;
 end;
@@ -653,3 +653,76 @@ begin
 end;
 $$;
 revoke all on function public.release_commissions_after_complaint_window() from public,anon,authenticated;
+
+-- Detect when more than half of an agent's referred customers' first orders are cancelled or refunded.
+-- The ratio is evaluated only from each customer's first order; admins review and clear the resulting flag.
+create or replace function public.flag_agent_first_order_cancellation_pattern(_customer uuid)
+returns void language plpgsql security definer set search_path = ''
+as $$
+declare
+  _agent uuid;
+  _total integer;
+  _bad integer;
+  _day date := (now() at time zone 'Africa/Lagos')::date;
+begin
+  select onboarded_by into _agent from public.profiles where id=_customer;
+  if _agent is null then return; end if;
+  select count(*)::integer,
+    count(*) filter(where firsts.status::text='cancelled' or firsts.refunded)::integer
+    into _total,_bad
+  from (
+    select distinct on(o.customer_id) o.customer_id,o.status,
+      exists(select 1 from public.payments p where p.order_id=o.id and p.kind='refund' and p.status='success') as refunded
+    from public.orders o
+    join public.profiles p on p.id=o.customer_id
+    where p.onboarded_by=_agent
+    order by o.customer_id,o.created_at,o.id
+  ) firsts;
+  if _total>0 and _bad*2>_total then
+    insert into public.agent_fraud_flags(agent_id,flag_type,flag_day,detail)
+      values(_agent,'first_order_cancellation_pattern',_day,
+        'More than half of this agent''s referred customers'' first orders are cancelled or refunded ('||_bad||' of '||_total||'). Review the customers and order history.')
+      on conflict(agent_id,flag_type,flag_day) do update
+        set detail=excluded.detail,status='open',resolved_by=null,resolved_at=null,resolution_note=null;
+  end if;
+end;
+$$;
+revoke all on function public.flag_agent_first_order_cancellation_pattern(uuid) from public,anon,authenticated;
+
+create or replace function public.check_agent_first_order_cancellation_from_order()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if new.status::text='cancelled' and old.status is distinct from new.status then
+    perform public.flag_agent_first_order_cancellation_pattern(new.customer_id);
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists orders_agent_first_order_fraud on public.orders;
+create trigger orders_agent_first_order_fraud
+after update of status on public.orders
+for each row when (old.status is distinct from new.status and new.status::text='cancelled')
+execute function public.check_agent_first_order_cancellation_from_order();
+revoke all on function public.check_agent_first_order_cancellation_from_order() from public,anon,authenticated;
+
+create or replace function public.check_agent_first_order_cancellation_from_refund()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare _customer uuid;
+begin
+  if new.kind='refund' and new.status='success'
+     and (tg_op='INSERT' or old.status is distinct from new.status) then
+    select customer_id into _customer from public.orders where id=new.order_id;
+    if _customer is not null then
+      perform public.flag_agent_first_order_cancellation_pattern(_customer);
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists payments_agent_first_order_fraud on public.payments;
+create trigger payments_agent_first_order_fraud
+after insert or update of status on public.payments
+for each row execute function public.check_agent_first_order_cancellation_from_refund();
+revoke all on function public.check_agent_first_order_cancellation_from_refund() from public,anon,authenticated;
