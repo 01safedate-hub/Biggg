@@ -75,6 +75,24 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       const lines = [`${esc(title)}.`, `Order reference: ${order}.`, `You can follow your order at <a href="${esc(SITE)}" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`];
       return { subject: p.order_no ? `${title} - order #${p.order_no}` : title, html: layout(esc(title), lines), text: `${title}.\nOrder reference: ${order}.` };
     }
+    case "client_invite": {
+      const first = String(p.name ?? "").trim().split(/\\s+/)[0] || "there";
+      const agent = String(p.agent_name ?? "Your LaundryPoint agent");
+      const action = String(p.action_link ?? "");
+      const exp = p.expires_at ? new Date(String(p.expires_at)).toLocaleDateString("en-GB", {
+        day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos",
+      }) : "the invitation expiry date";
+      if (!/^https:\\/\\//.test(action)) {
+        return { subject: "Finish setting up your LaundryPoint account", html: layout("Your customer invitation", ["Please open LaundryPoint to finish setting up your account."]), text: "Please open LaundryPoint to finish setting up your account." };
+      }
+      const lines = [
+        `Hello ${esc(first)}, ${esc(agent)} invited you to join LaundryPoint as a customer.`,
+        `Use the secure link below to finish setting up your account and choose your password. This invitation expires on ${esc(exp)}.`,
+        `<a href="${esc(action)}" style="display:inline-block;padding:12px 20px;background:#ea580c;border-radius:8px;color:#ffffff;font-weight:700;text-decoration:none">Finish setting up your account</a>`,
+        "If you were not expecting this invitation, you can ignore this email.",
+      ];
+      return { subject: "Finish setting up your LaundryPoint account", html: layout("You have been invited to LaundryPoint", lines), text: `Hello ${first}, ${agent} invited you to LaundryPoint. Finish setting up your account here: ${action}. This invitation expires on ${exp}.` };
+    }
     case "staff_review": {
       const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
       if (p.approved) {
