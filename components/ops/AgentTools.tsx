@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
+import { claimOwnClientReturn, deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { StainFlag } from "@/components/ops/StainFlag";
 import { naira } from "@/lib/format";
 
@@ -23,6 +23,25 @@ export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I hav
       ) : (
         <button className="btn-primary" disabled={busy} onClick={async () => { setBusy(true); setErr(null); const r = await showArrivalCode(orderId, step); setBusy(false); if (r.ok && r.code) setCode(r.code); else setErr(r.message); }}>{busy ? "Generating code…" : label}</button>
       )}
+    </div>
+  );
+}
+
+
+export function ClaimOwnClientReturn({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <div className="space-y-3">
+      {message && <p role="alert" className="text-sm text-red-700">{message}</p>}
+      <button type="button" className="btn-primary" disabled={busy} onClick={async () => {
+        setBusy(true); setMessage(null);
+        const result = await claimOwnClientReturn(orderId);
+        setBusy(false);
+        if (result.ok) router.refresh(); else setMessage(result.message);
+      }}>{busy ? "Assigning return delivery…" : "I will deliver this customer's clothes"}</button>
+      <p className="text-xs text-ink-soft">You can take only your own customer's return job. The delivery fare must already be paid where applicable.</p>
     </div>
   );
 }
