@@ -30,7 +30,7 @@ function layout(heading: string, intro: string, button?: { label: string; href: 
   return `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" style="max-width:520px;background:#fff;border:1px solid #e2e8f0;border-radius:8px" cellpadding="0" cellspacing="0">
-<tr><td style="padding:24px 32px;border-bottom:1px solid #e2e8f0;font-size:18px;font-weight:700;color:#0f172a"><span style="color:#ea580c">&#9632;</span> LaundryPoint</td></tr>
+<tr><td style="padding:24px 32px;border-bottom:1px solid #e2e8f0"><img src="https://aqxitpnektmkjpfbbfhz.supabase.co/storage/v1/object/public/logo/logo.png" alt="LaundryPoint" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;font-size:18px;font-weight:700;color:#0f172a" /></td></tr>
 <tr><td style="padding:32px"><h1 style="margin:0 0 16px;font-size:20px;color:#0f172a">${esc(heading)}</h1>
 <p style="margin:0;font-size:15px;line-height:24px;color:#334155">${esc(intro)}</p>${btn}${codeBlock}
 <p style="margin:16px 0 0;font-size:13px;line-height:20px;color:#64748b">If you did not request this, you can safely ignore this email.</p></td></tr>
