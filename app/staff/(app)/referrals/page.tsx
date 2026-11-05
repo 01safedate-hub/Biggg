@@ -72,6 +72,12 @@ export default async function ReferralsPage() {
         .select("amount_kobo,status")
         .eq("agent_id", user.id)
         .limit(500),
+      (supabase as any)
+        .from("agent_applications")
+        .select("id,full_name,email,phone,status,created_at")
+        .eq("referred_by", user.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
     ]);
 
   const clients = (Array.isArray(clientsData) ? clientsData : []) as unknown as Client[];
