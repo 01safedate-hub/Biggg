@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
   await admin.from("profiles").update({ full_name: application.full_name, phone: application.phone }).eq("id", applicantId);
   const linked = await admin.from("agent_applications")
     .update({ applicant_user_id: applicantId, invited_at: new Date().toISOString(), invitation_error: null })
-    .eq("id", applicationId).eq("status", "referred").is("applicant_user_id", null);
+    .eq("id", applicationId).eq("status", "referred").is("applicant_user_id", null).select("id").maybeSingle();
   if (linked.error || !linked.data) {
     await admin.auth.admin.deleteUser(applicantId);
     return json(500, { error: "referral_link_failed" });
