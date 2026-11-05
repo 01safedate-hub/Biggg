@@ -42,16 +42,8 @@ Deno.serve(async (req) => {
   const phone = digits.startsWith("234") ? `+${digits}` : digits.length === 10 ? `0${digits}` : digits;
   const admin = createClient(URL_, SERVICE, { auth: { persistSession: false } });
 
-  // Never claim an existing account, including one that has already ordered.
-  // Check separately rather than interpolating user input into a PostgREST .or() filter.
-  const [emailMatch, phoneMatch] = await Promise.all([
-    admin.from("profiles").select("id").ilike("email", email).limit(1).maybeSingle(),
-    admin.from("profiles").select("id").ilike("phone", `%${tail}`).limit(1).maybeSingle(),
-  ]);
-  if (emailMatch.error || phoneMatch.error) return json(500, { error: "client_check_failed" });
-  if (emailMatch.data || phoneMatch.data) return json(409, { error: "client_exists" });
-
-  // Expired invitations no longer reserve a prospective customer's details.
+  // Expire stale invitations before duplicate-account checks. An unconfirmed Auth
+  // user left behind by an expired invitation may be safely removed and invited again.
   const now = new Date().toISOString();
   const [expiredEmail, expiredPhone] = await Promise.all([
     admin.from("client_invites").update({ status: "expired" })
@@ -60,6 +52,38 @@ Deno.serve(async (req) => {
       .eq("status", "invited").lte("expires_at", now).ilike("phone", `%${tail}`),
   ]);
   if (expiredEmail.error || expiredPhone.error) return json(500, { error: "invite_check_failed" });
+
+  const [emailMatch, phoneMatch] = await Promise.all([
+    admin.from("profiles").select("id,email,phone").ilike("email", email).limit(1).maybeSingle(),
+    admin.from("profiles").select("id,email,phone").ilike("phone", `%${tail}`).limit(1).maybeSingle(),
+  ]);
+  if (emailMatch.error || phoneMatch.error) return json(500, { error: "client_check_failed" });
+
+  const possibleOldInvites = [emailMatch.data, phoneMatch.data].filter(Boolean) as { id: string; email: string | null; phone: string | null }[];
+  const oldUsers = Array.from(new Map(possibleOldInvites.map((x) => [x.id, x])).values());
+  for (const old of oldUsers) {
+    const [oldEmailInvite, oldPhoneInvite] = await Promise.all([
+      old.email ? admin.from("client_invites").select("id").eq("status", "expired").ilike("email", old.email).limit(1).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      old.phone ? admin.from("client_invites").select("id").eq("status", "expired").ilike("phone", old.phone).limit(1).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    ]);
+    if (oldEmailInvite.error || oldPhoneInvite.error) return json(500, { error: "invite_check_failed" });
+    if (!oldEmailInvite.data && !oldPhoneInvite.data) return json(409, { error: "client_exists" });
+
+    const authUser = await admin.auth.admin.getUserById(old.id);
+    if (authUser.error || !authUser.data.user || authUser.data.user.email_confirmed_at) {
+      return json(409, { error: "client_exists" });
+    }
+    const removed = await admin.auth.admin.deleteUser(old.id);
+    if (removed.error) return json(500, { error: "expired_invite_cleanup_failed" });
+  }
+
+  // Re-check after removing only unconfirmed users whose invitation has expired.
+  const [remainingEmail, remainingPhone] = await Promise.all([
+    admin.from("profiles").select("id").ilike("email", email).limit(1).maybeSingle(),
+    admin.from("profiles").select("id").ilike("phone", `%${tail}`).limit(1).maybeSingle(),
+  ]);
+  if (remainingEmail.error || remainingPhone.error) return json(500, { error: "client_check_failed" });
+  if (remainingEmail.data || remainingPhone.data) return json(409, { error: "client_exists" });
 
   const [pendingEmail, pendingPhone] = await Promise.all([
     admin.from("client_invites").select("id").eq("status", "invited")
