@@ -32,7 +32,7 @@ export function ResetForm({ mode = "reset" }: { mode?: "reset" | "welcome" }) {
     }
     await supabase.auth.signOut({ scope: "others" }); // anyone else signed in with the old password is signed out
     setBusy(false);
-    router.replace(mode === "welcome" ? "/staff" : "/account?notice=password_changed");
+    router.replace(mode === "welcome" ? "/staff/onboarding" : "/account?notice=password_changed");
     router.refresh();
   }
 
