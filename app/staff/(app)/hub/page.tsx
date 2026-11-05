@@ -17,8 +17,11 @@ const ago = (iso: string | null) => {
 export default async function HubPage() {
   const { supabase,roles } = await requireRole(["secretary", "admin", "super_admin", "washer"]);
   const washerOnly=roles.includes("washer")&&!roles.some(r=>["super_admin","admin","secretary"].includes(r));
-  const { data } = await supabase.from("orders").select("id,order_no,source,status,customer_id,updated_at,ready_at,items_total_kobo,instant,instant_target_at,instant_promise_at").in("status", washerOnly ? ["received", "in_house"] : ["received", "in_house", "ready"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at");
+  const { data } = await supabase.from("orders").select("id,order_no,source,status,customer_id,zone_id,updated_at,ready_at,items_total_kobo,instant,instant_target_at,instant_promise_at").in("status", washerOnly ? ["received", "in_house"] : ["received", "in_house", "ready"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at");
   const ids = Array.from(new Set((data ?? []).map((o) => o.customer_id)));
+  const zoneIds = Array.from(new Set((data ?? []).map((o) => o.zone_id).filter(Boolean)));
+  const { data: zones } = zoneIds.length ? await supabase.from("zones").select("id,name").in("id", zoneIds) : { data: [] };
+  const zoneNames = new Map((zones ?? []).map((z) => [z.id, z.name]));
   const { data: ppl } = !washerOnly&&ids.length ? await supabase.from("profiles").select("id,full_name,phone").in("id", ids) : { data: [] };
   const who = new Map((ppl ?? []).map((p) => [p.id, p]));
   const { data: counts } = (data ?? []).length ? await supabase.from("order_items").select("order_id,qty").in("order_id", (data ?? []).map((o) => o.id)).is("removed_at", null) : { data: [] };
