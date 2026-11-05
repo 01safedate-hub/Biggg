@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, mode: "existing_account", name: existing.full_name });
     }
 
-    const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, phone }, redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, phone }, redirectTo: `${SITE}/auth/callback?next=/welcome` });
     if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "invite_failed" });
     const role = await asCaller.rpc("set_staff_roles", { _user: inv.data.user.id, _roles: roles });
     if (role.error) {
@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
     const row = ((list.data ?? []) as { id: string; email: string; accepted: boolean }[]).find((s) => s.id === id);
     if (!row) return json(404, { error: "user_not_found" });
     if (row.accepted) return json(400, { error: "already_accepted" });
-    const inv = await admin.auth.admin.inviteUserByEmail(row.email, { redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(row.email, { redirectTo: `${SITE}/auth/callback?next=/welcome` });
     if (inv.error) return json(400, { error: inv.error.message });
     return json(200, { ok: true });
   }
