@@ -59,3 +59,16 @@ export async function resolveAgentIncident(formData: FormData): Promise<void> {
   revalidatePath("/admin/agent-operations");
   redirect("/admin/agent-operations?notice=Investigation%20decision%20saved.%20No%20deduction%20amount%20was%20assumed");
 }
+
+export async function clearAgentFraudFlag(formData: FormData): Promise<void> {
+  const { supabase: client } = await requireRole(["super_admin"]);
+  const supabase = client as any;
+  const id = String(formData.get("flag_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const note = String(formData.get("resolution_note") ?? "").trim();
+  if (!id || note.length < 3) redirect("/admin/agent-operations?error=Enter%20a%20resolution%20note");
+  const { error } = await supabase.rpc("clear_agent_fraud_flag", { _flag: id, _decision: decision, _note: note });
+  if (error) redirect("/admin/agent-operations?error=" + encodeURIComponent(friendlyError(error.message)));
+  revalidatePath("/admin/agent-operations");
+  redirect("/admin/agent-operations?notice=Fraud%20flag%20review%20saved");
+}
