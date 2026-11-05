@@ -76,7 +76,7 @@ export async function redispatch(orderId: string): Promise<R> {
 }
 
 export async function hubStep(orderId: string, step: "wash" | "ready"): Promise<R> {
-  const { supabase } = await requireRole([...DESK]);
+  const { supabase } = await requireRole(["washer", ...DESK]);
   const { error } = await supabase.rpc(step === "wash" ? "start_washing" : "mark_ready", { _order: orderId });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/hub");

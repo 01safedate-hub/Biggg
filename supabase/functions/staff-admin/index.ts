@@ -7,7 +7,7 @@ const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
-const ROLES = ["delivery_agent", "commission_agent", "cashier", "secretary", "admin", "super_admin"];
+const ROLES = ["delivery_agent", "commission_agent", "cashier", "secretary", "washer", "admin", "super_admin"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -23,13 +23,11 @@ function cleanPhone(v: string) {
 
 async function persistStation(admin: ReturnType<typeof createClient>, userId: string, value: unknown, roles: string[]) {
   const stationId = clean(value);
-  if (stationId && !/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
-  if (stationId) {
-    const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
-    if (zoneError || !zone) return "invalid_station";
-  }
-  if (!roles.includes("delivery_agent") && stationId) return "station_requires_delivery_agent";
-  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId || null }, { onConflict: "user_id" });
+  if (!stationId) return "station_required";
+  if (!/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
+  const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
+  if (zoneError || !zone) return "invalid_station";
+  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId }, { onConflict: "user_id" });
   return error ? "station_save_failed" : null;
 }
 
@@ -69,7 +67,7 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, mode: "existing_account", name: existing.full_name });
     }
 
-    const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, phone }, redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, phone }, redirectTo: `${SITE}/auth/callback?next=/welcome` });
     if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "invite_failed" });
     const role = await asCaller.rpc("set_staff_roles", { _user: inv.data.user.id, _roles: roles });
     if (role.error) {
@@ -121,7 +119,7 @@ Deno.serve(async (req) => {
     const row = ((list.data ?? []) as { id: string; email: string; accepted: boolean }[]).find((s) => s.id === id);
     if (!row) return json(404, { error: "user_not_found" });
     if (row.accepted) return json(400, { error: "already_accepted" });
-    const inv = await admin.auth.admin.inviteUserByEmail(row.email, { redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(row.email, { redirectTo: `${SITE}/auth/callback?next=/welcome` });
     if (inv.error) return json(400, { error: inv.error.message });
     return json(200, { ok: true });
   }
@@ -133,7 +131,6 @@ Deno.serve(async (req) => {
     if (list.error) return json(400, { error: list.error.message });
     const target = ((list.data ?? []) as { id: string; roles: string[] }[]).find((s) => s.id === id);
     if (!target) return json(404, { error: "user_not_found" });
-    if (!target.roles.includes("delivery_agent") && stationId) return json(400, { error: "station_requires_delivery_agent" });
     const stationError = await persistStation(admin, id, stationId || null, target.roles);
     if (stationError) return json(400, { error: stationError });
     return json(200, { ok: true });

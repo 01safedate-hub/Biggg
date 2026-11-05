@@ -4,7 +4,7 @@ import { LeaveDesk } from "@/components/staff/LeaveDesk";
 export const metadata = { title: "Leave and shift swaps" };
 export const dynamic = "force-dynamic";
 export default async function LeavePage() {
- const { supabase, user, roles } = await requireRole(["super_admin","admin","secretary","cashier","delivery_agent"]);
+ const { supabase, user, roles } = await requireRole(["super_admin","admin","secretary","cashier","delivery_agent","washer"]);
  const isManager = roles.some(r=>["super_admin","admin","secretary"].includes(r));
  const [{data:types},{data:leaveRows},{data:shifts},{data:swaps},{data:people},{data:balances},{data:holidays},{data:blackouts}] = await Promise.all([
   supabase.from("leave_types").select("id,name,paid,annual_allowance_days").eq("active",true).order("name"),
@@ -20,5 +20,5 @@ export default async function LeavePage() {
  const shiftRows=(shifts??[]) as any[];
  const swapRows=(swaps??[]).map((s:any)=>({...s,shift:Array.isArray(s.shift)?s.shift[0]??null:s.shift}));
  return <div className="space-y-5"><div><Link href="/staff/my-shifts" className="text-sm underline">← My shifts</Link><h1 className="mt-2 text-2xl font-bold tracking-tight">Leave and shift swaps</h1><p className="mt-1 text-sm text-ink-soft">{isManager?"Review team leave requests and accepted shift swaps.":"Request leave, cancel future requests, and ask colleagues to swap upcoming shifts."}</p></div>
- <LeaveDesk isManager={isManager} canRequestSwap={roles.some(r=>["delivery_agent","cashier","secretary"].includes(r))} userRole={roles.find(r=>["delivery_agent","cashier","secretary"].includes(r))||""} userId={user.id} types={(types??[]) as any} leaveRows={(leaveRows??[]) as any} shifts={shiftRows} swaps={swapRows as any} people={peopleLite} balances={(balances??[]) as any} holidays={(holidays??[]) as any} blackouts={(blackouts??[]) as any}/></div>;
+ <LeaveDesk isManager={isManager} canRequestSwap={roles.some(r=>["delivery_agent","cashier","secretary","washer"].includes(r))} userRole={roles.find(r=>["delivery_agent","cashier","secretary","washer"].includes(r))||""} userId={user.id} types={(types??[]) as any} leaveRows={(leaveRows??[]) as any} shifts={shiftRows} swaps={swapRows as any} people={peopleLite} balances={(balances??[]) as any} holidays={(holidays??[]) as any} blackouts={(blackouts??[]) as any}/></div>;
 }

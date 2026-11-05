@@ -8,7 +8,7 @@ import { PhoneActions } from "@/components/ops/PhoneActions";
 export const metadata = { title: "Walk-in orders" };
 export const dynamic = "force-dynamic";
 
-type Row = { id: string; order_no: number; status: string; customer: string; phone: string | null; total_kobo: number; created_at: string };
+type Row = { id: string; order_no: number; status: string; customer: string; phone: string | null; total_kobo: number; created_at: string; hub_name: string | null; created_by_name: string | null };
 
 export default async function WalkinPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q = "" } = await searchParams;
@@ -22,7 +22,7 @@ export default async function WalkinPage({ searchParams }: { searchParams: Promi
   const done = rows.filter((r) => ["delivered", "closed", "cancelled"].includes(r.status));
   const row = (r: Row) => (
     <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 p-4 hover:bg-canvas">
-      <div><Link href={`/staff/walkin/${r.id}`} className="font-medium hover:underline">Order #{r.order_no} · {r.customer}</Link><p className="text-sm text-ink-soft"><PhoneActions phone={r.phone} message={r.status === "ready" ? `Hello ${r.customer.split(" ")[0]}, your clothes (order #${r.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.` : undefined} /> · {new Date(r.created_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}</p></div>
+      <div><Link href={`/staff/walkin/${r.id}`} className="font-medium hover:underline">Order #{r.order_no} · {r.customer}</Link><p className="text-sm text-ink-soft"><PhoneActions phone={r.phone} message={r.status === "ready" ? `Hello ${r.customer.split(" ")[0]}, your clothes (order #${r.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.` : undefined} /> · {r.hub_name ?? "Hub not recorded"} · Created by {r.created_by_name ?? "Staff"} · {new Date(r.created_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}</p></div>
       <Link href={`/staff/walkin/${r.id}`} className="text-right text-sm"><p className="font-medium">{r.total_kobo > 0 ? naira(r.total_kobo) : ""}</p><p className="text-ink-soft">{STATUS_LABEL[r.status] ?? r.status}</p></Link>
     </div>
   );

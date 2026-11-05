@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     const { data: taken } = await admin.from("profiles").select("id").ilike("email", mail).limit(1);
     if (taken && taken.length) return json(409, { error: "client_exists" });
     const phoneFull = digits.startsWith("234") ? `+${digits}` : digits.length === 10 ? `0${digits}` : digits;
-    const inv = await admin.auth.admin.inviteUserByEmail(mail, { data: { full_name: name, phone: phoneFull, whatsapp_opt_in: whatsappOptIn }, redirectTo: `${SITE}/auth/confirm` });
+    const inv = await admin.auth.admin.inviteUserByEmail(mail, { data: { full_name: name, phone: phoneFull, whatsapp_opt_in: whatsappOptIn }, redirectTo: `${SITE}/auth/callback?next=/account` });
     if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "create_failed" });
     await admin.from("profiles").update({ full_name: name, whatsapp_opt_in: whatsappOptIn, whatsapp_opt_in_at: whatsappOptIn ? new Date().toISOString() : null }).eq("id", inv.data.user.id);
     return json(200, { ok: true, existing: false, id: inv.data.user.id, name, phone: digits });
