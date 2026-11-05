@@ -93,16 +93,17 @@ Deno.serve(async (req) => {
   }
 
   const clientId = sent.data.user.id;
-  // Ownership is assigned only by private.accept_client_invite(), not by this
-  // service-role function. Verify the trigger actually linked the account.
+  // The profile is created by the auth.users INSERT trigger. Ownership is
+  // intentionally assigned later by private.accept_client_invite() when the
+  // customer confirms their email, so onboarded_by must still be null here.
   const profile = await admin.from("profiles")
-    .select("id,onboarded_by")
+    .select("id")
     .eq("id", clientId)
     .maybeSingle();
-  if (profile.error || profile.data?.onboarded_by !== callerId) {
+  if (profile.error || !profile.data) {
     await admin.from("client_invites").update({ status: "cancelled" }).eq("id", invite.data.id);
     await admin.auth.admin.deleteUser(clientId);
-    return json(500, { error: "invite_link_failed" });
+    return json(500, { error: "profile_creation_failed" });
   }
 
   const audit = await admin.from("audit_log").insert({
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
     table_name: "profiles",
     row_id: clientId,
     old_data: null,
-    new_data: { onboarded_by: callerId, invite_id: invite.data.id },
+    new_data: { invite_id: invite.data.id, agent_id: callerId, status: "invited" },
   });
   if (audit.error) {
     // The customer and invite are already valid. Do not roll back a delivered invite
