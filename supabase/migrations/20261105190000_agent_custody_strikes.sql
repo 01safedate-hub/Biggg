@@ -772,3 +772,77 @@ end;
 $$;
 revoke all on function public.claim_own_client_return(uuid) from public,anon;
 grant execute on function public.claim_own_client_return(uuid) to authenticated;
+
+-- Automatically route a verified commission-only agent's own customers to that agent.
+-- Desk dispatch may replace the pickup or return agent with a staff delivery agent when needed.
+create or replace function private.is_verified_commission_agent(_agent uuid)
+returns boolean language sql stable security definer set search_path = ''
+as $$
+  select _agent is not null
+    and exists(select 1 from public.profiles p where p.id=_agent and p.status='active')
+    and exists(select 1 from public.user_roles r where r.user_id=_agent and r.role='commission_agent')
+    and not exists(select 1 from public.user_roles r where r.user_id=_agent and r.role='delivery_agent')
+    and exists(select 1 from public.staff_profiles sp where sp.user_id=_agent and sp.onboarding_status='verified')
+    and exists(
+      select 1 from public.staff_hub_verifications h
+      where h.user_id=_agent and h.outcome='passed'
+        and h.person_present and h.nin_document_checked and h.nin_matches_profile and h.photo_matches_person
+        and not exists(select 1 from public.staff_hub_verifications later
+          where later.user_id=h.user_id and later.verified_at>h.verified_at and later.outcome='rejected')
+    );
+$$;
+revoke all on function private.is_verified_commission_agent(uuid) from public,anon,authenticated;
+
+create or replace function private.assign_commission_agent_pickup()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare _owner uuid;
+begin
+  if new.pickup_agent_id is null then
+    select onboarded_by into _owner from public.profiles where id=new.customer_id;
+    if private.is_verified_commission_agent(_owner) then
+      new.pickup_agent_id := _owner;
+      if new.status='awaiting_dispatch' then
+        new.status := 'agent_assigned';
+      end if;
+      insert into public.user_notifications(user_id,title,body,kind,order_id)
+        values(_owner,'New pickup for your customer',
+          'A customer you onboarded has booked a pickup. Check the scheduled time and complete the pickup in your jobs.',
+          'job',new.id);
+    end if;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists orders_commission_agent_pickup on public.orders;
+create trigger orders_commission_agent_pickup
+before insert on public.orders
+for each row execute function private.assign_commission_agent_pickup();
+revoke all on function private.assign_commission_agent_pickup() from public,anon,authenticated;
+
+create or replace function public.assign_commission_agent_pickup_after_fare()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare _o public.orders;
+begin
+  if new.kind<>'payment' or new.purpose<>'pickup_fare' or new.status<>'success'
+     or (tg_op='UPDATE' and old.status='success') or new.order_id is null then
+    return new;
+  end if;
+  select * into _o from public.orders where id=new.order_id for update;
+  if not found or _o.pickup_agent_id is null
+     or not private.is_verified_commission_agent(_o.pickup_agent_id)
+     or _o.status not in ('awaiting_fare_payment','awaiting_dispatch') then
+    return new;
+  end if;
+  update public.orders set status='agent_assigned' where id=_o.id
+    and pickup_agent_id=_o.pickup_agent_id
+    and status in ('awaiting_fare_payment','awaiting_dispatch');
+  return new;
+end;
+$$;
+drop trigger if exists payments_commission_agent_pickup on public.payments;
+create trigger payments_commission_agent_pickup
+after insert or update of status on public.payments
+for each row execute function public.assign_commission_agent_pickup_after_fare();
+revoke all on function public.assign_commission_agent_pickup_after_fare() from public,anon,authenticated;
