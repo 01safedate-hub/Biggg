@@ -32,3 +32,11 @@ Run against disposable/staging Auth and database fixtures; do not invite real cu
 7. Verify the invitation's resend RPC permits no more than two resends and rejects expired, signed-up or other-agent invitations.
 8. Attempt onboarding as an unverified delivery agent and as a commission agent without a passed hub check. Expected: `403 not_allowed`; no invitation or Auth user is created.
 9. Verify a customer who signs up without an agent invitation remains a house client, and that only a super admin can subsequently change ownership through the audited `set_client_owner` RPC.
+ 
+## Staff referral page acceptance tests
+1. Sign in as a verified delivery agent. Expected: Staff navigation includes **Referrals**, and `/staff/referrals` loads inside the staff shell.
+2. Sign in as a verified commission agent. Expected: the same referral page and customer-invite form are available; submitting the form is permitted by the server action role gate.
+3. Invite a new test customer. Expected: the page shows the invitation as **Invitation sent**, with its creation and expiry dates.
+4. Complete signup through the invitation. Expected: the invitation changes to **Joined** and the customer appears in **Customers who joined** with order count and last-order information.
+5. Sign in as a different agent. Expected: the first agent's invitations and customers are not visible; `client_invites` reads are scoped to the authenticated `agent_id`.
+6. Verify the earnings summary reads only the signed-in agent's existing commission rows and does not create recruitment rewards or alter commission calculations.
