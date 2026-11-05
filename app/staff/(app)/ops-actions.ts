@@ -17,14 +17,14 @@ export async function assignAgent(orderId: string, agentId: string): Promise<R> 
 }
 
 export async function showArrivalCode(orderId: string, step: "arrival" | "delivery" = "arrival"): Promise<R & { code?: string }> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   const { data, error } = await supabase.rpc("issue_order_code", { _order: orderId, _step: step });
   if (error) return { ok: false, message: friendlyError(error.message) };
   return { ok: true, message: "", code: String(data) };
 }
 
 export async function sendBill(orderId: string, lines: { item: string; qty: number }[]): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   for (const l of lines) {
     const { error } = await supabase.rpc("agent_set_item", { _order: orderId, _item: l.item, _qty: l.qty });
     if (error) return { ok: false, message: friendlyError(error.message) };
@@ -36,7 +36,7 @@ export async function sendBill(orderId: string, lines: { item: string; qty: numb
 }
 
 export async function reopenBill(orderId: string): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   const { error } = await supabase.rpc("agent_reopen_count", { _order: orderId });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath(`/staff/jobs/${orderId}`);
@@ -109,7 +109,7 @@ export async function cancelPaidOrder(orderId: string, refundPickup: boolean, no
 }
 
 export async function failedPickup(orderId: string, reason: string, note: string): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   const { error } = await supabase.rpc("report_failed_pickup", { _order: orderId, _reason: reason, _note: note });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/jobs");
@@ -172,7 +172,7 @@ export async function cancelShift(id: string): Promise<R> {
 }
 
 export async function pingLocation(orderId: string, lat: number, lng: number, accuracy: number): Promise<R> {
-  const { supabase } = await requireRole(["delivery_agent"]);
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { ok: false, message: friendlyError("invalid_location") };
   const { error } = await supabase.rpc("agent_ping", { _order: orderId, _lat: lat, _lng: lng, _accuracy: Number.isFinite(accuracy) ? accuracy : 0 });
   return error ? { ok: false, message: friendlyError(error.message) } : { ok: true, message: "" };
@@ -371,4 +371,14 @@ export async function addClient(v: { name: string; email: string; phone: string 
   revalidatePath("/staff/clients");
   revalidatePath("/staff/referrals");
   return { ok: true, message: "Added. We sent them an email to choose a password." };
+}
+
+export async function claimOwnClientReturn(orderId: string): Promise<R> {
+  const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
+  const { error } = await supabase.rpc("claim_own_client_return", { _order: orderId } as any);
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/jobs");
+  revalidatePath(`/staff/jobs/${orderId}`);
+  revalidatePath("/staff/dispatch");
+  return { ok: true, message: "Return delivery assigned to you. Follow the delivery code process and do not collect cash." };
 }
