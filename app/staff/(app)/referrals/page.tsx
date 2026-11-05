@@ -58,7 +58,7 @@ export default async function ReferralsPage() {
   const [{ data: clientsData }, { data: invitesData }, { data: commissionsData }] =
     await Promise.all([
       supabase.rpc("my_clients"),
-      supabase
+      (supabase as any)
         .from("client_invites")
         .select("id,name,email,phone,status,expires_at,resend_count,created_at,signed_up_at")
         .eq("agent_id", user.id)
@@ -72,7 +72,7 @@ export default async function ReferralsPage() {
     ]);
 
   const clients = (Array.isArray(clientsData) ? clientsData : []) as unknown as Client[];
-  const invites = (invitesData ?? []) as Invite[];
+  const invites = (invitesData ?? []) as unknown as Invite[];
   const commissions = (commissionsData ?? []) as Commission[];
   const joined = clients.length;
   const pending = invites.filter((invite) => invite.status === "invited").length;
