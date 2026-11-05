@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
   const { data: dup } = await admin.from("profiles").select("id").or(`email.ilike.${email},phone.like.%${tail}`).limit(1);
   if (dup && dup.length) return json(409, { error: "client_exists" });
 
-  const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: name, phone }, redirectTo: `${SITE}/auth/confirm` });
+  const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: name, phone }, redirectTo: `${SITE}/auth/callback?next=/account` });
   if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "create_failed" });
   const id = inv.data.user.id;
   const up = await admin.from("profiles").update({ onboarded_by: callerId, onboarded_at: new Date().toISOString(), full_name: name }).eq("id", id);
