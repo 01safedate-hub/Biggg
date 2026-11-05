@@ -395,3 +395,143 @@ create policy agent_bag_custody_assigned_agent_read on public.agent_bag_custody
 drop policy if exists agent_commission_holds_own_read on public.agent_commission_holds;
 create policy agent_commission_holds_own_read on public.agent_commission_holds
   for select to authenticated using (agent_id = auth.uid());
+
+-- Derive the pickup deadline from the configured three-hour limit and the hub's same-day closing time.
+alter table public.agent_bag_custody
+  add column if not exists hub_dropoff_due_at timestamptz,
+  add column if not exists overnight_alert_at timestamptz;
+
+create or replace function public.sync_agent_bag_custody()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  _hours numeric := 3;
+  _tz text := 'Africa/Lagos';
+  _closing time;
+  _closing_at timestamptz;
+  _due timestamptz;
+begin
+  if new.status = 'count_confirmed' and old.status is distinct from new.status
+     and new.pickup_agent_id is not null then
+    select coalesce(nullif(value->>'hub_dropoff_hours','')::numeric,3)
+      into _hours from public.settings where key='commission';
+    select coalesce(value->>'timezone','Africa/Lagos'),
+      nullif(value->>'closing_time','')::time
+      into _tz,_closing from public.settings where key='business';
+    _hours := greatest(0.25,least(coalesce(_hours,3),24));
+    _due := now() + _hours * interval '1 hour';
+    if _closing is not null then
+      _closing_at := ((now() at time zone _tz)::date + _closing) at time zone _tz;
+      if _closing_at >= now() then _due := least(_due,_closing_at); end if;
+    end if;
+    insert into public.agent_bag_custody(order_id,pickup_agent_id,picked_up_at,hub_dropoff_due_at)
+      values(new.id,new.pickup_agent_id,now(),_due)
+    on conflict(order_id) do update
+      set pickup_agent_id=excluded.pickup_agent_id,
+          picked_up_at=coalesce(public.agent_bag_custody.picked_up_at,excluded.picked_up_at),
+          hub_dropoff_due_at=coalesce(public.agent_bag_custody.hub_dropoff_due_at,excluded.hub_dropoff_due_at),
+          updated_at=now();
+  end if;
+  if new.status='received' and old.status is distinct from new.status then
+    update public.agent_bag_custody set hub_in_at=coalesce(hub_in_at,now()),updated_at=now()
+      where order_id=new.id;
+  end if;
+  if new.status='out_for_delivery'
+     and (old.status is distinct from new.status or old.delivery_agent_id is distinct from new.delivery_agent_id)
+     and new.delivery_agent_id is not null then
+    update public.agent_bag_custody set delivery_agent_id=new.delivery_agent_id,
+      hub_out_at=coalesce(hub_out_at,now()),updated_at=now()
+      where order_id=new.id and hub_in_at is not null;
+  end if;
+  if new.status='delivered' and old.status is distinct from new.status then
+    update public.agent_bag_custody set delivered_at=coalesce(delivered_at,new.delivered_at,now()),updated_at=now()
+      where order_id=new.id and hub_out_at is not null;
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.process_agent_custody_alerts()
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  _row record;
+  _count integer := 0;
+  _desk uuid;
+  _tz text := 'Africa/Lagos';
+begin
+  select coalesce(value->>'timezone','Africa/Lagos') into _tz
+    from public.settings where key='business';
+
+  for _row in
+    update public.agent_bag_custody c
+      set late_alert_at=now(),updated_at=now()
+      where c.picked_up_at is not null and c.hub_in_at is null
+        and coalesce(c.hub_dropoff_due_at,c.picked_up_at+interval '3 hours') <= now()
+        and c.late_alert_at is null
+      returning c.order_id,c.pickup_agent_id,c.picked_up_at,c.hub_dropoff_due_at
+  loop
+    _count := _count + 1;
+    insert into public.order_events(order_id,event,detail)
+      values(_row.order_id,'agent_hub_dropoff_late',
+        jsonb_build_object('agent_id',_row.pickup_agent_id,'picked_up_at',_row.picked_up_at,
+          'due_at',_row.hub_dropoff_due_at,'alerted_at',now()));
+    for _desk in
+      select distinct ur.user_id from public.user_roles ur
+      join public.profiles p on p.id=ur.user_id
+      where ur.role in ('secretary'::public.staff_role,'admin'::public.staff_role,'super_admin'::public.staff_role)
+        and p.status='active'
+    loop
+      insert into public.user_notifications(user_id,title,body,kind,order_id)
+        values(_desk,'Agent bag is overdue at the hub',
+          'A paid pickup bag has not been checked in by the required hub drop-off deadline. Please contact the agent and record the outcome.',
+          'agent_custody',_row.order_id);
+    end loop;
+    if _row.pickup_agent_id is not null then
+      insert into public.user_notifications(user_id,title,body,kind,order_id)
+        values(_row.pickup_agent_id,'Hub drop-off overdue',
+          'Your collected bag is overdue for hub check-in. Return it to the hub immediately and contact the desk.',
+          'agent_custody',_row.order_id);
+    end if;
+  end loop;
+
+  -- The return-trip bag must not remain with an agent overnight.
+  for _row in
+    update public.agent_bag_custody c
+      set overnight_alert_at=now(),updated_at=now()
+      where c.hub_out_at is not null and c.delivered_at is null
+        and (c.hub_out_at at time zone _tz)::date < (now() at time zone _tz)::date
+        and c.overnight_alert_at is null
+      returning c.order_id,c.delivery_agent_id,c.hub_out_at
+  loop
+    _count := _count + 1;
+    insert into public.order_events(order_id,event,detail)
+      values(_row.order_id,'agent_bag_overnight',
+        jsonb_build_object('agent_id',_row.delivery_agent_id,'hub_out_at',_row.hub_out_at,'alerted_at',now()));
+    for _desk in
+      select distinct ur.user_id from public.user_roles ur
+      join public.profiles p on p.id=ur.user_id
+      where ur.role in ('secretary'::public.staff_role,'admin'::public.staff_role,'super_admin'::public.staff_role)
+        and p.status='active'
+    loop
+      insert into public.user_notifications(user_id,title,body,kind,order_id)
+        values(_desk,'Agent still has an overnight bag',
+          'A return-delivery bag signed out from the hub has not been confirmed delivered before the next day. Please investigate immediately.',
+          'agent_custody',_row.order_id);
+    end loop;
+    if _row.delivery_agent_id is not null then
+      insert into public.user_notifications(user_id,title,body,kind,order_id)
+        values(_row.delivery_agent_id,'Return bag is overdue',
+          'The bag signed out for delivery is still open after midnight. Contact the hub immediately and complete the return.',
+          'agent_custody',_row.order_id);
+    end if;
+  end loop;
+  return _count;
+end;
+$$;
