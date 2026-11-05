@@ -9,6 +9,7 @@ import { StainList } from "@/components/orders/StainList";
 import { LocationSharer } from "@/components/ops/LocationSharer";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
+import { TimeLeft } from "@/components/ops/TimeLeft";
 
 export const metadata = { title: "Pickup job" };
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   ]);
   const initial: Record<string, number> = {};
   for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
+  const { data: custody } = await (supabase as any).from("agent_bag_custody").select("picked_up_at,hub_in_at,hub_out_at,delivered_at,late_alert_at").eq("order_id", id).maybeSingle();
   const { data: subscriptionPickupRows } = o.source === "subscription" && o.subscription_pickup_id
     ? await (supabase as any).rpc("agent_subscription_pickup_summary", { p_order_id: id })
     : { data: null };
@@ -88,6 +90,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
               ? "The customer has paid the excess-piece bill online. No transport payment is due. Take the clothes to the hub and hand them to the secretary."
               : "These garments are within the monthly plan allowance. No payment is due for this pickup. Take the clothes to the hub and hand them to the secretary."
             : "The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary."}</p>
+          {custody?.picked_up_at && !custody?.hub_in_at && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-semibold">Hub drop-off deadline: within three hours of collection.</p>
+            <TimeLeft targetAt={new Date(new Date(custody.picked_up_at).getTime() + 3 * 60 * 60 * 1000).toISOString()} label={false} />
+            {custody.late_alert_at && <p className="mt-1 font-semibold">The hub has been alerted that this bag is overdue.</p>}
+          </div>}
         </section>
       )}
       {["agent_arrived", "counted", "count_confirmed"].includes(o.status) && (
