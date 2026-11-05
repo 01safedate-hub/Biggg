@@ -16,7 +16,8 @@ function needsHuman(text: string) {
 function isStop(text: string) { return /^\s*(stop|unsubscribe|opt\s*out)\s*$/i.test(text); }
 
 async function sendWhatsApp(phone: string, text: string, token: string, phoneNumberId: string) {
-  const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+  const graphVersion = Deno.env.get("WA_GRAPH_VERSION") ?? "v23.0";
+  const response = await fetch(`https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -62,7 +63,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const openAiKey = Deno.env.get("OPENAI_API_KEY");
-  const waToken = Deno.env.get("WA_ACCESS_TOKEN");
+  const waToken = Deno.env.get("WA_ACCESS_TOKEN") ?? Deno.env.get("WA_TOKEN");
   const phoneNumberId = Deno.env.get("WA_PHONE_NUMBER_ID");
   if (!supabaseUrl || !serviceKey) return json({ error: "database_not_configured" }, 503);
   if (!suppliedSecret) return json({ error: "unauthorized" }, 401);
