@@ -391,3 +391,7 @@ drop policy if exists agent_bag_custody_assigned_agent_read on public.agent_bag_
 create policy agent_bag_custody_assigned_agent_read on public.agent_bag_custody
   for select to authenticated
   using (pickup_agent_id = auth.uid() or delivery_agent_id = auth.uid());
+
+drop policy if exists agent_commission_holds_own_read on public.agent_commission_holds;
+create policy agent_commission_holds_own_read on public.agent_commission_holds
+  for select to authenticated using (agent_id = auth.uid());
