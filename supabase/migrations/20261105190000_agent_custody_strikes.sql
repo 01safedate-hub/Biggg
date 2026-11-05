@@ -535,3 +535,121 @@ begin
   return _count;
 end;
 $$;
+
+-- Daily onboarding-volume fraud flag. An open flag automatically holds commission approval and payout.
+create table if not exists public.agent_fraud_flags (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid not null references auth.users(id),
+  flag_type text not null check (flag_type in ('daily_client_adds','first_order_cancellation_pattern','shared_device','shared_location')),
+  flag_day date not null,
+  detail text not null,
+  status text not null default 'open' check (status in ('open','cleared','dismissed')),
+  resolved_by uuid references auth.users(id),
+  resolved_at timestamptz,
+  resolution_note text,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists agent_fraud_flags_daily_unique_idx
+  on public.agent_fraud_flags(agent_id,flag_type,flag_day);
+create index if not exists agent_fraud_flags_open_idx
+  on public.agent_fraud_flags(agent_id,status,created_at desc);
+
+alter table public.agent_fraud_flags enable row level security;
+revoke all on public.agent_fraud_flags from anon,authenticated;
+drop policy if exists agent_fraud_flags_super_admin_read on public.agent_fraud_flags;
+create policy agent_fraud_flags_super_admin_read on public.agent_fraud_flags
+  for select to authenticated using (private.has_role('super_admin'::public.staff_role));
+grant select on public.agent_fraud_flags to authenticated;
+
+create or replace function public.flag_agent_daily_client_adds()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+declare _n integer; _day date;
+begin
+  _day := (new.created_at at time zone 'Africa/Lagos')::date;
+  select count(*)::integer into _n from public.client_invites i
+    where i.agent_id=new.agent_id
+      and (i.created_at at time zone 'Africa/Lagos')::date=_day
+      and i.status in ('invited','signed_up');
+  if _n > 10 then
+    insert into public.agent_fraud_flags(agent_id,flag_type,flag_day,detail)
+      values(new.agent_id,'daily_client_adds',_day,
+        'Agent created more than 10 customer invitations on this day ('||_n||'). Review the activity before clearing the commission hold.')
+      on conflict(agent_id,flag_type,flag_day) do update
+        set detail=excluded.detail;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists client_invites_daily_agent_flag on public.client_invites;
+create trigger client_invites_daily_agent_flag
+after insert on public.client_invites
+for each row execute function public.flag_agent_daily_client_adds();
+revoke all on function public.flag_agent_daily_client_adds() from public,anon,authenticated;
+
+create or replace function public.clear_agent_fraud_flag(_flag uuid,_decision text,_note text)
+returns void language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not (private.has_role('admin'::public.staff_role) or private.has_role('super_admin'::public.staff_role)) then
+    raise exception 'not_allowed' using errcode='42501';
+  end if;
+  if _decision not in ('cleared','dismissed') or length(btrim(coalesce(_note,'')))<3 then
+    raise exception 'invalid_resolution';
+  end if;
+  update public.agent_fraud_flags set status=_decision,resolved_by=auth.uid(),
+    resolved_at=now(),resolution_note=left(btrim(_note),1000)
+    where id=_flag and status='open';
+  if not found then raise exception 'fraud_flag_not_open'; end if;
+end;
+$$;
+revoke all on function public.clear_agent_fraud_flag(uuid,text,text) from public,anon;
+grant execute on function public.clear_agent_fraud_flag(uuid,text,text) to authenticated;
+
+create or replace function public.guard_agent_commission_hold()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if new.status='approved' and old.status is distinct from new.status and (
+    exists(select 1 from public.agent_commission_holds h where h.agent_id=new.agent_id and h.ends_at>now())
+    or exists(select 1 from public.agent_fraud_flags f where f.agent_id=new.agent_id and f.status='open')
+  ) then
+    raise exception 'agent_commission_hold' using errcode='P0001';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.guard_agent_payout_hold()
+returns trigger language plpgsql security definer set search_path = ''
+as $$
+begin
+  if exists(select 1 from public.agent_commission_holds h where h.agent_id=new.agent_id and h.ends_at>now())
+     or exists(select 1 from public.agent_fraud_flags f where f.agent_id=new.agent_id and f.status='open') then
+    raise exception 'agent_commission_hold' using errcode='P0001';
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.release_commissions_after_complaint_window()
+returns integer language plpgsql security definer set search_path = ''
+as $$
+declare _n integer;
+begin
+  update public.commissions c set status='approved',updated_at=now()
+  where c.status='pending' and c.payout_id is null and c.release_at is not null
+    and c.release_at<=now() and not c.complaint_hold
+    and not exists(select 1 from public.agent_commission_holds h where h.agent_id=c.agent_id and h.ends_at>now())
+    and not exists(select 1 from public.agent_fraud_flags f where f.agent_id=c.agent_id and f.status='open')
+    and not exists(select 1 from public.payments p where p.order_id=c.order_id and p.kind='refund' and p.status='success')
+    and not exists(select 1 from public.orders o where o.id=c.order_id and o.status::text in ('disputed','cancelled'))
+    and not exists(select 1 from public.order_issues i where i.order_id=c.order_id
+      and i.status not in ('resolved','rejected','closed'))
+    and not exists(select 1 from public.payment_disputes d where d.order_id=c.order_id
+      and d.status not in ('resolved','closed','won'));
+  get diagnostics _n=row_count;
+  return _n;
+end;
+$$;
+revoke all on function public.release_commissions_after_complaint_window() from public,anon,authenticated;
