@@ -3,6 +3,7 @@ import { AddClient } from "@/components/ops/AddClient";
 import { ResendClientInviteButton } from "@/components/ops/AgentTools";
 import { naira } from "@/lib/format";
 import { AddAgentReferral } from "@/components/ops/AddAgentReferral";
+import { AgentReferralInviteRetry } from "@/components/ops/AgentReferralInviteRetry";
 
 export const metadata = { title: "Referrals" };
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ type Invite = {
   signed_up_at: string | null;
 };
 type Commission = { amount_kobo: number; status: string };
-type AgentApplication = { id: string; full_name: string; email: string; phone: string; status: string; created_at: string };
+type AgentApplication = { id: string; full_name: string; email: string; phone: string; status: string; created_at: string; applicant_user_id: string | null; invited_at: string | null };
 
 const date = (value: string | null) =>
   value
@@ -74,7 +75,7 @@ export default async function ReferralsPage() {
         .limit(500),
       (supabase as any)
         .from("agent_applications")
-        .select("id,full_name,email,phone,status,created_at")
+        .select("id,full_name,email,phone,status,created_at,applicant_user_id,invited_at")
         .eq("referred_by", user.id)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -116,7 +117,7 @@ export default async function ReferralsPage() {
         <div className="card overflow-hidden">
           <div className="border-b border-line p-4"><h3 className="font-semibold">People you have referred</h3><p className="mt-1 text-sm text-ink-soft">A referral is not an active staff account. Application, hub/NIN verification by a secretary, and super-admin approval are required.</p></div>
           <div className="divide-y divide-line">
-            {agentReferrals.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><div><p className="font-medium">{item.full_name}</p><p className="break-all text-ink-soft">{item.email} · {item.phone}</p><p className="mt-1 text-xs text-ink-soft">Referred {date(item.created_at)}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">{item.status.replaceAll("_", " ")}</span></div>)}
+            {agentReferrals.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><div><p className="font-medium">{item.full_name}</p><p className="break-all text-ink-soft">{item.email} · {item.phone}</p><p className="mt-1 text-xs text-ink-soft">Referred {date(item.created_at)}{item.invited_at ? ` · Invitation sent ${date(item.invited_at)}` : ""}</p></div><div className="flex items-center gap-3"><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-700">{item.applicant_user_id ? item.status.replaceAll("_", " ") : "Invitation pending"}</span>{!item.applicant_user_id && <AgentReferralInviteRetry applicationId={item.id} />}</div></div>)}
             {agentReferrals.length === 0 && <p className="p-5 text-sm text-ink-soft">No agent referrals recorded yet.</p>}
           </div>
         </div>
