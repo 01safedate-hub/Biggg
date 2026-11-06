@@ -52,16 +52,30 @@ Deno.serve(async (req) => {
 
   let payload: { entry?: Array<{ changes?: Array<{ value?: {
     statuses?: Array<{ id?: string; status?: string; timestamp?: string; errors?: unknown[] }>;
-    messages?: Array<{ from?: string; id?: string; timestamp?: string; text?: { body?: string }; type?: string }>;
+    messages?: Array<{ from?: string; id?: string; timestamp?: string; text?: { body?: string }; location?: { latitude?: number; longitude?: number; name?: string; address?: string }; type?: string }>;
   } }> }> };
   try { payload = JSON.parse(raw); } catch { return new Response("invalid_json", { status: 400 }); }
 
+  const expectedPhoneNumberId = Deno.env.get("WA_PHONE_NUMBER_ID");
+  if (!expectedPhoneNumberId) return new Response("phone_number_routing_not_configured", { status: 503 });
   let updated = 0;
   let optOuts = 0;
+  let inboundSeen = 0;
+  let statusesSeen = 0;
+  let phoneIdMismatches = 0;
+  let enqueueErrors = 0;
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const value = change.value ?? {};
+      // Fail closed: never process events for another WhatsApp number on the shared WABA.
+      const eventPhoneNumberId = String(value.metadata?.phone_number_id ?? "");
+      if (eventPhoneNumberId !== expectedPhoneNumberId) {
+        phoneIdMismatches++;
+        console.warn("whatsapp_webhook_phone_id_mismatch", { expectedPhoneNumberId, eventPhoneNumberId });
+        continue;
+      }
       for (const item of value.statuses ?? []) {
+        statusesSeen++;
         if (!item.id || !item.status) continue;
         const at = item.timestamp ? new Date(Number(item.timestamp) * 1000).toISOString() : new Date().toISOString();
         const status = item.status.toLowerCase();
@@ -82,13 +96,23 @@ Deno.serve(async (req) => {
       // Store inbound messages durably and deduplicate by Meta's message ID.
       // STOP is processed immediately and is never sent to the AI queue.
       for (const message of value.messages ?? []) {
+        inboundSeen++;
         if (!message.from || !message.id) continue;
         if (message.type === "text" && /^\s*STOP\s*$/i.test(message.text?.body ?? "")) {
           const { data, error } = await db.rpc("whatsapp_opt_out_by_phone", { _phone: message.from });
           if (!error && data === true) optOuts++;
           continue;
         }
-        const textBody = message.type === "text" ? (message.text?.body ?? "").trim() : null;
+        const textBody = message.type === "text"
+          ? (message.text?.body ?? "").trim()
+          : message.type === "location"
+            ? JSON.stringify({
+                latitude: message.location?.latitude,
+                longitude: message.location?.longitude,
+                name: message.location?.name ?? null,
+                address: message.location?.address ?? null,
+              })
+            : null;
         const { error } = await db.from("whatsapp_inbound_messages").upsert({
           provider_message_id: message.id,
           from_phone: message.from,
@@ -100,10 +124,25 @@ Deno.serve(async (req) => {
           status: "queued",
           updated_at: new Date().toISOString(),
         }, { onConflict: "provider_message_id", ignoreDuplicates: true });
-        if (error) console.error("inbound_message_enqueue_failed", error.message);
+        if (error) {
+          enqueueErrors++;
+          console.error("inbound_message_enqueue_failed", error.message);
+        }
       }
     }
   }
 
-  return Response.json({ received: true, updated, optOuts });
+  // Process inbound customer chat immediately through the dedicated inbound processor.
+  // This RPC queues an authenticated pg_net request to whatsapp-inbound-processor;
+  // whatsapp-worker remains exclusively responsible for outbound notification templates.
+  if (inboundSeen > 0 && enqueueErrors === 0) {
+    const { data: kickRequestId, error: kickError } = await db.rpc("kick_whatsapp_inbound_processor");
+    if (kickError) {
+      console.error("whatsapp_processor_kick_failed", kickError.message);
+    } else {
+      console.info("whatsapp_processor_kicked", { requestId: kickRequestId });
+    }
+  }
+  console.info("whatsapp_webhook_summary", { inboundSeen, statusesSeen, phoneIdMismatches, enqueueErrors, updated, optOuts });
+  return Response.json({ received: true, inboundSeen, statusesSeen, phoneIdMismatches, enqueueErrors, updated, optOuts });
 });
