@@ -45,8 +45,6 @@ function retryAt(attempts: number) {
 }
 
 function templateComponents(vars: Record<string, unknown>) {
-  // Meta utility templates use a numbered body parameter list. Keep values strings
-  // and pass data only in the approved template's expected order.
   const values = Array.isArray(vars.template_params)
     ? (vars.template_params as unknown[]).map((x) => String(x ?? ""))
     : [];
@@ -61,7 +59,8 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const workerSecret = req.headers.get("x-worker-secret");
-  const token = Deno.env.get("WA_TOKEN");
+  // Support the documented WA_ACCESS_TOKEN secret name, retaining WA_TOKEN for backwards compatibility.
+  const token = Deno.env.get("WA_ACCESS_TOKEN") ?? Deno.env.get("WA_TOKEN");
   const phoneNumberId = Deno.env.get("WA_PHONE_NUMBER_ID");
   if (!supabaseUrl || !serviceKey || !workerSecret) return responseError("worker_not_configured", 500);
 
@@ -69,12 +68,10 @@ Deno.serve(async (req) => {
   const { data: allowed, error: authError } = await db.rpc("verify_whatsapp_worker_secret", { _s: workerSecret });
   if (authError || allowed !== true) return responseError("unauthorized", 401);
 
-  // Do not lease jobs if the provider is not configured; leave the outbox safely queued.
   if (!token || !phoneNumberId) {
     return Response.json({ claimed: 0, sent: 0, failed: 0, skipped: "provider_not_configured" });
   }
 
-  // Only dispatch approved template identifiers, configured explicitly by the owner.
   const templateMap: Record<string, string | undefined> = {
     pickup_confirmed: Deno.env.get("WA_TEMPLATE_PICKUP_CONFIRMED"),
     agent_assigned: Deno.env.get("WA_TEMPLATE_AGENT_ASSIGNED"),
@@ -119,7 +116,6 @@ Deno.serve(async (req) => {
       }).eq("id", row.id).eq("status", "processing");
     };
 
-    // Quiet hours apply to reminders only; transactional status notices can pass.
     const isReminder = row.event.includes("reminder") ||
       row.event === "subscription_invoice_due" ||
       row.event === "subscription_pickup_reminder";
@@ -137,6 +133,53 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    // Transactional free-form text messages are sent within the WhatsApp 24-hour service window.
+    if (typeof row.variables?.text_body === "string") {
+      const { data: eligible, error: eligibilityError } = await db.rpc("whatsapp_outbox_is_eligible", { _id: row.id });
+      if (eligibilityError || eligible !== true) {
+        await db.from("whatsapp_outbox").update({ status: "cancelled", last_error: eligibilityError ? "eligibility_check_failed" : "condition_no_longer_true", updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        continue;
+      }
+      try {
+        const provider = await fetch("https://graph.facebook.com/" + GRAPH_VERSION + "/" + phoneNumberId + "/messages", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+          body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: row.to_phone, type: "text", text: { preview_url: false, body: String(row.variables.text_body).slice(0, 3500) } }),
+        });
+        const result = await provider.json().catch(() => ({}));
+        if (!provider.ok) throw new Error(safeError((result as { error?: { message?: string } }).error?.message ?? "meta_http_" + provider.status));
+        const msgId = (result as { messages?: Array<{ id?: string }> }).messages?.[0]?.id;
+        await db.from("whatsapp_outbox").update({ status: "sent", attempts: row.attempts + 1, sent_at: new Date().toISOString(), provider_message_id: msgId ?? null, last_error: null, updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        sent++;
+      } catch (err) {
+        const message = safeError(err);
+        const windowExpired = /131047|outside.*24.?hour|customer.*service.*window/i.test(message);
+        await db.from("whatsapp_outbox").update({ status: windowExpired || row.attempts + 1 >= 8 ? "failed" : "queued", attempts: row.attempts + 1, run_after: retryAt(row.attempts), last_error: windowExpired ? "freeform_window_expired_template_required" : message, updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        failed++;
+      }
+      continue;
+    }
+    if (row.event === "session_expired" || row.template === "session_expired") {
+      const { data: eligible, error: eligibilityError } = await db.rpc("whatsapp_outbox_is_eligible", { _id: row.id });
+      if (eligibilityError || eligible !== true) {
+        await db.from("whatsapp_outbox").update({ status: "cancelled", last_error: eligibilityError ? "eligibility_check_failed" : "condition_no_longer_true", updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        continue;
+      }
+      const textBody = String(row.variables?.text_body ?? "Your LaundryPoint verification session has ended after 2 hours of inactivity. Please verify again to access personal account details or arrange a pickup.");
+      try {
+        const provider = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/messages`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: row.to_phone, type: "text", text: { preview_url: false, body: textBody } }) });
+        const result = await provider.json().catch(() => ({}));
+        if (!provider.ok) throw new Error(safeError((result as { error?: { message?: string } }).error?.message ?? `meta_http_${provider.status}`));
+        const msgId = (result as { messages?: Array<{ id?: string }> }).messages?.[0]?.id;
+        await db.from("whatsapp_outbox").update({ status: "sent", attempts: row.attempts + 1, sent_at: new Date().toISOString(), provider_message_id: msgId ?? null, last_error: null, updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        sent++;
+      } catch (err) {
+        await db.from("whatsapp_outbox").update({ status: row.attempts + 1 >= 8 ? "failed" : "queued", attempts: row.attempts + 1, run_after: retryAt(row.attempts), last_error: safeError(err), updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        failed++;
+      }
+      continue;
+    }
+
     const templateName = templateMap[row.event] ?? templateMap[row.template];
     if (!templateName) {
       await db.from("whatsapp_outbox").update({
@@ -149,7 +192,6 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    // Current-state guards for delayed reminders are checked at send time.
     const { data: eligible, error: eligibilityError } = await db.rpc("whatsapp_outbox_is_eligible", { _id: row.id });
     if (eligibilityError || eligible !== true) {
       await db.from("whatsapp_outbox").update({
