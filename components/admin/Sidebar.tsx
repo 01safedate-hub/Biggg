@@ -9,7 +9,7 @@ import { CustomerNavBell } from "@/components/notifications/CustomerNavBell";
 import { Bell } from "@/components/notifications/Bell";
 import {
   Banknote, BarChart3, ClipboardList, Coins, FileClock, Gauge, Home, Landmark, LayoutDashboard, ListChecks, Menu, PiggyBank,
-  Receipt, Settings, WashingMachine, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, PackageCheck, Send, Truck, Workflow, type LucideIcon,
+  Receipt, Settings, WashingMachine, Shield, Tags, Target, UserCog, Users, Wallet, X, MailPlus, MessageCircle, PackageCheck, Send, Truck, Workflow, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
