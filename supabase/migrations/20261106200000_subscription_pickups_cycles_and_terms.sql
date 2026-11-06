@@ -212,7 +212,7 @@ begin
     customer_id, source, status, zone_id, pickup_lat, pickup_lng, pickup_address, pickup_distance_km,
     after_hours, scheduled_for, pickup_fare_kobo, delivery_fare_kobo, notes, created_by
   ) values (
-    _customer, 'subscription', case when _paid then 'awaiting_fare_payment' else 'awaiting_dispatch' end,
+    _customer, 'subscription', (case when _paid then 'awaiting_fare_payment' else 'awaiting_dispatch' end)::public.order_status,
     (_q->>'zone_id')::uuid, _lat, _lng, _a, nullif(_q->>'distance_km','')::numeric,
     case when _slot is not null then false else coalesce((_q->>'after_hours')::boolean, false) end, _scheduled,
     case when _paid then (_f->>'pickup_fare_kobo')::bigint + coalesce((_f->>'extra_distance_fare_kobo')::bigint, 0) else 0 end,

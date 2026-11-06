@@ -152,7 +152,6 @@ const lastDay = (iso: unknown) => {
   const d = new Date(String(iso ?? ""));
   return Number.isNaN(d.getTime()) ? "" : dayOnly(new Date(d.getTime() - 60_000).toISOString());
 };
-const TERM: Record<string, string> = { monthly: "1 month", three_month: "3 months", six_month: "6 months", yearly: "12 months" };
 
 /** All subscriber emails. payload.kind picks the message. */
 function subscription(p: Record<string, unknown>) {
