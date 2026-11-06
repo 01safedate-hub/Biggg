@@ -101,7 +101,6 @@ Deno.serve(async (req) => {
     .select("key,value")
     .in("key", ["iron_only","instant"]);
   const pricingSettingsByKey = new Map((pricingSettings ?? []).map((setting: any) => [setting.key, setting.value ?? {}]));
-  const ironOnlySettings: any = pricingSettingsByKey.get("iron_only") ?? {};
   const instantSettings: any = pricingSettingsByKey.get("instant") ?? {};
   const servicePricesByItem = new Map((servicePriceRows ?? []).map((row: any) => [row.item_id, row]));
   const moneyNaira = (kobo: number | string | null | undefined) => {
@@ -1488,7 +1487,6 @@ Deno.serve(async (req) => {
              "Use the live instant-service settings above for instant fees. The instant fee is separate from the normal garment-service price and depends on whether the customer selects dry clean or iron only.",
              "The live item/service prices above come from item_service_prices() and include the database-calculated iron-only eligibility and price. Never calculate iron-only prices yourself.",
              "Iron-only price calculations and eligibility come from the live database settings and item_service_prices() result. The displayed item prices are authoritative; never calculate or invent a different price.",
-             "Iron-only pricing configuration (live database settings):\\n" + ironOnlyPricingContext,
              "When comparing or listing plans, include every active plan and accurately state its monthly price, monthly garment allowance, per-pickup garment cap and annual discount exactly as supplied. Never include an extra-garment fee or amount. If the list is too long, split it across concise messages rather than truncate or omit a plan.",
             "When explaining allowance, distinguish the monthly garment allowance from the per-pickup garment cap; they are separate limits and are not added together. Do not invent rollover rules or other subscription terms.",
              "When a customer exceeds the allowance, explain that each additional garment is billed at its normal individual item price for the selected service. There is no flat subscription overage rate. Use the live item/service price list, not a legacy plan overage field. Do not calculate an account-specific bill unless the garment count and service are clear.",
