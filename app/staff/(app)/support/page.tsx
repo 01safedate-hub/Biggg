@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { canManageSupport, supportPermission } from "./actions";
 
 type Thread={phone:string;mode:"ai"|"human"|"resolved";assigned_to:string|null;response_due_at:string|null;last_message:string|null;last_direction:string|null;last_message_at:string|null;unread_count:number};
 type Message={id:string;direction:string;body:string;created_at:string;delivery_status:string|null};
@@ -15,6 +16,9 @@ export default function SupportPage(){
  const [muted,setMuted]=useState(false);
  const [error,setError]=useState("");
  const [busy,setBusy]=useState(false);
+ const [canManage,setCanManage]=useState(false);
+ const [permissionUser,setPermissionUser]=useState("");
+ const [permissionMessage,setPermissionMessage]=useState("");
  const audio=useRef<AudioContext|null>(null);
  const seen=useRef("");
  const refresh=useCallback(async()=>{
@@ -28,14 +32,16 @@ export default function SupportPage(){
    if(newest)seen.current=newest;
    setThreads(next);
  },[supabase,muted]);
- useEffect(()=>{void refresh();const id=setInterval(()=>void refresh(),8000);return()=>clearInterval(id);},[refresh]);
+ useEffect(()=>{void canManageSupport().then(setCanManage);void refresh();const id=setInterval(()=>void refresh(),8000);return()=>clearInterval(id);},[refresh]);
  const open=async(phone:string)=>{setSelected(phone);const {data,error}=await supabase.rpc("staff_support_history",{_phone:phone});if(error){setError(error.message);return;}setMessages((Array.isArray(data)?data:[]) as Message[]);};
  const act=async(fn:string,args:Record<string,unknown>={})=>{setBusy(true);setError("");const {error}=await supabase.rpc(fn,args);setBusy(false);if(error){setError(error.message);return;}await refresh();if(selected)await open(selected);};
  const send=async()=>{if(!selected||!draft.trim())return;setBusy(true);const {error}=await supabase.rpc("staff_support_reply",{_phone:selected,_body:draft.trim()});setBusy(false);if(error){setError(error.message);return;}setDraft("");await open(selected);await refresh();};
  const visible=threads.filter(t=>t.mode===tab);
+ const changePermission=async(grant:boolean)=>{const id=permissionUser.trim();if(!id)return;const result=await supportPermission(id,grant);setPermissionMessage(result.message);if(result.ok)setPermissionUser("");};
  const current=threads.find(t=>t.phone===selected);
  return <div className="space-y-5">
   <div className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Support Centre</h1><p className="text-sm text-ink-soft">WhatsApp customer conversations</p></div><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>setMuted(x=>!x)}>{muted?"Unmute alerts":"Mute alerts"}</button></div>
+  {canManage&&<section className="rounded-xl border bg-white p-4"><h2 className="font-semibold">Support access permissions</h2><p className="mt-1 text-xs text-ink-soft">Grant or revoke access using the staff member’s Supabase user UUID. Super Admin, Admin and Secretary already have access by role.</p><div className="mt-3 flex flex-wrap gap-2"><input value={permissionUser} onChange={e=>setPermissionUser(e.target.value)} placeholder="Staff user UUID" className="min-w-[240px] flex-1 rounded-lg border px-3 py-2 text-sm"/><button type="button" onClick={()=>void changePermission(true)} className="rounded-lg bg-brand px-3 py-2 text-sm text-white">Grant access</button><button type="button" onClick={()=>void changePermission(false)} className="rounded-lg border px-3 py-2 text-sm">Revoke access</button></div>{permissionMessage&&<p className="mt-2 text-xs text-ink-soft">{permissionMessage}</p>}</section>}
   <div className="flex gap-2 border-b">{tabs.map(t=><button key={t} onClick={()=>setTab(t)} className={`px-4 py-3 text-sm font-semibold capitalize ${tab===t?"border-b-2 border-brand text-brand":"text-ink-soft"}`}>{t} <span className="ml-1 rounded-full bg-canvas px-2 py-0.5">{threads.filter(x=>x.mode===t).length}</span></button>)}</div>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
   <div className="grid min-h-[65vh] gap-4 lg:grid-cols-[320px_1fr]">
