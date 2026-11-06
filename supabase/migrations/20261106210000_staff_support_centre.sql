@@ -38,6 +38,12 @@ as $$
 declare result jsonb;
 begin
  if not public.staff_support_allowed() then raise exception 'support_access_denied' using errcode='42501'; end if;
+ -- Import existing open/assigned handoffs into the staff inbox without overwriting a staff decision.
+ insert into public.whatsapp_support_conversations(phone,mode,assigned_to,handoff_started_at,response_due_at,updated_at)
+ select distinct on (h.from_phone) h.from_phone,'human',h.assigned_to,coalesce(h.created_at,now()),coalesce(h.created_at,now())+interval '1 hour',now()
+ from public.whatsapp_handoffs h where h.status in ('open','assigned') and h.from_phone is not null
+ order by h.from_phone,h.created_at desc
+ on conflict(phone) do nothing;
  -- Enforce server-side timeout whenever the support inbox is read.
  update public.whatsapp_support_conversations
  set mode='ai', assigned_to=null, handoff_started_at=null, response_due_at=null, updated_at=now()
