@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { claimOwnClientReturn, deskAddItem, deskSendCount, failedDelivery, failedPickup, reopenBill, resendClientInvite, sendBill, showArrivalCode } from "@/app/staff/(app)/ops-actions";
 import { StainFlag } from "@/components/ops/StainFlag";
 import { naira } from "@/lib/format";
+import { SERVICE_LABEL, lineKey, lineName, parseLineKey } from "@/lib/services";
 
 export function ArrivalCode({ orderId, orderNo, step = "arrival", label = "I have arrived: show my code" }: { orderId: string; orderNo?: number; step?: "arrival" | "delivery"; label?: string }) {
   const [code, setCode] = useState<string | null>(null);
@@ -65,16 +66,16 @@ export function ClaimOwnClientReturn({ orderId }: { orderId: string }) {
   );
 }
 
-type Item = { id: string; name: string; price_kobo: number; category_id: string; description?: string | null };
+type Item = { id: string; name: string; price_kobo: number; iron_kobo?: number | null; category_id: string; description?: string | null };
 type Cat = { id: string; name: string; slug?: string };
 function categorySlug(category: Cat): string {
   if (category.slug) return category.slug;
   return category.name.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
-type InstantCfg = { perItemKobo: number };
+type InstantCfg = { perItemKobo: number; perItemIronKobo?: number };
 
 function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription, busy, onCancel, onOk }: {
-  lines: { id: string; name: string; qty: number; instant: number; stain: boolean }[]; total: number; count: number; instantFee: number; desk: boolean; subscription: boolean; busy: boolean; onCancel: () => void; onOk: () => void;
+  lines: { key: string; name: string; qty: number; instant: number; stain: boolean }[]; total: number; count: number; instantFee: number; desk: boolean; subscription: boolean; busy: boolean; onCancel: () => void; onOk: () => void;
 }) {
   const stains = lines.filter((l) => l.stain).length;
   useEffect(() => {
@@ -91,7 +92,7 @@ function ConfirmCountModal({ lines, total, count, instantFee, desk, subscription
         </div>
         <ul className="divide-y divide-line overflow-y-auto px-5 text-sm">
           {lines.map((l) => (
-            <li key={l.id} className={`flex items-center justify-between gap-3 py-2.5 ${l.stain ? "-mx-5 bg-amber-50 px-5" : ""}`}>
+            <li key={l.key} className={`flex items-center justify-between gap-3 py-2.5 ${l.stain ? "-mx-5 bg-amber-50 px-5" : ""}`}>
               <span className="min-w-0">
                 <span className="font-medium">{l.name}</span>
                 {l.instant > 0 && <span className="ml-2 rounded bg-brand-tint px-1.5 py-0.5 text-xs font-semibold text-brand-dark">{l.instant === l.qty ? "instant" : `${l.instant} instant`}</span>}
@@ -159,7 +160,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const total = useMemo(() => items.reduce((s, i) => s + (qty[i.id] ?? 0) * Number(i.price_kobo), 0), [items, qty]);
+  const total = useMemo(() => items.reduce((s, i) => s + (qty[i.id] ?? 0) * Number(i.price_kobo) + (qty[lineKey(i.id, "iron_only")] ?? 0) * Number(i.iron_kobo ?? 0), 0), [items, qty]);
   const count = Object.values(qty).reduce((s, n) => s + n, 0);
   const categoryCounts = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -167,22 +168,27 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
       const category = cats.find((c) => c.id === item.category_id);
       if (!category) continue;
       const slug = categorySlug(category);
-      totals[slug] = (totals[slug] ?? 0) + (qty[item.id] ?? 0);
+      totals[slug] = (totals[slug] ?? 0) + (qty[item.id] ?? 0) + (qty[lineKey(item.id, "iron_only")] ?? 0);
     }
     return totals;
   }, [items, cats, qty]);
 
-  const instCount = items.reduce((s, i) => s + Math.min(inst[i.id] ?? 0, qty[i.id] ?? 0), 0);
-  const instantFee = (instant?.perItemKobo ?? 0) * instCount;
+  const instCount = Object.keys(qty).reduce((s, k) => s + Math.min(inst[k] ?? 0, qty[k] ?? 0), 0);
+  const instRate = (key: string) => (parseLineKey(key).service === "iron_only" ? (instant?.perItemIronKobo ?? instant?.perItemKobo ?? 0) : (instant?.perItemKobo ?? 0));
+  const instantFee = Object.keys(qty).reduce((s, k) => s + instRate(k) * Math.min(inst[k] ?? 0, qty[k] ?? 0), 0);
   const set = (id: string, n: number) => { const v = Math.max(0, Math.min(200, n)); setQty((p) => ({ ...p, [id]: v })); setInst((p) => (p[id] > v ? { ...p, [id]: v } : p)); };
   const setI = (id: string, n: number) => setInst((p) => ({ ...p, [id]: Math.max(0, Math.min(qty[id] ?? 0, n)) }));
-  const chosen = items.filter((i) => (qty[i.id] ?? 0) > 0).map((i) => ({ id: i.id, name: i.name, qty: qty[i.id], instant: Math.min(inst[i.id] ?? 0, qty[i.id]), stain: stained.some((n) => n === i.name) }));
+  const chosen = items.flatMap((i) => (["dry_clean", "iron_only"] as const).map((service) => {
+    const key = lineKey(i.id, service);
+    const name = lineName(i.name, service);
+    return { key, id: i.id, service, name, qty: qty[key] ?? 0, instant: Math.min(inst[key] ?? 0, qty[key] ?? 0), stain: stained.some((n) => n === name) };
+  })).filter((c) => c.qty > 0);
 
   async function send() {
     setBusy(true); setErr(null);
-    const ids = new Set([...Object.keys(initial), ...Object.keys(qty)]);
-    const lines = Array.from(ids).filter((id) => (qty[id] ?? 0) !== (initial[id] ?? 0) || (qty[id] ?? 0) > 0).map((item) => ({ item, qty: qty[item] ?? 0 }));
-    const split = desk ? chosen.filter((c) => c.instant > 0).map((c) => ({ item: c.id, qty: c.instant })) : [];
+    const keys = new Set([...Object.keys(initial), ...Object.keys(qty)]);
+    const lines = Array.from(keys).filter((k) => (qty[k] ?? 0) !== (initial[k] ?? 0) || (qty[k] ?? 0) > 0).map((k) => ({ ...parseLineKey(k), qty: qty[k] ?? 0 }));
+    const split = desk ? chosen.filter((c) => c.instant > 0).map((c) => ({ item: c.id, service: c.service, qty: c.instant })) : [];
     const r = desk ? await deskSendCount(orderId, lines, split) : await sendBill(orderId, lines);
     setBusy(false);
     if (r.ok) { setConfirming(false); router.refresh(); } else { setConfirming(false); setErr(r.message); }
@@ -209,25 +215,35 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
             <ul className="mt-2 divide-y divide-line">
               {list.map((i) => (
                 <li key={i.id} className="py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p><p className="text-xs text-ink-mute">{subscription ? (Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged at full catalogue price" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance") : `${naira(Number(i.price_kobo))} each`}</p>
-</div>
-                    <div className="flex items-center gap-2">
-                      <button type="button" aria-label={`Fewer ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) - 1)}>−</button>
-                      <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{qty[i.id] ?? 0}</span>
-                      <button type="button" aria-label={`More ${i.name}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(i.id, (qty[i.id] ?? 0) + 1)}>+</button>
-                    </div>
-                  </div>
+                  <div className="min-w-0"><p className="truncate text-sm font-medium">{i.name}</p>{subscription && <p className="text-xs text-ink-mute">{Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) && Number(categoryLimits[categorySlug(c)] ?? 0) === 0 ? "🔴 EXCLUDED — charged at full catalogue price" : Object.prototype.hasOwnProperty.call(categoryLimits, categorySlug(c)) ? "🟠 Category cap applies; excess is chargeable" : "Included under total plan allowance"}</p>}</div>
+                  {(subscription || i.iron_kobo == null ? (["dry_clean"] as const) : (["dry_clean", "iron_only"] as const)).map((service) => {
+                    const key = lineKey(i.id, service);
+                    const n = qty[key] ?? 0;
+                    const price = service === "iron_only" ? Number(i.iron_kobo) : Number(i.price_kobo);
+                    const label = lineName(i.name, service);
+                    return (
+                      <div key={key} className="mt-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs text-ink-mute">{subscription ? "Pieces" : `${SERVICE_LABEL[service]} · ${naira(price)} each`}</p>
+                          <div className="flex items-center gap-2">
+                            <button type="button" aria-label={`Fewer ${label}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(key, n - 1)}>−</button>
+                            <span className="w-8 text-center text-sm font-semibold tabular-nums" aria-live="polite">{n}</span>
+                            <button type="button" aria-label={`More ${label}`} className="h-9 w-9 rounded-md border border-line text-lg" onClick={() => set(key, n + 1)}>+</button>
+                          </div>
+                        </div>
+                        {!subscription && instant && n > 0 && (
+                          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-brand-tint px-3 py-2 text-xs">
+                            <span className="font-medium text-brand-dark">Instant ({naira(instRate(key))} each):</span>
+                            <button type="button" aria-label={`Fewer instant ${label}`} className="h-7 w-7 rounded border border-line bg-white" onClick={() => setI(key, (inst[key] ?? 0) - 1)}>−</button>
+                            <span className="w-6 text-center font-semibold tabular-nums">{Math.min(inst[key] ?? 0, n)}</span>
+                            <button type="button" aria-label={`More instant ${label}`} className="h-7 w-7 rounded border border-line bg-white" onClick={() => setI(key, (inst[key] ?? 0) + 1)}>+</button>
+                            <span className="text-ink-soft">of {n}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {i.description && <details className="mt-1 text-xs text-ink-soft"><summary className="cursor-pointer font-medium text-brand-dark">View description</summary><p className="mt-1">{i.description}</p></details>}
-                  {!subscription && instant && (qty[i.id] ?? 0) > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-brand-tint px-3 py-2 text-xs">
-                      <span className="font-medium text-brand-dark">Instant ({naira(instant.perItemKobo)} each):</span>
-                      <button type="button" aria-label={`Fewer instant ${i.name}`} className="h-7 w-7 rounded border border-line bg-white" onClick={() => setI(i.id, (inst[i.id] ?? 0) - 1)}>−</button>
-                      <span className="w-6 text-center font-semibold tabular-nums">{Math.min(inst[i.id] ?? 0, qty[i.id] ?? 0)}</span>
-                      <button type="button" aria-label={`More instant ${i.name}`} className="h-7 w-7 rounded border border-line bg-white" onClick={() => setI(i.id, (inst[i.id] ?? 0) + 1)}>+</button>
-                      <span className="text-ink-soft">of {qty[i.id]}</span>
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>
@@ -236,7 +252,7 @@ export function Itemiser({ orderId, cats, items, initial, desk = false, instant,
       })}
       {canAddItem && cats.length > 0 && <AddItemForm cats={cats} />}
       {desk && chosen.length > 0 && (
-        <StainFlag orderId={orderId} lines={chosen.map((c) => ({ id: c.id, name: c.name }))} nameOnly onFlagged={(n) => setStained((p) => (p.includes(n) ? p : [...p, n]))} />
+        <StainFlag orderId={orderId} lines={chosen.map((c) => ({ id: c.key, name: c.name }))} nameOnly onFlagged={(n) => setStained((p) => (p.includes(n) ? p : [...p, n]))} />
       )}
       <div className="sticky bottom-3 rounded-xl bg-slate-950 p-4 text-white shadow-xl">
         {err && <p role="alert" className="mb-2 text-sm text-red-300">{err}</p>}

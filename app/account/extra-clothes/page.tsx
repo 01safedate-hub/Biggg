@@ -42,7 +42,7 @@ export default async function ExtraClothesPage() {
               <p className="text-lg font-bold">{naira(Number(p.overage_kobo ?? 0) + Number(p.excluded_kobo ?? 0))}</p>
             </div>
             <div className="space-y-1 text-sm text-ink-soft">
-              {Number(p.overage_pieces ?? 0) > 0 ? <p>Extra eligible garments: {p.overage_pieces} × plan extra-piece rate = {naira(Number(p.overage_kobo ?? 0))}</p> : null}
+              {Number(p.overage_pieces ?? 0) > 0 ? <p>Extra eligible garments: {p.overage_pieces} extra pieces at the standard item price = {naira(Number(p.overage_kobo ?? 0))}</p> : null}
               {Number(p.excluded_kobo ?? 0) > 0 ? <p>Excluded-category garments: full catalogue price = {naira(Number(p.excluded_kobo ?? 0))}</p> : null}
               <p className="font-semibold text-ink">Total due: {naira(Number(p.overage_kobo ?? 0) + Number(p.excluded_kobo ?? 0))}</p>
             </div>

@@ -34,7 +34,7 @@ export default async function Speed({ searchParams }: { searchParams: Promise<{ 
   ]);
   const p = pd as unknown as P | null; const t = td as unknown as T | null;
   if (!p || !t) return <p className="card p-5 text-sm">Could not load this page. Please refresh.</p>;
-  const cfg = (cfgRow?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number; target_hours?: number; large_load_items?: number; large_load_hours?: number };
+  const cfg = (cfgRow?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number; fee_per_item_iron_kobo?: number; target_hours?: number; large_load_items?: number; large_load_hours?: number };
   const { data: doneIds } = t.late.length ? await supabase.rpc("turnaround_late_refunded", { _ids: t.late.map((l) => l.order_id) }) : { data: [] };
   const refunded = new Set((doneIds ?? []) as string[]);
   const pt = (pk?.value ?? {}) as { minutes?: number };
@@ -113,7 +113,7 @@ export default async function Speed({ searchParams }: { searchParams: Promise<{ 
       </section>
 
       {roles.includes("super_admin") && (
-        <InstantRules initial={{ enabled: cfg.enabled !== false, feeNaira: (cfg.fee_per_item_kobo ?? 30000) / 100, targetHours: cfg.target_hours ?? 4, largeItems: cfg.large_load_items ?? 30, largeHours: cfg.large_load_hours ?? 8, pickupMinutes: pt.minutes ?? 30 }} />
+        <InstantRules initial={{ enabled: cfg.enabled !== false, feeNaira: (cfg.fee_per_item_kobo ?? 30000) / 100, ironFeeNaira: (cfg.fee_per_item_iron_kobo ?? cfg.fee_per_item_kobo ?? 20000) / 100, targetHours: cfg.target_hours ?? 4, largeItems: cfg.large_load_items ?? 30, largeHours: cfg.large_load_hours ?? 8, pickupMinutes: pt.minutes ?? 30 }} />
       )}
     </div>
   );

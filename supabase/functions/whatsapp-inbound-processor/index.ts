@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
   const plansContext = plansError
     ? "Live plans could not be loaded. Do not quote plan details; offer staff follow-up."
     : (activePlans ?? []).map((plan: any) =>
-      `- ${plan.name}: monthly ${moneyNaira(plan.monthly_price_kobo)}; monthly garment allowance ${plan.pieces_per_month ?? "not configured"}; per-pickup garment cap ${plan.weekly_allowance ?? "not configured"}; extra garment ${moneyNaira(plan.overage_price_kobo)} each; 3-month discount ${plan.three_month_discount_pct ?? "not configured"}%; 6-month discount ${plan.six_month_discount_pct ?? "not configured"}%; annual discount ${plan.yearly_discount_pct ?? "not configured"}%; details: ${plan.blurb ?? "not provided"}; category limits: ${JSON.stringify(plan.category_limits ?? {})}`
+      `- ${plan.name}: monthly ${moneyNaira(plan.monthly_price_kobo)}; monthly garment allowance ${plan.pieces_per_month ?? "not configured"}; per-pickup garment cap ${plan.weekly_allowance ?? "not configured"}; garments above the allowance are billed at the standard item price; 3-month discount ${plan.three_month_discount_pct ?? "not configured"}%; 6-month discount ${plan.six_month_discount_pct ?? "not configured"}%; annual discount ${plan.yearly_discount_pct ?? "not configured"}%; details: ${plan.blurb ?? "not provided"}; category limits: ${JSON.stringify(plan.category_limits ?? {})}`
     ).join("\\n") || "No active subscription plans are configured.";
   const itemPricesContext = itemsError
     ? "Live item prices could not be loaded. Do not quote item prices; offer staff follow-up."
@@ -1158,7 +1158,7 @@ Deno.serve(async (req) => {
             "\nIncluded pickups remaining: "+String(remainingPickups)+
             "\nNext included pickup date: "+(remainingPickups>0?nextPickupDate:"No included pickups remain this cycle")+
             "\nPer-pickup garment cap: "+String(plan?.per_pickup_cap??"not configured")+
-            "\nExtra eligible garment: "+moneyNaira(Number(plan?.overage_price_kobo))+
+            "\nGarments above the allowance: billed at the standard item price"+
             "\n"+cancelLine+
             "\n\nYou can ask me to show payment history, renew your subscription, or request a plan change or cancellation.");
           continue;
@@ -1247,7 +1247,7 @@ Deno.serve(async (req) => {
       const formatPlan = (plan:any) => "Plan: "+plan.name+nl+"Monthly price: "+moneyNaira(Number(plan.monthly_price_kobo))+
         nl+"Monthly garment allowance: "+String(plan.pieces_per_month ?? "not configured")+
         nl+"Per-pickup garment cap: "+String(plan.weekly_allowance ?? "not configured")+
-        nl+"Extra garment: "+moneyNaira(Number(plan.overage_price_kobo))+
+        nl+"Garments above the allowance: billed at the standard item price"+
         nl+"3-month discount: "+String(plan.three_month_discount_pct ?? 0)+"%"+
         nl+"6-month discount: "+String(plan.six_month_discount_pct ?? 0)+"%"+
         nl+"Yearly discount: "+String(plan.yearly_discount_pct ?? 0)+"%";
@@ -1465,7 +1465,7 @@ Deno.serve(async (req) => {
             "Live active pay-per-item garment/service prices (Nigerian naira):\\n" + itemPricesContext,
             "When comparing or listing plans, include every active plan and accurately state its monthly price, monthly garment allowance, per-pickup garment cap, extra-garment fee, and annual discount exactly as supplied. Do not omit plans. If the list is too long, split it across concise messages rather than truncate or omit a plan.",
             "When explaining allowance, distinguish the monthly garment allowance from the per-pickup garment cap; they are separate limits and are not added together. Do not invent rollover rules or other subscription terms.",
-            "When a customer exceeds the allowance, explain the configured extra-garment price from their selected plan. Do not calculate an account-specific bill unless the customer provides the count and the relevant plan is clear. Never imply extra garments are free.",
+            "When a customer exceeds the allowance, explain that garments above the allowance are billed at the standard price of each item (the same prices as the item price list), not a flat plan rate. Do not calculate an account-specific bill unless the customer provides the count and the relevant plan is clear. Never imply extra garments are free.",
             "If a customer asks about a garment's individual price, match it to the live item-price list. Respect descriptions for sets, pairs, and multi-piece items. If no exact match exists, ask a clarifying question or offer staff follow-up.",
             "Do not claim dry cleaning is included in a subscription unless the live plan data or an explicit policy confirms it. If the database does not distinguish washing from dry cleaning or does not state what is included, say the team must confirm before quoting.",
             "If live plans or item prices failed to load, do not quote remembered prices or allowances. Explain that you cannot verify the current details and offer staff follow-up.",

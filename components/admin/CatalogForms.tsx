@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addExpenseCategory, addItem, addItemCategory, addMoneyPoint, renameExpenseCategory, saveItem, setMoneyPointActive } from "@/app/admin/catalog-actions";
+import { addExpenseCategory, addItem, addItemCategory, addMoneyPoint, renameExpenseCategory, saveItem, saveIronOnlySettings, setMoneyPointActive } from "@/app/admin/catalog-actions";
+import { naira } from "@/lib/format";
 import { toKobo } from "@/lib/money";
 import { inputCls, labelCls } from "./ui";
 
@@ -78,20 +79,23 @@ export function RenameCategory({ id, name }: { id: string; name: string }) {
   );
 }
 
-export function ItemRow({ id, name, priceKobo, active }: { id: string; name: string; priceKobo: number; active: boolean }) {
+export function ItemRow({ id, name, priceKobo, ironKobo, ironAllowed, active }: { id: string; name: string; priceKobo: number; ironKobo?: number | null; ironAllowed: boolean; active: boolean }) {
   const { busy, msg, run } = useRun();
   const [n, setN] = useState(name);
   const [p, setP] = useState(String(priceKobo / 100));
   const [a, setA] = useState(active);
+  const [ia, setIa] = useState(ironAllowed);
   const kobo = p.trim() === "0" ? 0 : toKobo(p);
-  const dirty = n !== name || kobo !== priceKobo || a !== active;
+  const dirty = n !== name || kobo !== priceKobo || a !== active || ia !== ironAllowed;
   return (
-    <li className="grid gap-2 py-2 sm:grid-cols-[1fr_9rem_auto_auto] sm:items-center">
+    <li className="grid gap-2 py-2 sm:grid-cols-[1fr_9rem_7rem_auto_auto_auto] sm:items-center">
       <input value={n} onChange={(e) => setN(e.target.value)} aria-label="Item name" className="rounded-md border border-line px-3 py-1.5 text-sm" />
-      <input value={p} onChange={(e) => setP(e.target.value)} inputMode="decimal" aria-label="Price in naira" className="rounded-md border border-line px-3 py-1.5 text-sm" />
+      <input value={p} onChange={(e) => setP(e.target.value)} inputMode="decimal" aria-label="Dry clean price in naira" className="rounded-md border border-line px-3 py-1.5 text-sm" />
+      <span className="text-xs text-ink-mute" title="Worked out from the dry clean price using the iron-only rule above">{!ia ? "No iron only" : ironKobo != null ? `Iron only ${naira(ironKobo)}` : ""}</span>
       <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={a} onChange={(e) => setA(e.target.checked)} /> On sale</label>
+      <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={ia} onChange={(e) => setIa(e.target.checked)} /> Iron only</label>
       <div className="flex items-center gap-2">
-        <button className="btn-secondary !px-3 !py-1.5" disabled={busy || !dirty || kobo == null} onClick={() => run(() => saveItem(id, { name: n, price_kobo: kobo!, active: a }))}>Save</button>
+        <button className="btn-secondary !px-3 !py-1.5" disabled={busy || !dirty || kobo == null} onClick={() => run(() => saveItem(id, { name: n, price_kobo: kobo!, active: a, iron_only_allowed: ia }))}>Save</button>
         {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}
       </div>
     </li>
@@ -112,6 +116,29 @@ export function AddItem({ categoryId }: { categoryId: string }) {
       <input name="price" required inputMode="decimal" placeholder="₦ price" aria-label="Price in naira" className="w-28 rounded-md border border-line px-3 py-1.5 text-sm" />
       <button className="btn-secondary !px-3 !py-1.5" disabled={busy}>Add item</button>
       {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs ${msg.ok ? "text-emerald-700" : "text-red-700"}`}>{msg.message}</span>}
+    </form>
+  );
+}
+
+export function IronOnlyForm({ pct, minKobo }: { pct: number; minKobo: number }) {
+  const router = useRouter();
+  const { busy, msg, run } = useRun();
+  const [p, setP] = useState(String(pct));
+  const [m, setM] = useState(String(minKobo / 100));
+  const pctNum = Number(p);
+  const minK = m.trim() === "0" ? 0 : toKobo(m);
+  const valid = Number.isInteger(pctNum) && pctNum >= 10 && pctNum <= 100 && minK != null;
+  const dirty = pctNum !== pct || minK !== minKobo;
+  return (
+    <form className="card space-y-3 p-5" onSubmit={async (e) => { e.preventDefault(); if (!valid) return; const r = await run(() => saveIronOnlySettings({ pct: pctNum, min_kobo: minK! })); if (r.ok) router.refresh(); }}>
+      <div><h2 className="text-lg font-semibold">Iron only pricing</h2>
+        <p className="mt-1 text-sm text-ink-soft">The price below is for the full service (dry clean: wash and iron). Iron only is a share of it, rounded to the nearest ₦50, never below the minimum and never above the dry clean price. It applies to new counts only.</p></div>
+      <Msg m={msg} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div><label htmlFor="io-pct" className={labelCls}>Share of the dry clean price (%)</label><input id="io-pct" value={p} onChange={(e) => setP(e.target.value)} inputMode="numeric" className={inputCls} /></div>
+        <div><label htmlFor="io-min" className={labelCls}>Minimum iron only price (₦)</label><input id="io-min" value={m} onChange={(e) => setM(e.target.value)} inputMode="decimal" className={inputCls} /></div>
+      </div>
+      <button className="btn-primary" disabled={busy || !valid || !dirty}>{busy ? "Saving" : "Save"}</button>
     </form>
   );
 }

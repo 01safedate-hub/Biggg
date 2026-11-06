@@ -49,11 +49,11 @@ export async function renameExpenseCategory(id: string, name: string): Promise<R
   return { ok: true, message: "Renamed." };
 }
 
-export async function saveItem(id: string, v: { name: string; price_kobo: number; active: boolean }): Promise<R> {
+export async function saveItem(id: string, v: { name: string; price_kobo: number; active: boolean; iron_only_allowed: boolean }): Promise<R> {
   const { supabase } = await requireRole(["super_admin", "admin"]);
   if (v.name.trim().length < 2) return { ok: false, message: "Give the item a name." };
   if (!Number.isSafeInteger(v.price_kobo) || v.price_kobo < 0) return { ok: false, message: "Enter a valid price." };
-  const { error } = await supabase.from("items").update({ name: v.name.trim(), price_kobo: v.price_kobo, active: v.active, updated_at: new Date().toISOString() }).eq("id", id);
+  const { error } = await supabase.from("items").update({ name: v.name.trim(), price_kobo: v.price_kobo, active: v.active, iron_only_allowed: v.iron_only_allowed, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return fail(error);
   revalidatePath("/admin/prices");
   return { ok: true, message: "Saved." };
@@ -78,4 +78,15 @@ export async function addItemCategory(name: string): Promise<R> {
   if (error) return fail(error);
   revalidatePath("/admin/prices");
   return { ok: true, message: "Group added." };
+}
+
+export async function saveIronOnlySettings(v: { pct: number; min_kobo: number }): Promise<R> {
+  const { supabase } = await requireRole(["super_admin"]);
+  if (!Number.isInteger(v.pct) || v.pct < 10 || v.pct > 100) return { ok: false, message: "Use a whole percentage from 10 to 100." };
+  if (!Number.isSafeInteger(v.min_kobo) || v.min_kobo < 0 || v.min_kobo > 10_000_000) return { ok: false, message: "Enter a valid minimum price." };
+  const { error } = await supabase.rpc("save_iron_only_settings", { _pct: v.pct, _min_kobo: v.min_kobo });
+  if (error) return fail(error);
+  revalidatePath("/admin/prices");
+  revalidatePath("/staff", "layout");
+  return { ok: true, message: "Saved. New counts use the new iron-only prices." };
 }

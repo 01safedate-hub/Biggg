@@ -14,6 +14,16 @@ type Row = { id: string; to_email: string; template: string; payload: Record<str
 const esc = (v: unknown) =>
   String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** Kobo to a naira string such as N1,250. */
+const money = (kobo: unknown) => `₦${(Number(kobo ?? 0) / 100).toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+const lagosDate = (iso: unknown) => {
+  const d = new Date(String(iso ?? ""));
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
+};
+const TD = "padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:15px;color:#334155";
+const TH = "font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding-bottom:4px";
+const button = (href: string, label: string) =>
+  `<a href="${esc(href)}" style="display:inline-block;padding:12px 20px;background:#ea580c;border-radius:8px;color:#ffffff;font-weight:700;text-decoration:none">${esc(label)}</a>`;
 
 function layout(heading: string, body: string[]) {
   const paras = body.map((p) => (p.startsWith("<table") ? p : `<p style="margin:0 0 16px;font-size:15px;line-height:24px;color:#334155">${p}</p>`)).join("");
@@ -54,6 +64,83 @@ function campaign(p: Record<string, unknown>) {
 </table></td></tr></table></body></html>`;
   const text = [fill(String(p.heading ?? "")), "", fill(String(p.body ?? "")), p.code ? `\nDiscount code: ${p.code} (${p.percent}% off your clothes bill)` : "", p.cta_url ? `\n${p.cta_label ?? "Open"}: ${p.cta_url}` : "", `\nUnsubscribe: ${unsub}`].join("\n");
   return { subject: fill(String(p.subject ?? "A message from LaundryPoint")), html, text, unsub };
+}
+
+type CountItem = { name?: unknown; qty?: unknown; instant?: unknown; stain?: unknown; unit_kobo?: unknown; line_kobo?: unknown };
+
+function countSummary(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const items = (Array.isArray(p.items) ? p.items : []) as CountItem[];
+  const stains = (Array.isArray(p.stains) ? p.stains : []).map((x) => String(x));
+  // Older queued emails and subscription pickups have no prices; they keep the plain item and quantity table.
+  const prices = p.show_prices === true && items.every((i) => i.line_kobo != null);
+  const fee = Number(p.instant_fee_kobo ?? 0);
+  const flags = (i: CountItem) => `${i.instant ? ' <span style="color:#c2410c;font-size:12px">(instant)</span>' : ""}${i.stain ? ' <span style="background:#fef3c7;color:#92400e;font-size:12px;padding:1px 6px;border-radius:4px">hard stain</span>' : ""}`;
+  const rows = items.map((i) => `<tr><td style="${TD}">${esc(i.name)}${flags(i)}</td><td align="right" style="${TD}">${esc(i.qty)}</td>${prices ? `<td align="right" style="${TD}">${money(i.line_kobo)}</td>` : ""}</tr>`).join("");
+  const head = `<tr><td style="${TH}">Item</td><td align="right" style="${TH}">Qty</td>${prices ? `<td align="right" style="${TH}">Amount</td>` : ""}</tr>`;
+  const foot: string[] = [];
+  if (prices && fee > 0) foot.push(`<tr><td colspan="2" style="${TD}">Instant delivery</td><td align="right" style="${TD}">${money(fee)}</td></tr>`);
+  foot.push(`<tr><td style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${prices ? "Total" : "Total items"}</td><td align="right" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${esc(p.total)}</td>${prices ? `<td align="right" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${money(p.bill_kobo)}</td>` : ""}</tr>`);
+  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px">${head}${rows}${foot.join("")}</table>`;
+  const lines = [`Hello ${esc(first)}, we have counted your clothes for order #${esc(p.order_no)}. Here is what we recorded.`, table];
+  if (stains.length) lines.push(`<strong>Hard stains noticed (${stains.length}):</strong><br>${stains.map((x) => `&bull; ${esc(x)}`).join("<br>")}<br>We will do our best to remove them, but some stains cannot come out fully.`);
+  lines.push(`If anything here looks wrong, tell us as soon as you can. You can see your order${stains.length ? " and the photos of the stains" : ""} at <a href="${esc(SITE)}/orders/${esc(p.order_id)}" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`);
+  const text = `Hello ${first}, we counted your clothes for order #${p.order_no}.\n` +
+    items.map((i) => `${i.qty} x ${i.name}${prices ? ` - ${money(i.line_kobo)}` : ""}${i.stain ? " (hard stain)" : ""}`).join("\n") +
+    (prices && fee > 0 ? `\nInstant delivery: ${money(fee)}` : "") +
+    `\nTotal items: ${p.total}` + (prices ? `\nBill: ${money(p.bill_kobo)}` : "") + (stains.length ? `\nHard stains: ${stains.join("; ")}` : "");
+  return { subject: `Your clothes were counted: ${p.total} items, order #${p.order_no}`, html: layout("Your clothes were counted", lines), text };
+}
+
+function paymentReceipt(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const items = (Array.isArray(p.lines) ? p.lines : []) as CountItem[];
+  const discount = Number(p.discount_kobo ?? 0);
+  const fee = Number(p.instant_fee_kobo ?? 0);
+  const rows = items.map((i) => `<tr><td style="${TD}">${esc(i.name)}</td><td align="right" style="${TD}">${esc(i.qty)}</td><td align="right" style="${TD}">${money(i.unit_kobo)}</td><td align="right" style="${TD}">${money(i.line_kobo)}</td></tr>`).join("");
+  const extra: string[] = [];
+  if (discount > 0) extra.push(`<tr><td colspan="3" style="${TD};color:#047857">Discount</td><td align="right" style="${TD};color:#047857">-${money(discount)}</td></tr>`);
+  if (fee > 0) extra.push(`<tr><td colspan="3" style="${TD}">Instant delivery</td><td align="right" style="${TD}">${money(fee)}</td></tr>`);
+  const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr><td style="${TH}">Item</td><td align="right" style="${TH}">Qty</td><td align="right" style="${TH}">Each</td><td align="right" style="${TH}">Amount</td></tr>${rows}${extra.join("")}<tr><td colspan="3" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">Total paid</td><td align="right" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${money(p.total_kobo)}</td></tr></table>`;
+  const when = lagosDate(p.paid_at);
+  const meta = [p.reference ? `Reference: ${esc(p.reference)}` : "", p.mode ? `Paid by: ${esc(p.mode)}` : "", when ? `Date: ${esc(when)}` : ""].filter(Boolean).join("<br>");
+  const lines = [`Hello ${esc(first)}, thank you. We have received your payment for order #${esc(p.order_no)}.`, table];
+  if (meta) lines.push(meta);
+  lines.push(`You can follow your order and see this receipt at <a href="${esc(SITE)}/orders/${esc(p.order_id)}/receipt" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`);
+  const text = `Hello ${first}, we received your payment for order #${p.order_no}.\n` +
+    items.map((i) => `${i.qty} x ${i.name} - ${money(i.line_kobo)}`).join("\n") +
+    (discount > 0 ? `\nDiscount: -${money(discount)}` : "") + (fee > 0 ? `\nInstant delivery: ${money(fee)}` : "") +
+    `\nTotal paid: ${money(p.total_kobo)}` + (p.reference ? `\nReference: ${p.reference}` : "") + (when ? `\nDate: ${when}` : "");
+  return { subject: `Payment received: ${money(p.total_kobo)} for order #${p.order_no}`, html: layout("Payment received", lines), text };
+}
+
+function readyCollect(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const address = String(p.address ?? "").trim();
+  const maps = /^https:\/\//.test(String(p.maps_url ?? "")) ? String(p.maps_url) : "";
+  const hours = p.opening_time && p.closing_time ? `${p.opening_time} to ${p.closing_time}` : "";
+  const lines = [
+    `Hello ${esc(first)}, your clothes for order #${esc(p.order_no)} are clean and ready for you to collect.`,
+    address ? `<strong>Where:</strong> ${esc(address)}` : "Please come to the LaundryPoint hub to collect them.",
+    hours ? `<strong>Opening hours:</strong> ${esc(hours)}` : "",
+    "Please give your order number at the desk. Collect them soon: a storage fee can apply after the free holding period.",
+  ].filter(Boolean);
+  if (maps) lines.push(button(maps, "Open the map"));
+  const text = [`Hello ${first}, your clothes for order #${p.order_no} are ready for collection.`, address ? `Where: ${address}` : "", hours ? `Opening hours: ${hours}` : "", "Give your order number at the desk. A storage fee can apply after the free holding period.", maps ? `Map: ${maps}` : ""].filter(Boolean).join("\n");
+  return { subject: `Your clothes are ready for collection - order #${p.order_no}`, html: layout("Ready for collection", lines), text };
+}
+
+function agentJob(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const title = String(p.title ?? "New job assigned to you");
+  const link = `${SITE}/staff/jobs/${encodeURIComponent(String(p.order_id ?? ""))}`;
+  const lines = [
+    `Hello ${esc(first)}, ${esc(title.toLowerCase())}.`,
+    `<strong>Order:</strong> #${esc(p.order_no)}<br><strong>${p.delivery ? "Deliver to" : "Pickup address"}:</strong> ${esc(p.address || "See the job page")}`,
+    button(link, "Open the job"),
+    "Customer phone numbers and details are only shown inside the app. Never collect cash from the customer.",
+  ];
+  return { subject: `${title} - order #${p.order_no}`, html: layout(esc(title), lines), text: `Hello ${first}, ${title.toLowerCase()}.\nOrder #${p.order_no}\n${p.delivery ? "Deliver to" : "Pickup address"}: ${p.address ?? "See the job page"}\nOpen the job: ${link}\nNever collect cash from the customer.` };
 }
 
 function render(r: Row): { subject: string; html: string; text: string; unsub?: string } {
@@ -102,18 +189,29 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       const lines = [`Hello ${esc(first)}, we looked at your details and need you to change something before we can approve them.`, `<strong>What to fix:</strong> ${esc(p.note)}`, `Sign in, correct your details, and submit them again.`];
       return { subject: "Please update your LaundryPoint details", html: layout("A change is needed", lines), text: `Hello ${first}, we need a change before approving your details: ${p.note}. Sign in, update and submit again.` };
     }
-    case "count_summary": {
-      const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
-      const items = (Array.isArray(p.items) ? p.items : []) as { name?: unknown; qty?: unknown; instant?: unknown; stain?: unknown }[];
-      const stains = (Array.isArray(p.stains) ? p.stains : []).map((x) => String(x));
-      const td = "padding:8px 0;border-bottom:1px solid #e2e8f0;font-size:15px;color:#334155";
-      const rows = items.map((i) => `<tr><td style="${td}">${esc(i.name)}${i.instant ? ' <span style="color:#c2410c;font-size:12px">(instant)</span>' : ""}${i.stain ? ' <span style="background:#fef3c7;color:#92400e;font-size:12px;padding:1px 6px;border-radius:4px">hard stain</span>' : ""}</td><td align="right" style="${td}">${esc(i.qty)}</td></tr>`).join("");
-      const table = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr><td style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding-bottom:4px">Item</td><td align="right" style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#64748b;padding-bottom:4px">Qty</td></tr>${rows}<tr><td style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">Total items</td><td align="right" style="padding-top:10px;font-size:15px;font-weight:700;color:#0f172a">${esc(p.total)}</td></tr></table>`;
-      const lines = [`Hello ${esc(first)}, we have counted your clothes for order #${esc(p.order_no)}. Here is what we recorded.`, table];
-      if (stains.length) lines.push(`<strong>Hard stains noticed (${stains.length}):</strong><br>${stains.map((x) => `&bull; ${esc(x)}`).join("<br>")}<br>We will do our best to remove them, but some stains cannot come out fully.`);
-      lines.push(`If anything here looks wrong, tell us as soon as you can. You can see your order${stains.length ? " and the photos of the stains" : ""} at <a href="${esc(SITE)}/orders/${esc(p.order_id)}" style="color:#c2410c">${esc(SITE.replace(/^https?:\/\//, ""))}</a>.`);
-      const text = `Hello ${first}, we counted your clothes for order #${p.order_no}.\n` + items.map((i) => `${i.qty} x ${i.name}${i.stain ? " (hard stain)" : ""}`).join("\n") + `\nTotal items: ${p.total}` + (stains.length ? `\nHard stains: ${stains.join("; ")}` : "");
-      return { subject: `Your clothes were counted: ${p.total} items, order #${p.order_no}`, html: layout("Your clothes were counted", lines), text };
+    case "count_summary":
+      return countSummary(p);
+    case "payment_receipt":
+      return paymentReceipt(p);
+    case "ready_collect":
+      return readyCollect(p);
+    case "agent_job":
+      return agentJob(p);
+    case "whatsapp_verification": {
+      const code = String(p.code ?? "").trim();
+      const minutes = Math.max(1, Number(p.expires_minutes ?? 10) || 10);
+      if (!/^[A-Z0-9]{6}$/.test(code)) {
+        throw new Error("whatsapp_verification_code_missing_or_invalid");
+      }
+      const heading = "Verify your WhatsApp account";
+      const lines = [
+        "Use this one-time code to verify your LaundryPoint account for WhatsApp assistance.",
+        `<div style="margin:24px 0;padding:20px 16px;text-align:center;background:#fff7ed;border:1px solid #fdba74;border-radius:10px;font-family:Consolas,Menlo,monospace;font-size:30px;font-weight:800;letter-spacing:7px;color:#c2410c">${esc(code)}</div>`,
+        `This code expires in ${minutes} minutes. Enter it in your LaundryPoint WhatsApp chat to continue.`,
+        "If you did not request this code, you can safely ignore this email. LaundryPoint staff will never ask you to share it with them.",
+      ];
+      const text = `Your LaundryPoint WhatsApp verification code is: ${code}\n\nIt expires in ${minutes} minutes. Enter it in your WhatsApp chat to continue.\n\nIf you did not request this code, ignore this email. Never share this code with anyone.`;
+      return { subject: "Your LaundryPoint WhatsApp verification code", html: layout(heading, lines), text };
     }
     case "test": {
       const lines = ["This is a test message from your LaundryPoint admin screen.", "If you can read this, email delivery through Resend is working."];

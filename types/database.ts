@@ -818,6 +818,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          iron_only_allowed: boolean
           name: string
           price_kobo: number
           search_terms: string
@@ -830,6 +831,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          iron_only_allowed?: boolean
           name: string
           price_kobo: number
           search_terms?: string
@@ -842,6 +844,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          iron_only_allowed?: boolean
           name?: string
           price_kobo?: number
           search_terms?: string
@@ -1231,6 +1234,7 @@ export type Database = {
           qty: number
           removed_at: string | null
           removed_by: string | null
+          service: string
           status: string
           unit_price_kobo: number
         }
@@ -1251,6 +1255,7 @@ export type Database = {
           qty: number
           removed_at?: string | null
           removed_by?: string | null
+          service?: string
           status?: string
           unit_price_kobo: number
         }
@@ -1271,6 +1276,7 @@ export type Database = {
           qty?: number
           removed_at?: string | null
           removed_by?: string | null
+          service?: string
           status?: string
           unit_price_kobo?: number
         }
@@ -2955,7 +2961,7 @@ export type Database = {
       }
       agent_reopen_count: { Args: { _order: string }; Returns: undefined }
       agent_set_item: {
-        Args: { _item: string; _order: string; _qty: number }
+        Args: { _item: string; _order: string; _qty: number; _service?: string }
         Returns: undefined
       }
       agent_submit_count: { Args: { _order: string }; Returns: undefined }
@@ -3130,7 +3136,7 @@ export type Database = {
         Returns: Json
       }
       desk_set_item: {
-        Args: { _item: string; _order: string; _qty: number }
+        Args: { _item: string; _order: string; _qty: number; _service?: string }
         Returns: undefined
       }
       desk_split_instant: {
@@ -3184,6 +3190,14 @@ export type Database = {
         Returns: undefined
       }
       instant_board: { Args: never; Returns: Json }
+      item_service_prices: {
+        Args: never
+        Returns: { dry_clean_kobo: number; iron_only_kobo: number | null; item_id: string }[]
+      }
+      save_iron_only_settings: {
+        Args: { _min_kobo: number; _pct: number }
+        Returns: undefined
+      }
       instant_quote: { Args: { _order: string }; Returns: Json }
       instant_watch: { Args: never; Returns: Json }
       integrity_check: { Args: never; Returns: Json }
@@ -3351,6 +3365,7 @@ export type Database = {
         Args: {
           _enabled: boolean
           _fee_kobo: number
+          _iron_fee_kobo?: number
           _large_hours: number
           _large_items: number
           _pickup_target: number
