@@ -10,6 +10,7 @@ import { LocationSharer } from "@/components/ops/LocationSharer";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 import { TimeLeft } from "@/components/ops/TimeLeft";
+import { lineKey } from "@/lib/services";
 
 export const metadata = { title: "Pickup job" };
 export const dynamic = "force-dynamic";
@@ -22,12 +23,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   if (!o) notFound();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone").eq("id", o.customer_id).maybeSingle(),
-    supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
+    supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo,service").eq("order_id", id).is("removed_at", null),
     supabase.from("item_categories").select("id,name,slug").eq("active", true).order("sort_order").order("name"),
     supabase.from("items").select("id,name,price_kobo,category_id").eq("active", true).order("sort_order").order("name"),
   ]);
+  const { data: svcPrices } = await supabase.rpc("item_service_prices");
+  const ironById = new Map((svcPrices ?? []).map((p) => [p.item_id, p.iron_only_kobo == null ? null : Number(p.iron_only_kobo)]));
   const initial: Record<string, number> = {};
-  for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
+  for (const l of lines ?? []) if (l.item_id) initial[lineKey(l.item_id, l.service)] = l.qty;
   const { data: custody } = await (supabase as any).from("agent_bag_custody").select("picked_up_at,hub_dropoff_due_at,hub_in_at,hub_out_at,delivered_at,late_alert_at,overnight_alert_at").eq("order_id", id).maybeSingle();
   const { data: subscriptionPickupRows } = o.source === "subscription" && o.subscription_pickup_id
     ? await (supabase as any).rpc("agent_subscription_pickup_summary", { p_order_id: id })
@@ -78,7 +81,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       </section>}
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} perPickupAllowance={Number(planInfo?.per_pickup_allowance ?? planInfo?.pieces_per_month ?? 0)} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} perPickupAllowance={Number(planInfo?.per_pickup_allowance ?? planInfo?.pieces_per_month ?? 0)} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
       {o.status === "counted" && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">{o.source === "subscription" ? "3. Garment count submitted" : "3. Waiting for the customer to pay"}</h2>

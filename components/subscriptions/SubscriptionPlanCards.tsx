@@ -91,7 +91,7 @@ export function SubscriptionPlanCards({
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{plan.pieces_per_month.toLocaleString()} eligible pieces per month</li>
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups per month, scheduled about 14 days (2 weeks) apart</li>
                   <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Up to {Math.min(plan.weekly_allowance ?? plan.pieces_per_month, plan.pieces_per_month).toLocaleString()} included pieces per pickup, within the monthly allowance; unused pieces do not roll over</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Pieces above the monthly or per-pickup allowance: {naira(plan.overage_price_kobo)} each</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Pieces above the monthly or per-pickup allowance are billed at the standard price of the items</li>
                 </ul>
                 {categories.length > 0 ? (
                   <details className="mt-5 rounded-lg border border-line p-3">

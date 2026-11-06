@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { chooseInstant } from "@/app/orders/actions";
 import { naira } from "@/lib/format";
+import { instantRateText } from "@/lib/services";
 
-export type InstantQuote = { enabled: boolean; per_item_kobo: number; items: number; fee_kobo: number; on: boolean; target_hours: number; large: boolean; large_hours: number };
+export type InstantQuote = { enabled: boolean; per_item_kobo: number; per_item_iron_kobo?: number; dry_items?: number; iron_items?: number; items: number; fee_kobo: number; on: boolean; target_hours: number; large: boolean; large_hours: number };
 
 export function InstantCard({ orderId, q }: { orderId: string; q: InstantQuote }) {
   const router = useRouter();
@@ -23,7 +24,7 @@ export function InstantCard({ orderId, q }: { orderId: string; q: InstantQuote }
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold">Need it fast? Instant delivery</p>
-          <p className="mt-1 text-sm text-ink-soft">We aim to bring your clean clothes back within <strong>{q.target_hours} hours</strong> of your payment. It costs {naira(q.per_item_kobo)} more per item: <strong>{naira(q.fee_kobo)}</strong> for your {q.items} item{q.items === 1 ? "" : "s"}. Your delivery fare is already paid.</p>
+          <p className="mt-1 text-sm text-ink-soft">We aim to bring your clean clothes back within <strong>{q.target_hours} hours</strong> of your payment. It costs {instantRateText(naira, q.per_item_kobo, q.per_item_iron_kobo ?? q.per_item_kobo, q.dry_items ?? q.items, q.iron_items ?? 0)}: <strong>{naira(q.fee_kobo)}</strong> for your {q.items} item{q.items === 1 ? "" : "s"}. Your delivery fare is already paid.</p>
           {q.large && <p className="mt-2 rounded-md bg-amber-50 p-2 text-sm text-amber-950">You have a lot of clothes. A load this size can take up to <strong>{q.large_hours} hours</strong> even with instant delivery, though we will aim to be faster.</p>}
         </div>
         <button type="button" className={q.on ? "btn-secondary" : "btn-primary"} onClick={toggle} disabled={busy}>{busy ? "Saving" : q.on ? "Remove instant" : `Add instant for ${naira(q.fee_kobo)}`}</button>

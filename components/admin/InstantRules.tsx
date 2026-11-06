@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { refundInstantFee, saveInstantRules } from "@/app/admin/ops-actions";
 
-type V = { enabled: boolean; feeNaira: number; targetHours: number; largeItems: number; largeHours: number; pickupMinutes: number };
+type V = { enabled: boolean; feeNaira: number; ironFeeNaira: number; targetHours: number; largeItems: number; largeHours: number; pickupMinutes: number };
 
 export function InstantRules({ initial }: { initial: V }) {
   const router = useRouter();
@@ -19,7 +19,8 @@ export function InstantRules({ initial }: { initial: V }) {
       <div><h2 className="text-lg font-semibold">Targets and instant delivery</h2><p className="mt-1 text-sm text-ink-soft">Customers add instant delivery when their bill appears. The clock starts when they pay that bill. Customers with a large load are told it can take longer.</p></div>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={v.enabled} onChange={(e) => setV({ ...v, enabled: e.target.checked })} /><span><strong>Offer instant delivery.</strong> Orders already running keep their promise.</span></label>
       <div className="grid gap-4 sm:grid-cols-2">
-        {num("feeNaira", "Extra fee per item (naira)", 0, 10000, "Usually 500. Applies to every item on the bill.")}
+        {num("feeNaira", "Dry clean: extra fee per item (naira)", 0, 10000, "Usually 300. Applies to every dry clean item that is made instant.")}
+        {num("ironFeeNaira", "Iron only: extra fee per item (naira)", 0, 10000, "Usually 200. Applies to every iron only item that is made instant.")}
         {num("targetHours", "Target (hours)", 1, 24, "Usually 4.")}
         {num("largeItems", "Large load above (items)", 5, 500, "More items than this and the customer is warned.")}
         {num("largeHours", "Large load can take up to (hours)", 1, 48, "Shown to the customer. Usually 8.")}

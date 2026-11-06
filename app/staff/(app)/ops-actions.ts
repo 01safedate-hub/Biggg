@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/roles";
 import { friendlyError } from "@/lib/rpc-errors";
 import { parseLocation } from "@/lib/maps";
+import type { Service } from "@/lib/services";
 
 type R = { ok: boolean; message: string };
 const DESK = ["secretary", "admin", "super_admin"] as const;
@@ -23,10 +24,10 @@ export async function showArrivalCode(orderId: string, step: "arrival" | "delive
   return { ok: true, message: "", code: String(data) };
 }
 
-export async function sendBill(orderId: string, lines: { item: string; qty: number }[]): Promise<R> {
+export async function sendBill(orderId: string, lines: { item: string; qty: number; service?: Service }[]): Promise<R> {
   const { supabase } = await requireRole(["delivery_agent", "commission_agent"]);
   for (const l of lines) {
-    const { error } = await supabase.rpc("agent_set_item", { _order: orderId, _item: l.item, _qty: l.qty });
+    const { error } = await supabase.rpc("agent_set_item", { _order: orderId, _item: l.item, _qty: l.qty, _service: l.service ?? "dry_clean" });
     if (error) return { ok: false, message: friendlyError(error.message) };
   }
   const { error } = await supabase.rpc("agent_submit_count", { _order: orderId });
@@ -210,10 +211,10 @@ export async function startWalkin(customerId: string, notes: string): Promise<R 
   return { ok: true, message: "", id: String(data) };
 }
 
-export async function deskSendCount(orderId: string, lines: { item: string; qty: number }[], instant: { item: string; qty: number }[] = []): Promise<R & { orderId?: string }> {
+export async function deskSendCount(orderId: string, lines: { item: string; qty: number; service?: Service }[], instant: { item: string; qty: number; service?: Service }[] = []): Promise<R & { orderId?: string }> {
   const { supabase } = await requireRole([...DESK]);
   for (const l of lines) {
-    const { error } = await supabase.rpc("desk_set_item", { _order: orderId, _item: l.item, _qty: l.qty });
+    const { error } = await supabase.rpc("desk_set_item", { _order: orderId, _item: l.item, _qty: l.qty, _service: l.service ?? "dry_clean" });
     if (error) return { ok: false, message: friendlyError(error.message) };
   }
   const inst = instant.filter((l) => l.qty > 0);

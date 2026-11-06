@@ -1,0 +1,10 @@
+-- Applied via the Supabase tool on 2026-11-06 (exact SQL: run scripts/export-schema.sh). Recorded here so fresh environments know what exists.
+-- order_items.service text not null default 'dry_clean' (check: dry_clean | iron_only). Existing lines are dry_clean.
+-- settings 'iron_only' {pct_of_dry_clean: 40, min_kobo: 20000}, public. Iron only = pct of the dry-clean price, rounded to the nearest 50 naira,
+--   never below min_kobo and never above the dry-clean price. items.price_kobo is the dry-clean (full service) price.
+-- private.service_price_kobo(item, service), public.item_service_prices() (active items: dry_clean_kobo, iron_only_kobo),
+--   public.save_iron_only_settings(pct 10-100, min_kobo) (super admin only).
+-- public.agent_set_item / desk_set_item gained a 4-argument form with _service; the 3-argument form still works and means dry_clean.
+--   Iron-only lines are named "<item> (iron only)" so receipts, emails and stain matching show the service without further changes.
+-- Catalogue repriced (52 items) and 64 items added: 116 active items in 11 groups (new groups: Baby and kids, Outerwear).
+-- See 20261106160000_iron_only_service_fixes.sql for the follow-up fixes.

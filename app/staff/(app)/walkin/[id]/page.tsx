@@ -9,6 +9,7 @@ import { PhoneActions } from "@/components/ops/PhoneActions";
 import { AssignForm } from "@/components/ops/DeskTools";
 import { PrintButton } from "@/components/orders/PrintButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
+import { lineKey } from "@/lib/services";
 
 export const metadata = { title: "Walk-in order" };
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const returnDeliveryReady = o.source === "one_time" && o.status === "ready" && fulfillmentChoice === "deliver" && Boolean(returnFeePayment);
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
-    supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null),
+    supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo,service").eq("order_id", id).is("removed_at", null),
     supabase.from("item_categories").select("id,name").eq("active", true).order("sort_order").order("name"),
     supabase.from("items").select("id,name,price_kobo,category_id,description").eq("active", true).order("sort_order").order("name"),
     supabase.from("money_points").select("id,name,kind").eq("active", true).neq("kind", "online").order("name"),
@@ -36,12 +37,14 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
     supabase.from("order_photos").select("note").eq("order_id", id).eq("kind", "stain"),
     (o.status === "out_for_delivery" || returnDeliveryReady) ? supabase.rpc("list_agents") : Promise.resolve({ data: [] }),
   ]);
-  const icv = (icfg?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number };
+  const icv = (icfg?.value ?? {}) as { enabled?: boolean; fee_per_item_kobo?: number; fee_per_item_iron_kobo?: number };
   const stainedNames = Array.from(new Set((stainRows ?? []).map((r) => (r.note ?? "").split(": ")[0]).filter(Boolean)));
   const agents = (Array.isArray(agentRows) ? agentRows : []) as unknown as { id: string; name: string; open_jobs: number; on_shift?: boolean }[];
-  const iq = o.status === "counted" ? (await supabase.rpc("instant_quote", { _order: id })).data as unknown as { enabled: boolean; per_item_kobo: number; items: number; fee_kobo: number; on: boolean; target_hours: number } | null : null;
+  const iq = o.status === "counted" ? (await supabase.rpc("instant_quote", { _order: id })).data as unknown as { enabled: boolean; per_item_kobo: number; per_item_iron_kobo: number; items: number; dry_items: number; iron_items: number; fee_kobo: number; on: boolean; target_hours: number } | null : null;
+  const { data: svcPrices } = await supabase.rpc("item_service_prices");
+  const ironById = new Map((svcPrices ?? []).map((p) => [p.item_id, p.iron_only_kobo == null ? null : Number(p.iron_only_kobo)]));
   const initial: Record<string, number> = {};
-  for (const l of lines ?? []) if (l.item_id) initial[l.item_id] = l.qty;
+  for (const l of lines ?? []) if (l.item_id) initial[lineKey(l.item_id, l.service)] = l.qty;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
   const moving = ["count_confirmed", "received", "in_house", "awaiting_delivery_fare", "out_for_delivery"].includes(o.status);
   const paidLabel = pay ? (pay.mode === "cash" ? "Cash" : pay.mode === "transfer" ? "Bank transfer" : "POS card") : "";
@@ -59,7 +62,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
       {o.status === "agent_arrived" && (
         <section className="space-y-3 print:hidden">
           <h2 className="text-lg font-semibold">1. Count the clothes with the customer</h2>
-          <Itemiser desk orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo) }))} initial={initial} instant={icv.enabled && (icv.fee_per_item_kobo ?? 0) > 0 ? { perItemKobo: icv.fee_per_item_kobo as number } : undefined} stainedNames={stainedNames} canAddItem />
+          <Itemiser desk orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} instant={icv.enabled && (icv.fee_per_item_kobo ?? 0) > 0 ? { perItemKobo: icv.fee_per_item_kobo as number, perItemIronKobo: icv.fee_per_item_iron_kobo ?? (icv.fee_per_item_kobo as number) } : undefined} stainedNames={stainedNames} canAddItem />
           <WalkinActions orderId={id} kind="cancel" />
         </section>
       )}
@@ -68,7 +71,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">2. Take payment</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
-          {iq?.enabled && <WalkinInstant orderId={id} on={iq.on} perItemKobo={iq.per_item_kobo} items={iq.items} feeKobo={iq.fee_kobo} targetHours={iq.target_hours} />}
+          {iq?.enabled && <WalkinInstant orderId={id} on={iq.on} perItemKobo={iq.per_item_kobo} perItemIronKobo={iq.per_item_iron_kobo} dryItems={iq.dry_items} ironItems={iq.iron_items} items={iq.items} feeKobo={iq.fee_kobo} targetHours={iq.target_hours} />}
           {o.instant_fee_kobo > 0 && <p className="text-sm text-ink-soft">Includes instant delivery {naira(o.instant_fee_kobo)}.</p>}
           <p className="text-2xl font-bold">Customer pays {naira(total)}</p>
           <WalkinPay orderId={id} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} due={naira(total)} />
