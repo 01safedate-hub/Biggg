@@ -18,8 +18,17 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const { supabase } = await requireRole(["secretary", "admin", "super_admin"]);
-  const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time"]).maybeSingle();
+  const { data: o } = await supabase.from("orders").select("*").eq("id", id).in("source", ["walk_in", "one_time", "subscription"]).maybeSingle();
   if (!o) notFound();
+  // Plan orders only appear here when the customer dropped them at the hub.
+  if (o.source === "subscription" && (o.pickup_lat != null || !o.subscription_pickup_id)) notFound();
+  const onPlan = o.source === "subscription";
+  const { data: sp } = onPlan
+    ? await supabase.from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,excluded_pieces,excluded_kobo,subscriptions(plans(name,category_limits))").eq("id", o.subscription_pickup_id as string).maybeSingle()
+    : { data: null };
+  const spSub = sp ? (Array.isArray(sp.subscriptions) ? sp.subscriptions[0] : sp.subscriptions) : null;
+  const spPlan = spSub ? (Array.isArray(spSub.plans) ? spSub.plans[0] : spSub.plans) : null;
+  const extrasKobo = Number(sp?.overage_kobo ?? 0) + Number(sp?.excluded_kobo ?? 0);
   const fulfillmentChoice = (o as typeof o & { fulfillment_choice?: "collect" | "deliver" | null; return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; return_delivery_distance_km?: number | null }).fulfillment_choice ?? null;
   const returnRow = o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null };
   const returnDestination = returnRow.return_delivery_address ?? null;
@@ -56,18 +65,30 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
         <h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no} <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-sm font-medium text-ink-soft print:hidden">{STATUS_LABEL[o.status] ?? o.status}</span></h1>
         <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} message={o.status === "ready" ? `Hello ${(cust?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.` : undefined} /> · {o.source === "one_time" ? "one-time pickup" : "walk-in at the hub"}</p>
         {(related ?? []).length > 0 && <p className="mt-1 text-sm">Linked orders: {(related ?? []).map((r) => <Link key={r.id} href={`/staff/walkin/${r.id}`} className="mr-2 font-medium text-brand-dark underline">#{r.order_no}{r.instant ? " (instant)" : ""}</Link>)}</p>}
+        {onPlan && <p className="mt-1 text-sm font-medium text-brand-dark">Plan drop-off: {spPlan?.name ?? "monthly plan"}. Count everything; the plan decides what is covered.</p>}
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
       </div>
 
       {o.status === "agent_arrived" && (
         <section className="space-y-3 print:hidden">
           <h2 className="text-lg font-semibold">1. Count the clothes with the customer</h2>
-          <Itemiser desk orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} instant={icv.enabled && (icv.fee_per_item_kobo ?? 0) > 0 ? { perItemKobo: icv.fee_per_item_kobo as number, perItemIronKobo: icv.fee_per_item_iron_kobo ?? (icv.fee_per_item_kobo as number) } : undefined} stainedNames={stainedNames} canAddItem />
+          <Itemiser desk orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} instant={!onPlan && icv.enabled && (icv.fee_per_item_kobo ?? 0) > 0 ? { perItemKobo: icv.fee_per_item_kobo as number, perItemIronKobo: icv.fee_per_item_iron_kobo ?? (icv.fee_per_item_kobo as number) } : undefined} stainedNames={stainedNames} canAddItem={!onPlan} subscription={onPlan} categoryLimits={onPlan ? ((spPlan?.category_limits ?? {}) as Record<string, number>) : undefined} />
           <WalkinActions orderId={id} kind="cancel" />
         </section>
       )}
 
-      {o.status === "counted" && (
+      {o.status === "counted" && onPlan && (
+        <section className="card space-y-4 p-5 print:hidden">
+          <h2 className="text-lg font-semibold">2. Extras to pay</h2>
+          <p className="text-sm text-ink-soft">{sp?.pieces_counted ?? 0} pieces counted. {Number(sp?.overage_pieces ?? 0) > 0 ? `${sp?.overage_pieces} above the plan allowance or a category limit (${naira(Number(sp?.overage_kobo ?? 0))}). ` : ""}{Number(sp?.excluded_pieces ?? 0) > 0 ? `${sp?.excluded_pieces} not covered by the plan (${naira(Number(sp?.excluded_kobo ?? 0))}).` : ""}</p>
+          <p className="text-2xl font-bold">Customer pays {naira(extrasKobo)}</p>
+          <p className="text-xs text-ink-soft">They can also pay online from their account. Washing starts once the extras are paid.</p>
+          <WalkinPay orderId={id} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} due={naira(extrasKobo)} />
+          <div className="flex flex-wrap gap-4 border-t border-line pt-4"><WalkinActions orderId={id} kind="reopen" /><WalkinActions orderId={id} kind="cancel" /></div>
+        </section>
+      )}
+
+      {o.status === "counted" && !onPlan && (
         <section className="card space-y-4 p-5 print:hidden">
           <h2 className="text-lg font-semibold">2. Take payment</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
@@ -98,7 +119,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           <h2 className="text-lg font-semibold">Clothes are ready</h2>
           <p className="text-sm text-ink-soft">Tell the customer by call or WhatsApp (tap their number above). When they come, give them the clothes and confirm below. If they want delivery, arrange it first.</p>
           {fulfillmentChoice !== "deliver" && <WalkinActions orderId={id} kind="handover" />}
-          <div className="border-t border-line pt-4">{returnDeliveryReady ? (
+          {!onPlan && <div className="border-t border-line pt-4">{returnDeliveryReady ? (
             <div className="space-y-3">
               <p className="font-medium text-emerald-700">Delivery fee paid. Assign a delivery agent.</p>
               <p className="text-sm text-ink-soft">Deliver to: {returnDestination || "Customer delivery address not found"}</p>
@@ -108,7 +129,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
             <p className="text-sm text-ink-soft">Delivery is selected. Waiting for the customer to pay the delivery fee before an agent can be assigned.</p>
           ) : (
             <DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} />
-          )}</div>
+          )}</div>}
         </section>
       )}
       {o.status === "awaiting_delivery_fare" && (

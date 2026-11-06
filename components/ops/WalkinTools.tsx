@@ -2,12 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addWalkinCustomer, deskCancelDelivery, deskCancelWalkin, deskHandover, deskPayDelivery, deskPayLink, deskReopenCount, deskRequestDelivery, deskSetInstant, deskTakePayment, deskUpgradeCustomer, findDeskCustomers, startWalkin } from "@/app/staff/(app)/ops-actions";
+import { addWalkinCustomer, deskCancelDelivery, deskCancelWalkin, deskHandover, deskPayDelivery, deskPayLink, deskReopenCount, deskRequestDelivery, deskSetInstant, deskTakePayment, deskUpgradeCustomer, findDeskCustomers, startPlanDropoff, startWalkin } from "@/app/staff/(app)/ops-actions";
 import { inputCls, labelCls } from "@/components/admin/ui";
 import { naira } from "@/lib/format";
 import { instantRateText } from "@/lib/services";
 
-type Found = { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number };
+type Found = { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number; plan?: string | null };
 
 export function WalkinStart() {
   const router = useRouter();
@@ -30,9 +30,9 @@ export function WalkinStart() {
     setRows(r.rows); setAdding(r.rows.length === 0);
     if (r.rows.length === 0 && /\d{4,}/.test(q)) setPhone(q.replace(/[^\d+]/g, ""));
   }
-  async function begin(customerId: string) {
+  async function begin(customerId: string, onPlan = false) {
     setBusy(true); setErr(null);
-    const r = await startWalkin(customerId, notes);
+    const r = onPlan ? await startPlanDropoff(customerId, notes) : await startWalkin(customerId, notes);
     if (r.ok && r.id) { router.push(`/staff/walkin/${r.id}`); return; }
     setBusy(false); setErr(r.message);
   }
@@ -55,8 +55,11 @@ export function WalkinStart() {
         <ul className="divide-y divide-line rounded-md border border-line">
           {rows.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-              <div><p className="font-medium">{c.name}</p><p className="text-ink-soft">{c.phone ?? "No phone"} · {c.orders} order{c.orders === 1 ? "" : "s"}{c.is_walk_in ? " · desk customer" : ""}</p></div>
-              <button type="button" className="btn-primary" disabled={busy} onClick={() => begin(c.id)}>Start order</button>
+              <div><p className="font-medium">{c.name}{c.plan ? <span className="ml-2 rounded bg-brand-tint px-2 py-0.5 text-xs font-semibold text-brand-dark">{c.plan}</span> : null}</p><p className="text-ink-soft">{c.phone ?? "No phone"} · {c.orders} order{c.orders === 1 ? "" : "s"}{c.is_walk_in ? " · desk customer" : ""}</p></div>
+              <div className="flex flex-wrap gap-2">
+                {c.plan ? <button type="button" className="btn-primary" disabled={busy} onClick={() => begin(c.id, true)}>Drop-off on plan</button> : null}
+                <button type="button" className={c.plan ? "btn-secondary" : "btn-primary"} disabled={busy} onClick={() => begin(c.id)}>{c.plan ? "Pay-per-item order" : "Start order"}</button>
+              </div>
             </li>
           ))}
         </ul>

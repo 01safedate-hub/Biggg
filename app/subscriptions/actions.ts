@@ -13,18 +13,9 @@ export async function updateSubscriptionCancellation(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/subscriptions");
 
-  // Ownership is enforced in the update predicate; customers cannot change another
-  // customer's subscription even if they submit a guessed UUID.
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .update({ cancel_at_period_end: cancelAtPeriodEnd })
-    .eq("id", subscriptionId)
-    .eq("customer_id", user.id)
-    .eq("status", "active")
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data) redirect("/subscriptions/manage?notice=subscription_update_failed");
+  // The RPC acts on the signed-in customer's own active plan only.
+  const { error } = await supabase.rpc("set_subscription_cancellation", { _cancel: cancelAtPeriodEnd });
+  if (error) redirect(`/subscriptions/manage?notice=${/next_term_already_paid/.test(error.message) ? "next_term_already_paid" : "subscription_update_failed"}`);
   revalidatePath("/subscriptions");
   revalidatePath("/dashboard");
   redirect(cancelAtPeriodEnd ? "/subscriptions/manage?notice=cancellation_scheduled" : "/subscriptions/manage?notice=cancellation_reversed");

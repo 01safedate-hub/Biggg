@@ -14,18 +14,19 @@ const CATEGORIES = [
   { slug: "footwear-bags", name: "Footwear and bags" },
 ] as const;
 
-export function CategoryLimitsEditor({ initial = {}, inputName = "category_limits" }: {
+export function CategoryLimitsEditor({ initial = {}, inputName = "category_limits", categories = CATEGORIES as unknown as { slug: string; name: string }[] }: {
   initial?: Record<string, number>;
   inputName?: string;
+  categories?: { slug: string; name: string }[];
 }) {
   const [limits, setLimits] = useState<Record<string, number>>(() => ({ ...initial }));
   const encoded = useMemo(() => JSON.stringify(limits), [limits]);
   return <fieldset className="space-y-3 sm:col-span-2 lg:col-span-3">
     <legend className="text-sm font-semibold">Category limits</legend>
-    <p className="text-xs text-ink-soft">For each category choose: leave unchecked for no separate cap; check and enter 0 to exclude it (every piece is chargeable); enter a positive number to include up to that many pieces per billing period. Category caps are separate from the plan’s total-piece allowance.</p>
+    <p className="text-xs text-ink-soft">For each category choose: leave unchecked for no separate cap; check and enter 0 to exclude it (every piece is chargeable); enter a positive number to include up to that many pieces per billing period. Capped pieces also count towards the plan’s total pieces; pieces above a cap are billed at their own item price.</p>
     <input type="hidden" name={inputName} value={encoded} />
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {CATEGORIES.map((category) => {
+      {categories.map((category) => {
         const enabled = Object.prototype.hasOwnProperty.call(limits, category.slug);
         return <div key={category.slug} className="rounded-lg border border-gray-200 p-3">
           <label className="flex min-h-8 items-center gap-2 text-sm font-medium">

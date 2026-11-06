@@ -10,42 +10,14 @@ export const dynamic = "force-dynamic";
 export default async function RequestPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: active } = user
-    ? await supabase.from("subscriptions")
-        .select("id,plan_id,status,current_period_start,current_period_end,plans(name,pieces_per_month,weekly_allowance)")
-        .eq("customer_id", user.id)
-        .eq("status", "active")
-        .lte("current_period_start", new Date().toISOString())
-        .gt("current_period_end", new Date().toISOString())
-        .order("current_period_end", { ascending: false })
-        .limit(1)
-        .maybeSingle()
+  type Usage = { plan_name: string; pieces_per_month: number; pieces_left: number; per_pickup_limit: number; included_pickups: number; included_pickups_used: number; cycle_end: string };
+  const usage = user ? ((await supabase.rpc("subscription_usage")).data as unknown as Usage | null) : null;
+  const active = usage;
+  const { data: underReview } = user && !usage
+    ? await supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "pending_review").limit(1).maybeSingle()
     : { data: null };
-
-  const plan = Array.isArray(active?.plans) ? active.plans[0] : active?.plans;
-  let pickupCount = 0;
-  let usedPieces = 0;
-  let cycleStart = active?.current_period_start ?? new Date().toISOString();
-  let cycleEnd = active?.current_period_end ?? new Date().toISOString();
-  if (active?.current_period_start) {
-    const anchor = new Date(active.current_period_start);
-    const now = new Date();
-    let months = (now.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + now.getUTCMonth() - anchor.getUTCMonth();
-    let start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months);
-    if (start > now) { months -= 1; start = new Date(anchor); start.setUTCMonth(anchor.getUTCMonth() + months); }
-    const end = new Date(anchor); end.setUTCMonth(anchor.getUTCMonth() + months + 1);
-    cycleStart = start.toISOString(); cycleEnd = end.toISOString();
-  }
-  if (active?.id) {
-    const { data: pickups } = await supabase.from("subscription_pickups")
-      .select("pieces_counted,overage_pieces,excluded_pieces,status")
-      .eq("subscription_id", active.id)
-      .gte("scheduled_for", cycleStart)
-      .lt("scheduled_for", cycleEnd)
-      .not("status", "in", '("missed","skipped")');
-    pickupCount = (pickups ?? []).length;
-    usedPieces = (pickups ?? []).reduce((sum, pickup) => sum + Math.max(0, Number(pickup.pieces_counted ?? 0) - Number(pickup.overage_pieces ?? 0) - Number(pickup.excluded_pieces ?? 0)), 0);
-  }
+  const freeLeft = usage ? Math.max(0, usage.included_pickups - usage.included_pickups_used) : 0;
+  const cycleEnds = usage ? new Date(new Date(usage.cycle_end).getTime() - 60_000).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Africa/Lagos" }) : "";
 
   return (
     <main id="main" className="min-h-screen w-full">
@@ -57,6 +29,11 @@ export default async function RequestPage() {
             <p className="text-sm text-ink-soft">Sign in or create an account to request a pickup through a monthly plan.</p>
             <div className="flex gap-3"><Link href="/login?next=/request" className="btn-primary">Sign in</Link><Link href="/signup" className="btn-secondary">Create account</Link></div>
           </div>
+        ) : underReview ? (
+          <section className="card space-y-2 p-5">
+            <h2 className="text-lg font-semibold">Your student plan is being checked</h2>
+            <p className="text-sm text-ink-soft">We are checking your student ID. Your plan starts the day it is approved, and we will email you. You can book or drop off clothes after that.</p>
+          </section>
         ) : !active ? (
           <>
             <section className="card space-y-3 p-5">
@@ -72,16 +49,22 @@ export default async function RequestPage() {
             <NoCashNotice subscription />
             <section className="card space-y-2 p-5">
               <p className="text-sm text-ink-soft">Your monthly plan</p>
-              <h2 className="text-xl font-semibold">{plan?.name ?? "Active plan"}</h2>
+              <h2 className="text-xl font-semibold">{usage?.plan_name ?? "Active plan"}</h2>
               <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Garment allowance left</p><p className="mt-1 text-2xl font-semibold">{Math.max(0, Number(plan?.pieces_per_month ?? 0) - usedPieces)}</p><p className="text-xs text-ink-mute">This monthly cycle</p></div>
-                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Pickups used</p><p className="mt-1 text-2xl font-semibold">{pickupCount} of 2</p></div>
+                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Pieces left</p><p className="mt-1 text-2xl font-semibold">{usage?.pieces_left ?? 0}</p><p className="text-xs text-ink-mute">Until {cycleEnds}</p></div>
+                <div className="rounded-lg border border-line p-3"><p className="text-sm text-ink-soft">Free pickups</p><p className="mt-1 text-2xl font-semibold">{usage && usage.included_pickups > 0 ? `${usage.included_pickups_used} of ${usage.included_pickups} used` : "Not included"}</p><p className="text-xs text-ink-mute">{usage && usage.included_pickups > 0 ? "Use them any time this month" : "Drop off at the hub, or pay for transport"}</p></div>
               </div>
-              <p className="text-sm text-ink-soft">Up to {Number((Array.isArray(active?.plans) ? active.plans[0] : active?.plans)?.weekly_allowance ?? plan?.pieces_per_month ?? 0)} pieces are included per pickup, subject to your remaining monthly allowance. Pieces above either limit and excluded categories are billed separately.</p>
+              <p className="text-sm text-ink-soft">Up to {usage?.per_pickup_limit ?? 0} pieces are covered per pickup, within the pieces left this month. Pieces above that, and items your plan does not cover, are billed at their normal price after counting. Unused pieces do not carry over.</p>
             </section>
-            {pickupCount >= 2 ? (
-              <p className="card p-5 text-sm text-ink-soft">You have used both pickup requests for this billing period. You can request another pickup when your next monthly period begins.</p>
-            ) : <BookingForm />}
+            {freeLeft > 0 ? <BookingForm /> : (
+              <>
+                <section className="card space-y-1 p-5 text-sm text-ink-soft">
+                  <p className="font-semibold text-ink">{usage && usage.included_pickups > 0 ? "You have used this month's free pickups" : "Your plan does not include free pickups"}</p>
+                  <p>You can bring your clothes to the hub at no charge, or book a pickup below and pay for pickup and delivery transport. Either way, your clothes count against your plan.</p>
+                </section>
+                <BookingForm mode="subscription_paid" />
+              </>
+            )}
           </>
         )}
       </div>

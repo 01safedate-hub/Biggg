@@ -6,14 +6,16 @@ import { CategoryLimitsEditor } from "@/components/admin/CategoryLimitsEditor";
 export const metadata = { title: "Subscription plans" };
 export const dynamic = "force-dynamic";
 
-type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; monthly_discount_pct: number; three_month_discount_pct: number; six_month_discount_pct: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number };
+type Plan = { id: string; name: string; slug: string; monthly_price_kobo: number; monthly_discount_pct: number; three_month_discount_pct: number; six_month_discount_pct: number; yearly_discount_pct: number; pieces_per_month: number; weekly_allowance: number; overage_price_kobo: number; category_limits: Record<string, number>; active: boolean; sort_order: number; pickups_per_month: number; requires_student_id: boolean };
 
 export default async function AdminSubscriptionPlansPage() {
   const { supabase } = await requireRole(["super_admin"]);
-  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order").order("sort_order").order("name");
+  const { data: catRows } = await supabase.from("item_categories").select("slug,name").eq("active", true).order("sort_order");
+  const cats = (catRows ?? []) as { slug: string; name: string }[];
+  const { data, error } = await supabase.from("plans").select("id,name,slug,monthly_price_kobo,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits,active,sort_order,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,pickups_per_month,requires_student_id").order("sort_order").order("name");
   const plans = (data ?? []) as Plan[];
   return <div className="space-y-6">
-    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices, monthly piece allowances and the maximum included pieces per pickup. The monthly allowance is shared across two pickups. This per-pickup value is a cap within the monthly allowance, not an additional allowance. Extra pieces above either limit are billed at the standard item price (the average catalogue price of the eligible pieces on that pickup).</p></div>
+    <div><h1 className="text-2xl font-bold tracking-tight">Subscription plans</h1><p className="mt-1 text-sm text-ink-soft">Manage plan prices, monthly piece allowances and the maximum included pieces per pickup. The monthly allowance is shared across the month's pickups and hub drop-offs. This per-pickup value is a cap within the monthly allowance, not an additional allowance. Extra pieces above either limit are billed at the standard item price (the average catalogue price of the eligible pieces on that pickup).</p></div>
     <section className="card space-y-4 p-4 sm:p-5">
       <div><h2 className="text-lg font-semibold">Create a plan</h2><p className="mt-1 text-sm text-ink-soft">Add a new subscription option. Use a unique slug and verify the allowance and price before creating it.</p></div>
       <form action={createPlan} className="space-y-4">
@@ -27,7 +29,9 @@ export default async function AdminSubscriptionPlansPage() {
           <label className="block text-sm font-medium">3-month discount (%)<input name="three_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="2" className="input mt-1 w-full" /></label>
           <label className="block text-sm font-medium">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue="5" className="input mt-1 w-full" /></label>
           <label className="block text-sm font-medium">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required placeholder="10" className="input mt-1 w-full" /></label>
-          <CategoryLimitsEditor />
+          <label className="block text-sm font-medium">Free pickups per month<input name="pickups_per_month" type="number" min="0" max="31" step="1" required defaultValue="2" className="input mt-1 w-full" /><span className="mt-1 block text-xs font-normal text-ink-soft">0 = drop-off at the hub or paid pickups only</span></label>
+          <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"><input type="checkbox" name="requires_student_id" className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Student plan (ID check before it starts)</label>
+          <CategoryLimitsEditor categories={cats} />
           <label className="flex min-h-12 items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm font-medium"><input type="checkbox" name="active" defaultChecked className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Active for sale</label>
         </div>
         <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Create plan</button></div>
@@ -45,7 +49,9 @@ export default async function AdminSubscriptionPlansPage() {
         <label className="text-sm">3-month discount (%)<input name="three_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.three_month_discount_pct ?? 2} className="input mt-1 w-full" /></label>
         <label className="text-sm">6-month discount (%)<input name="six_month_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.six_month_discount_pct ?? 5} className="input mt-1 w-full" /></label>
         <label className="text-sm">12-month discount (%)<input name="yearly_discount_pct" type="number" min="0" max="99.99" step="0.01" required defaultValue={plan.yearly_discount_pct} className="input mt-1 w-full" /></label>
-        <CategoryLimitsEditor initial={plan.category_limits ?? {}} />
+        <label className="text-sm">Free pickups per month<input name="pickups_per_month" type="number" min="0" max="31" step="1" required defaultValue={plan.pickups_per_month ?? 2} className="input mt-1 w-full" /></label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="requires_student_id" defaultChecked={plan.requires_student_id} className="h-5 w-5 rounded border-gray-300 text-brand focus:ring-brand" /> Student plan (ID check)</label>
+        <CategoryLimitsEditor initial={plan.category_limits ?? {}} categories={cats} />
       </div>
       <div className="flex justify-end"><button className="btn-primary min-h-12 px-5" type="submit">Save plan</button></div>
     </form>)}

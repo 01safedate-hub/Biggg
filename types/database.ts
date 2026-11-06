@@ -1924,6 +1924,9 @@ export type Database = {
           updated_at: string
           weekly_allowance: number
           yearly_discount_pct: number
+          pickups_per_month: number
+          requires_student_id: boolean
+          audience: string
         }
         Insert: {
           active?: boolean
@@ -1943,6 +1946,9 @@ export type Database = {
           updated_at?: string
           weekly_allowance: number
           yearly_discount_pct?: number
+          pickups_per_month?: number
+          requires_student_id?: boolean
+          audience?: string
         }
         Update: {
           active?: boolean
@@ -1962,6 +1968,9 @@ export type Database = {
           updated_at?: string
           weekly_allowance?: number
           yearly_discount_pct?: number
+          pickups_per_month?: number
+          requires_student_id?: boolean
+          audience?: string
         }
         Relationships: []
       }
@@ -2341,6 +2350,42 @@ export type Database = {
         }
         Relationships: []
       }
+      student_verifications: {
+        Row: {
+          created_at: string
+          customer_id: string
+          id: string
+          reject_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_name: string
+          status: string
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          id?: string
+          reject_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name: string
+          status?: string
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          id?: string
+          reject_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_name?: string
+          status?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       subscription_invoices: {
         Row: {
           amount_kobo: number
@@ -2351,6 +2396,10 @@ export type Database = {
           period_start: string
           status: string
           subscription_id: string
+          plan_id: string | null
+          billing_period: string | null
+          monthly_price_kobo: number | null
+          subscription_pickup_id: string | null
         }
         Insert: {
           amount_kobo: number
@@ -2361,6 +2410,10 @@ export type Database = {
           period_start: string
           status?: string
           subscription_id: string
+          plan_id?: string | null
+          billing_period?: string | null
+          monthly_price_kobo?: number | null
+          subscription_pickup_id?: string | null
         }
         Update: {
           amount_kobo?: number
@@ -2371,6 +2424,10 @@ export type Database = {
           period_start?: string
           status?: string
           subscription_id?: string
+          plan_id?: string | null
+          billing_period?: string | null
+          monthly_price_kobo?: number | null
+          subscription_pickup_id?: string | null
         }
         Relationships: [
           {
@@ -2402,6 +2459,8 @@ export type Database = {
           status: string
           subscription_id: string
           week_start: string
+          transport_paid: boolean
+          hub_dropoff: boolean
         }
         Insert: {
           id?: string
@@ -2414,6 +2473,8 @@ export type Database = {
           status?: string
           subscription_id: string
           week_start: string
+          transport_paid?: boolean
+          hub_dropoff?: boolean
         }
         Update: {
           id?: string
@@ -2426,6 +2487,8 @@ export type Database = {
           status?: string
           subscription_id?: string
           week_start?: string
+          transport_paid?: boolean
+          hub_dropoff?: boolean
         }
         Relationships: [
           {
@@ -3190,6 +3253,15 @@ export type Database = {
         Returns: undefined
       }
       instant_board: { Args: never; Returns: Json }
+      subscription_usage: { Args: never; Returns: Json }
+      book_subscription_paid_pickup: {
+        Args: { _address: string; _lat: number; _lng: number; _notes: string; _slot?: string }
+        Returns: string
+      }
+      set_subscription_cancellation: { Args: { _cancel: boolean }; Returns: Json }
+      submit_student_verification: { Args: { _school_name: string; _storage_path: string }; Returns: Json }
+      review_student_verification: { Args: { _approve: boolean; _id: string; _reason?: string }; Returns: Json }
+      desk_create_subscription_dropoff: { Args: { _customer: string; _notes: string }; Returns: string }
       item_service_prices: {
         Args: never
         Returns: { dry_clean_kobo: number; iron_only_kobo: number | null; item_id: string }[]

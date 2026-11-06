@@ -14,8 +14,8 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
   const { supabase, user } = await requireUser(`/subscriptions${params.billing ? `?billing=${encodeURIComponent(params.billing)}` : ""}`);
 
   const [{ data: plans }, { data: active }, { data: subscriptionSettings }] = await Promise.all([
-    supabase.from("plans").select("id,slug,name,blurb,monthly_price_kobo,pieces_per_month,active,sort_order,category_limits,weekly_allowance,overage_price_kobo").eq("active", true).order("sort_order"),
-    supabase.from("subscriptions").select("id,status,current_period_end,plans(name)").eq("customer_id", user.id).in("status", ["active", "pending"]).order("current_period_end", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("plans").select("id,slug,name,blurb,monthly_price_kobo,pieces_per_month,active,sort_order,category_limits,weekly_allowance,overage_price_kobo,pickups_per_month,requires_student_id,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct").eq("active", true).order("sort_order"),
+    supabase.from("subscriptions").select("id,status,current_period_end,plans(name)").eq("customer_id", user.id).in("status", ["active", "pending", "pending_review"]).order("current_period_end", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("settings").select("value").eq("key", "subscription").maybeSingle(),
   ]);
 
@@ -38,8 +38,8 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
 
         {active && activePlan ? (
           <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
-            <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-mute">{active.status === "active" ? "YOUR ACTIVE PLAN" : "PENDING SUBSCRIPTION"}</p><h2 className="mt-1 text-xl font-bold">{activePlan.name}</h2><p className="mt-1 text-sm text-ink-soft">{active.current_period_end ? `Current period ends ${new Date(active.current_period_end).toLocaleDateString("en-NG")}` : "Subscription status"} </p></div>
-            <Link href="/subscriptions/manage" className="btn-secondary">{active.status === "active" ? "Manage subscription" : "Complete subscription"}</Link>
+            <div><p className="text-xs font-semibold uppercase tracking-wider text-ink-mute">{active.status === "active" ? "YOUR ACTIVE PLAN" : active.status === "pending_review" ? "STUDENT ID BEING CHECKED" : "PENDING SUBSCRIPTION"}</p><h2 className="mt-1 text-xl font-bold">{activePlan.name}</h2><p className="mt-1 text-sm text-ink-soft">{active.current_period_end ? `Current period ends ${new Date(active.current_period_end).toLocaleDateString("en-NG")}` : "Subscription status"} </p></div>
+            <Link href="/subscriptions/manage" className="btn-secondary">{active.status === "active" ? "Manage or renew" : active.status === "pending_review" ? "See status" : "Complete subscription"}</Link>
           </section>
         ) : null}
 
@@ -59,10 +59,12 @@ export default async function SubscriptionsPage({ searchParams }: { searchParams
             weekly_allowance: plan.weekly_allowance,
             category_limits: (plan.category_limits ?? {}) as Record<string, number>,
             overage_price_kobo: Number(plan.overage_price_kobo),
-            monthly_discount_pct: 0,
-            three_month_discount_pct: 2,
-            six_month_discount_pct: 5,
-            yearly_discount_pct: Number(config.yearly_discount_pct ?? 10),
+            monthly_discount_pct: Number(plan.monthly_discount_pct ?? 0),
+            three_month_discount_pct: Number(plan.three_month_discount_pct ?? 2),
+            six_month_discount_pct: Number(plan.six_month_discount_pct ?? 5),
+            yearly_discount_pct: Number(plan.yearly_discount_pct ?? config.yearly_discount_pct ?? 10),
+            pickups_per_month: Number(plan.pickups_per_month ?? 2),
+            requires_student_id: Boolean(plan.requires_student_id),
           }))} pickupsPerMonth={pickupsPerMonth} yearlyDiscountPct={yearlyDiscountPct} initialBillingPeriod={billingPeriod} />
         </section>
 
