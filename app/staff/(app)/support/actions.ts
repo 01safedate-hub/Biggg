@@ -8,3 +8,7 @@ export async function supportPermission(userId:string,grant:boolean){
  if(error)return {ok:false,message:error.message};
  revalidatePath("/staff/support");return {ok:true,message:"Support access updated."};
 }
+
+export async function canManageSupport(){
+ try{await requireRole(["super_admin"]);return true;}catch{return false;}
+}
