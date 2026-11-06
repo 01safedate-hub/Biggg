@@ -85,28 +85,49 @@ Deno.serve(async (req) => {
   // Fetch current active subscription plans and pay-per-item prices from Supabase every run.
   const { data: activePlans, error: plansError } = await db
     .from("plans")
-    .select("name,slug,blurb,monthly_price_kobo,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,pieces_per_month,weekly_allowance,overage_price_kobo,category_limits")
+    .select("name,slug,blurb,monthly_price_kobo,monthly_discount_pct,three_month_discount_pct,six_month_discount_pct,yearly_discount_pct,pieces_per_month,weekly_allowance,category_limits")
     .eq("active", true)
     .order("sort_order")
     .order("name");
   const { data: activeItems, error: itemsError } = await db
     .from("items")
-    .select("name,description,price_kobo")
+    .select("id,name,description,price_kobo")
     .eq("active", true)
     .order("sort_order")
     .order("name");
-  const moneyNaira = (kobo: number | null | undefined) =>
-    typeof kobo === "number" ? `₦${(kobo / 100).toLocaleString("en-NG", { maximumFractionDigits: 2 })}` : "not configured";
+  const { data: servicePriceRows, error: servicePricesError } = await db.rpc("item_service_prices");
+  const { data: pricingSettings, error: pricingSettingsError } = await db
+    .from("settings")
+    .select("key,value")
+    .in("key", ["iron_only","instant"]);
+  const pricingSettingsByKey = new Map((pricingSettings ?? []).map((setting: any) => [setting.key, setting.value ?? {}]));
+  const ironOnlySettings: any = pricingSettingsByKey.get("iron_only") ?? {};
+  const instantSettings: any = pricingSettingsByKey.get("instant") ?? {};
+  const servicePricesByItem = new Map((servicePriceRows ?? []).map((row: any) => [row.item_id, row]));
+  const moneyNaira = (kobo: number | string | null | undefined) => {
+    const amount = kobo === null || kobo === undefined ? NaN : Number(kobo);
+    return Number.isFinite(amount) ? `₦${(amount / 100).toLocaleString("en-NG", { maximumFractionDigits: 2 })}` : "not configured";
+  };
   const plansContext = plansError
     ? "Live plans could not be loaded. Do not quote plan details; offer staff follow-up."
     : (activePlans ?? []).map((plan: any) =>
-      `- ${plan.name}: monthly ${moneyNaira(plan.monthly_price_kobo)}; monthly garment allowance ${plan.pieces_per_month ?? "not configured"}; per-pickup garment cap ${plan.weekly_allowance ?? "not configured"}; garments above the allowance are billed at the standard item price; 3-month discount ${plan.three_month_discount_pct ?? "not configured"}%; 6-month discount ${plan.six_month_discount_pct ?? "not configured"}%; annual discount ${plan.yearly_discount_pct ?? "not configured"}%; details: ${plan.blurb ?? "not provided"}; category limits: ${JSON.stringify(plan.category_limits ?? {})}`
+      `- ${plan.name}: monthly ${moneyNaira(plan.monthly_price_kobo)}; monthly garment allowance ${plan.pieces_per_month ?? "not configured"}; per-pickup garment cap ${plan.weekly_allowance ?? "not configured"}; garments above the allowance are billed at the standard price of each item; 3-month discount ${plan.three_month_discount_pct ?? "not configured"}%; 6-month discount ${plan.six_month_discount_pct ?? "not configured"}%; annual discount ${plan.yearly_discount_pct ?? "not configured"}%; details: ${plan.blurb ?? "not provided"}; category limits: ${JSON.stringify(plan.category_limits ?? {})}`
     ).join("\\n") || "No active subscription plans are configured.";
-  const itemPricesContext = itemsError
-    ? "Live item prices could not be loaded. Do not quote item prices; offer staff follow-up."
-    : (activeItems ?? []).map((item: any) =>
-      `- ${item.name}: ${moneyNaira(item.price_kobo)} per listed unit. ${item.description ?? ""}`
-    ).join("\\n") || "No active item prices are configured.";
+  const itemPricesContext = itemsError || servicePricesError
+    ? "Live item/service prices could not be loaded. Do not quote item prices; offer staff follow-up."
+    : (activeItems ?? []).map((item: any) => {
+      const prices: any = servicePricesByItem.get(item.id);
+      if (!prices) return `- ${item.name}: current service prices unavailable; do not quote. ${item.description ?? ""}`;
+      const ironPrice = prices.iron_only_kobo === null || prices.iron_only_kobo === undefined
+        ? "iron only unavailable"
+        : `iron only ${moneyNaira(prices.iron_only_kobo)}`;
+      return `- ${item.name}: dry clean ${moneyNaira(prices.dry_clean_kobo)}; ${ironPrice}. ${item.description ?? ""}`;
+    }).join("\\n") || "No active item prices are configured.";
+  const instantPricingContext = pricingSettingsError
+    ? "Instant-service pricing could not be loaded. Do not quote instant fees or promise instant availability; offer staff follow-up."
+    : instantSettings.enabled === true
+      ? `Instant service is enabled. Extra fee per item: dry clean ${moneyNaira(instantSettings.fee_per_item_kobo)}; iron only ${moneyNaira(instantSettings.fee_per_item_iron_kobo)}. Target turnaround ${instantSettings.target_hours ?? "not configured"} hours; loads of ${instantSettings.large_load_items ?? "not configured"} items or more may require ${instantSettings.large_load_hours ?? "not configured"} hours.`
+      : "Instant service is currently disabled. Do not offer or quote instant service.";
   const zoneMap = new Map((activeZones ?? []).map((zone: any) => [zone.id, zone]));
   const zoneLabel = (zone: any) => {
     const parts: string[] = [];
@@ -1158,7 +1179,7 @@ Deno.serve(async (req) => {
             "\nIncluded pickups remaining: "+String(remainingPickups)+
             "\nNext included pickup date: "+(remainingPickups>0?nextPickupDate:"No included pickups remain this cycle")+
             "\nPer-pickup garment cap: "+String(plan?.per_pickup_cap??"not configured")+
-            "\nGarments above the allowance: billed at the standard item price"+
+            "\nExtra garments: billed at the standard individual item price"+
             "\n"+cancelLine+
             "\n\nYou can ask me to show payment history, renew your subscription, or request a plan change or cancellation.");
           continue;
@@ -1247,7 +1268,7 @@ Deno.serve(async (req) => {
       const formatPlan = (plan:any) => "Plan: "+plan.name+nl+"Monthly price: "+moneyNaira(Number(plan.monthly_price_kobo))+
         nl+"Monthly garment allowance: "+String(plan.pieces_per_month ?? "not configured")+
         nl+"Per-pickup garment cap: "+String(plan.weekly_allowance ?? "not configured")+
-        nl+"Garments above the allowance: billed at the standard item price"+
+        nl+"Extra garments: billed at standard individual item prices"+
         nl+"3-month discount: "+String(plan.three_month_discount_pct ?? 0)+"%"+
         nl+"6-month discount: "+String(plan.six_month_discount_pct ?? 0)+"%"+
         nl+"Yearly discount: "+String(plan.yearly_discount_pct ?? 0)+"%";
@@ -1428,14 +1449,14 @@ Deno.serve(async (req) => {
             "For an opening question about services, explain the actual service categories supported by the live items list. Give a concise overview, then ask what garment or service the customer wants. Do not respond with a vague 'tell me what you need' if the database contains useful item information.",
             "For a simple greeting, reply naturally and warmly in one short message, welcome the customer, and offer a few useful things you can help with. Do not use a rigid FAQ script, do not launch into delivery disclaimers, and never request an email unless the customer asks for a private account action or pickup booking that requires verification. A greeting must not trigger or repeat an old verification prompt just because a code challenge exists; greet the customer and let them choose what they want to do next.",
             "Never interpret ordinary words or phrases such as 'pick up', 'pickup', 'hello', 'thanks', or 'orders' as verification codes. Only validate a six-character code when the backend confirms that a code challenge is pending for this WhatsApp number. If a message is ambiguous, ask one short clarifying question instead of requesting verification.",
-            "When the customer asks for all plans and every detail, give a complete, readable plan-by-plan comparison. Include each plan's purpose/description, monthly cost, monthly garment allowance, per-pickup garment cap, annual discount, and overage fee. Also explain any configured category limits only when meaningful. Never stop halfway through the last plan.",
+             "When the customer asks for all plans and every detail, give a complete, readable plan-by-plan comparison. Include each plan description, monthly cost, monthly garment allowance, per-pickup garment cap, and annual discount. Explain that garments above the allowance are billed at the standard individual item price; never show an extra-garment fee or a flat plan overage price. Also explain configured category limits only when meaningful. Never stop halfway through the last plan.",
             "For plan recommendations, use the plan descriptions from the live database as the plan's intended audience. If the customer has not explained household size or expected garment volume, provide a clearly labelled general starting suggestion with its reason, then ask one focused question to tailor it. Do not present the suggestion as a guaranteed best fit.",
             "When explaining annual discounts, state the configured percentage and clarify that it is an annual-billing discount only. Do not calculate or claim a specific annual total unless the required billing rule and calculation are explicitly available in the supplied data.",
             "The database field named weekly_allowance is operationally enforced as the maximum eligible garments on a single pickup, not as a separate weekly pool. Call it the per-pickup garment cap. The monthly garment allowance is the separate monthly pool shared across the customer's included pickups.",
             "Keep replies warm and conversational, normally 2-6 short sentences. Use bullets for plan lists. Avoid repetitive greetings, generic closing lines, and asking the customer to repeat information already in the conversation.",
             "General questions about LaundryPoint public subscription plans are not account-specific. Answer them directly from the live Plans table without asking for identity verification. Require verification only for a customer’s own subscription, billing, usage, orders, payment details, address, or account status.",
             "For general service FAQs and plan information, answer directly from the supplied live data. Do not unnecessarily escalate routine questions to staff. Escalate only when the requested fact is absent, account-specific, operational, or requires a human.",
-            "When asked to list all subscription plans, include every active plan with its monthly price, monthly garment allowance, per-pickup garment cap, annual discount and extra-garment price. Finish the entire list. Do not omit a plan or cut off the final plan.",
+             "When asked to list all subscription plans, include every active plan with its monthly price, monthly garment allowance, per-pickup garment cap and annual discount. State that garments above the allowance are billed at standard item prices; never include an extra-garment price or fee. Finish the entire list.",
             "When asked which plan to choose, recommend conditionally based on the customer's stated household or garment volume. If their needs are not known, explain who each plan is designed for and ask roughly how many garments they expect per month; do not make an unsupported personal recommendation.",
             "State both the monthly garment limit and per-pickup garment cap exactly as configured in the live Plans table.",
             "Never hardcode plan prices, garment allowances, caps, or discounts. Always use the values loaded from the live Plans table.",
@@ -1463,10 +1484,15 @@ Deno.serve(async (req) => {
             "For washing, laundry, dry cleaning, subscription plans, garment limits, pricing, annual billing, and extra garments, use only the live database context supplied below. Do not rely on memory or invent missing details.",
             "Live active subscription plans (prices are Nigerian naira, already formatted from the database):\\n" + plansContext,
             "Live active pay-per-item garment/service prices (Nigerian naira):\\n" + itemPricesContext,
-            "When comparing or listing plans, include every active plan and accurately state its monthly price, monthly garment allowance, per-pickup garment cap, extra-garment fee, and annual discount exactly as supplied. Do not omit plans. If the list is too long, split it across concise messages rather than truncate or omit a plan.",
+             "Live instant-service pricing and availability settings (Nigerian naira):\\n" + instantPricingContext,
+             "Use the live instant-service settings above for instant fees. The instant fee is separate from the normal garment-service price and depends on whether the customer selects dry clean or iron only.",
+             "The live item/service prices above come from item_service_prices() and include the database-calculated iron-only eligibility and price. Never calculate iron-only prices yourself.",
+             "Iron-only price calculations and eligibility come from the live database settings and item_service_prices() result. The displayed item prices are authoritative; never calculate or invent a different price.",
+             "Iron-only pricing configuration (live database settings):\\n" + ironOnlyPricingContext,
+             "When comparing or listing plans, include every active plan and accurately state its monthly price, monthly garment allowance, per-pickup garment cap and annual discount exactly as supplied. Never include an extra-garment fee or amount. If the list is too long, split it across concise messages rather than truncate or omit a plan.",
             "When explaining allowance, distinguish the monthly garment allowance from the per-pickup garment cap; they are separate limits and are not added together. Do not invent rollover rules or other subscription terms.",
-            "When a customer exceeds the allowance, explain that garments above the allowance are billed at the standard price of each item (the same prices as the item price list), not a flat plan rate. Do not calculate an account-specific bill unless the customer provides the count and the relevant plan is clear. Never imply extra garments are free.",
-            "If a customer asks about a garment's individual price, match it to the live item-price list. Respect descriptions for sets, pairs, and multi-piece items. If no exact match exists, ask a clarifying question or offer staff follow-up.",
+             "When a customer exceeds the allowance, explain that each additional garment is billed at its normal individual item price for the selected service. There is no flat subscription overage rate. Use the live item/service price list, not a legacy plan overage field. Do not calculate an account-specific bill unless the garment count and service are clear.",
+             "If a customer asks about a garment individual price, use the live database service-price list. State dry-clean and iron-only prices separately. If iron-only is unavailable for that item, say so. Respect descriptions for sets, pairs, and multi-piece items. If no exact match exists, ask a clarifying question or offer staff follow-up.",
             "Do not claim dry cleaning is included in a subscription unless the live plan data or an explicit policy confirms it. If the database does not distinguish washing from dry cleaning or does not state what is included, say the team must confirm before quoting.",
             "If live plans or item prices failed to load, do not quote remembered prices or allowances. Explain that you cannot verify the current details and offer staff follow-up.",
             "Currently active service areas:\\n" + compactCoverageContext,
