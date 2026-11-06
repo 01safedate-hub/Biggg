@@ -9,7 +9,7 @@ export default async function StaffLayout({children}:{children:React.ReactNode})
  if(washerOnly){work.push({href:"/staff/hub",label:"Wash queue",icon:"hub"});}
  if(roles.some(r=>["cashier","secretary","admin","super_admin"].includes(r)))work.push({href:"/staff/subscription-pickup-calls",label:"Subscription pickup calls",icon:"weekly"});
  if(roles.includes("secretary")||roles.includes("super_admin"))work.push({href:"/staff/expenses",label:"Record expense",icon:"record"});
- if(roles.some(r=>["secretary","admin","super_admin"].includes(r)))work.push({href:"/staff/agent-verification",label:"Verify agents",icon:"customers"});
+ if(roles.some(r=>["secretary","admin","super_admin"].includes(r)))work.push({href:"/staff/agent-verification",label:"Verify agents",icon:"customers"},{href:"/staff/support",label:"Support Centre",icon:"support"});
  if(roles.some(r=>["delivery_agent","commission_agent"].includes(r)))work.push({href:"/staff/jobs",label:"My jobs",icon:"jobs"});
  if(roles.some(r=>["delivery_agent","commission_agent","admin","super_admin"].includes(r)))work.push({href:"/staff/clients",label:"My clients",icon:"customers"},{href:"/staff/referrals",label:"Referrals",icon:"customers"});
  if(roles.some(r=>["delivery_agent","commission_agent"].includes(r)))work.push({href:"/staff/commissions",label:"My commissions",icon:"money"});
