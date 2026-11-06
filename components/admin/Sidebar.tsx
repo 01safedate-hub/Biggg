@@ -15,7 +15,7 @@ import {
 const ICONS: Record<string, LucideIcon> = {
   home: Home, overview: LayoutDashboard, money: Banknote, expenses: Receipt, costs: PiggyBank, staff: Users, settings: Settings,
   weekly: Target, points: Landmark, categories: Tags, prices: ListChecks, customers: UserCog, audit: FileClock, waitlist: MailPlus,
-  jobs: Truck, dispatch: Send, receiving: PackageCheck, hub: WashingMachine, orders: Workflow, count: Coins, spending: Wallet, record: ClipboardList, admin: Shield, pay: Gauge, reports: BarChart3,
+  jobs: Truck, dispatch: Send, receiving: PackageCheck, hub: WashingMachine, orders: Workflow, count: Coins, spending: Wallet, record: ClipboardList, admin: Shield, pay: Gauge, reports: BarChart3, support: MessageCircle,
 };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS | string; exact?: boolean };
