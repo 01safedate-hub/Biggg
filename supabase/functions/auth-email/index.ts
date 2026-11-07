@@ -65,6 +65,12 @@ function build(p: Payload): Mail[] | null {
     }
     case "invite": {
       const l = link(d.token_hash, "invite");
+      // Customers added by an agent or at the front desk return to /account; staff and agent invitations return to /welcome.
+      if (String(d.redirect_to ?? "").includes("next=/account")) {
+        return one(user.email, "Your LaundryPoint account is ready",
+          layout("Welcome to LaundryPoint", "A LaundryPoint team member has set up a customer account for you, so you can book pickups, track your laundry and pay online. Choose your password to start using it.", { label: "Choose my password", href: l }),
+          `Your LaundryPoint customer account is ready. Choose your password: ${l}`);
+      }
       return one(user.email, "You have been invited to LaundryPoint",
         layout("You are invited", "You have been invited to join the LaundryPoint team. Accept the invitation to choose your password and set up your account.", { label: "Accept invitation", href: l }),
         `Accept your LaundryPoint invitation: ${l}`);
