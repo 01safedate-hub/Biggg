@@ -45,7 +45,7 @@ export function LocationOnboarding() {
       : await supabase.from("addresses").insert({user_id:auth.data.user.id,...values});
     setBusy(false);
     if (saved.error) { setError("We could not save this address. Please check the address and try again."); return; }
-    router.push("/subscriptions"); router.refresh();
+    router.push("/dashboard"); router.refresh();
   }
 
   async function joinWaitlist() {

@@ -23,6 +23,7 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/orders", label: "Orders and timelines", icon: "orders" },
     { href: "/admin/agents", label: "Agent performance", icon: "jobs" },
     { href: "/admin/commissions", label: "Commissions and payouts", icon: "money" },
+    { href: "/admin/partner-requests", label: "Partner requests", icon: "customers" },
     { href: "/admin/agent-operations", label: "Agent custody and discipline", icon: "jobs" },
     { href: "/staff/dispatch", label: "Dispatch", icon: "dispatch" },
     { href: "/staff/receiving", label: "Receiving", icon: "receiving" },

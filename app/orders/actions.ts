@@ -86,7 +86,7 @@ export async function chooseFulfillment(
   choice: "collect" | "deliver",
   point: { lat: number; lng: number } | null,
   address: string,
-): Promise<R & { fareKobo?: number }> {
+): Promise<R & { fareKobo?: number; covered?: boolean; prepaidKobo?: number }> {
   const { supabase } = await requireUser(`/orders/${orderId}`);
   const { data, error } = await (supabase as any).rpc("choose_order_fulfillment", {
     _order: orderId,
@@ -100,10 +100,15 @@ export async function chooseFulfillment(
   revalidatePath("/orders");
   revalidatePath(`/staff/walkin/${orderId}`);
   revalidatePath("/staff/walkin");
+  revalidatePath("/staff/online");
+  revalidatePath("/staff/dispatch");
+  const d = (data ?? {}) as { fare_kobo?: number; covered?: boolean; prepaid_kobo?: number };
   return {
     ok: true,
     message: "",
-    fareKobo: Number((data as { fare_kobo?: number } | null)?.fare_kobo ?? 0),
+    fareKobo: Number(d.fare_kobo ?? 0),
+    covered: d.covered === true,
+    prepaidKobo: Number(d.prepaid_kobo ?? 0),
   };
 }
 

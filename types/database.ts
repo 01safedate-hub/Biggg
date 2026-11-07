@@ -1431,6 +1431,7 @@ export type Database = {
           delivery_fare_kobo: number
           demurrage_kobo: number
           discount_kobo: number
+          fulfillment_choice: string | null
           id: string
           instant: boolean
           instant_fee_kobo: number
@@ -1453,6 +1454,11 @@ export type Database = {
           pickup_lng: number | null
           promo_code_id: string | null
           ready_at: string | null
+          return_delivery_address: string | null
+          return_delivery_distance_km: number | null
+          return_delivery_lat: number | null
+          return_delivery_lng: number | null
+          return_prepaid_kobo: number
           scheduled_for: string | null
           source: string
           status: Database["public"]["Enums"]["order_status"]
@@ -1475,6 +1481,7 @@ export type Database = {
           delivery_fare_kobo?: number
           demurrage_kobo?: number
           discount_kobo?: number
+          fulfillment_choice?: string | null
           id?: string
           instant?: boolean
           instant_fee_kobo?: number
@@ -1497,6 +1504,11 @@ export type Database = {
           pickup_lng?: number | null
           promo_code_id?: string | null
           ready_at?: string | null
+          return_delivery_address?: string | null
+          return_delivery_distance_km?: number | null
+          return_delivery_lat?: number | null
+          return_delivery_lng?: number | null
+          return_prepaid_kobo?: number
           scheduled_for?: string | null
           source: string
           status?: Database["public"]["Enums"]["order_status"]
@@ -1519,6 +1531,7 @@ export type Database = {
           delivery_fare_kobo?: number
           demurrage_kobo?: number
           discount_kobo?: number
+          fulfillment_choice?: string | null
           id?: string
           instant?: boolean
           instant_fee_kobo?: number
@@ -1541,6 +1554,11 @@ export type Database = {
           pickup_lng?: number | null
           promo_code_id?: string | null
           ready_at?: string | null
+          return_delivery_address?: string | null
+          return_delivery_distance_km?: number | null
+          return_delivery_lat?: number | null
+          return_delivery_lng?: number | null
+          return_prepaid_kobo?: number
           scheduled_for?: string | null
           source?: string
           status?: Database["public"]["Enums"]["order_status"]
@@ -1706,6 +1724,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      partner_interest: {
+        Row: {
+          created_at: string
+          customer_id: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          message: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -2980,6 +3031,18 @@ export type Database = {
       }
     }
     Functions: {
+      partner_programme_terms: {
+        Args: never
+        Returns: Json
+      }
+      register_partner_interest: {
+        Args: { _message: string }
+        Returns: Json
+      }
+      set_partner_interest_status: {
+        Args: { _id: string; _status: string }
+        Returns: undefined
+      }
       check_agent_hub_arrival: { Args: { _lat: number; _lng: number }; Returns: Json }
       record_agent_nin_document_photo: { Args: { _photo_path: string; _user: string }; Returns: undefined }
       super_admin_agent_nin_document: { Args: { _user: string }; Returns: Json }

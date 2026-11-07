@@ -224,6 +224,40 @@ Deno.serve(async (req) => {
 
 
 
+      // Respect staff ownership before running any automated booking or AI workflow.
+      // An expired handoff resumes AI using the persisted conversation history below.
+      const { data: supportState, error: supportStateError } = await db
+        .from("whatsapp_support_conversations")
+        .select("mode,response_due_at")
+        .eq("phone", from)
+        .maybeSingle();
+      if (supportStateError) throw new Error("support_mode_lookup_failed");
+      if (supportState?.mode === "human") {
+        const expired = supportState.response_due_at
+          ? Date.parse(String(supportState.response_due_at)) <= Date.now()
+          : false;
+        if (expired) {
+          const { error: resumeError } = await db.from("whatsapp_support_conversations")
+            .update({ mode: "ai", assigned_to: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
+            .eq("phone", from).eq("mode", "human");
+          if (resumeError) throw new Error("support_timeout_resume_failed");
+        } else {
+          await db.from("whatsapp_support_conversations")
+            .update({ unread_at: receivedAt.toISOString(), updated_at: new Date().toISOString() })
+            .eq("phone", from);
+          await db.from("whatsapp_inbound_messages").update({
+            status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          }).eq("id", item.id);
+          processed++;
+          continue;
+        }
+      } else if (supportState?.mode === "resolved") {
+        const { error: reopenError } = await db.from("whatsapp_support_conversations")
+          .update({ mode: "ai", assigned_to: null, resolved_at: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
+          .eq("phone", from).eq("mode", "resolved");
+        if (reopenError) throw new Error("support_resolved_reopen_failed");
+      }
+
       async function getVerifiedSession() {
         const { data, error } = await db.from("whatsapp_account_verifications")
           .select("customer_id,verified_until")
@@ -470,7 +504,7 @@ Deno.serve(async (req) => {
         if (!fulfilment && fulfilmentIntent) {
           const requestedReadyOrder = body.match(/\b(?:order\s*#?\s*|#)(\d{1,10})\b/i);
           const { data: readyOrders, error: readyLookupError } = await db.from("orders")
-            .select("id,order_no,source,status,pickup_address,pickup_lat,pickup_lng,fulfillment_choice")
+            .select("id,order_no,source,status,pickup_address,pickup_lat,pickup_lng,fulfillment_choice,return_prepaid_kobo")
             .eq("customer_id", activeSession.customer_id)
             .in("status", ["ready","awaiting_delivery_fare"])
             .order("updated_at", { ascending: false }).limit(10);
@@ -479,7 +513,7 @@ Deno.serve(async (req) => {
           if (requestedReadyOrder) candidates = candidates.filter((o:any) => String(o.order_no) === requestedReadyOrder[1]);
           if (candidates.length === 1) {
             const o:any = candidates[0];
-            fulfilment = {customer_id:activeSession.customer_id,order_id:o.id,order_no:o.order_no,stage:"choice",saved_address:o.pickup_address,saved_lat:o.pickup_lat,saved_lng:o.pickup_lng};
+            fulfilment = {customer_id:activeSession.customer_id,order_id:o.id,order_no:o.order_no,stage:"choice",saved_address:o.pickup_address,saved_lat:o.pickup_lat,saved_lng:o.pickup_lng,prepaid_kobo:Number(o.return_prepaid_kobo??0)};
             await db.from("whatsapp_conversation_messages").insert({phone:from,direction:"outbound",body:"ORDER_READY_FULFILLMENT_PENDING:"+JSON.stringify(fulfilment),delivery_status:"internal"});
           } else if (candidates.length > 1 && requestedReadyOrder) {
             await sendFixedReply("I couldn't match that order number to a ready order on your account. Please check the number.");
@@ -509,9 +543,19 @@ Deno.serve(async (req) => {
               if(/delivery_location_not_served/i.test(reason)){await sendFixedReply("Sorry, delivery is not currently available at that location. You can still collect your clothes from the hub for free, or contact our team for help.");return;}
               throw new Error("return_delivery_quote_failed");
             }
-            const next={...fulfilment,stage:"confirm_payment",delivery_address:quote.address,delivery_lat:lat,delivery_lng:lng,fare_kobo:Number(quote.fare_kobo)};
+            const prepaid=Number(quote.prepaid_kobo??0);
+            if(quote.covered===true||Number(quote.fare_kobo)<=0) {
+              await closeState();
+              await sendFixedReply("All set! Your return delivery to "+quote.address+" was already paid when you booked Order #"+fulfilment.order_no+", so there is nothing more to pay.\n\nWe'll assign a rider and message you when they set off. Please do not pay cash to anyone.");
+              return;
+            }
+            const next={...fulfilment,stage:"confirm_payment",delivery_address:quote.address,delivery_lat:lat,delivery_lng:lng,fare_kobo:Number(quote.fare_kobo),prepaid_kobo:prepaid};
             await saveState(next);
-            await sendFixedReply("Delivery address: "+quote.address+"\nDelivery fee: "+naira(Number(quote.fare_kobo))+"\n\nWould you like to proceed with secure payment? Reply YES to pay, NO to change the address, or COLLECT to pick up free.");
+            if(prepaid>0) {
+              await sendFixedReply("Delivery address: "+quote.address+"\nReturn delivery paid at booking: "+naira(prepaid)+"\nExtra for this further address: "+naira(Number(quote.fare_kobo))+"\n\nReply YES to pay only the extra, NO to choose a different address, or COLLECT to pick up from the hub.");
+            } else {
+              await sendFixedReply("Delivery address: "+quote.address+"\nDelivery fee: "+naira(Number(quote.fare_kobo))+"\n\nWould you like to proceed with secure payment? Reply YES to pay, NO to change the address, or COLLECT to pick up free.");
+            }
           };
           if(wantsCollect && ["choice","address_choice","new_location","new_address_text","confirm_payment"].includes(String(fulfilment.stage))) {
             const {data:result,error}=await db.rpc("whatsapp_choose_collection_for_customer",{_customer:activeSession.customer_id,_order:fulfilment.order_id});
@@ -519,7 +563,7 @@ Deno.serve(async (req) => {
             await closeState();
             const hubDetails = result.hub_note ? String(result.hub_note) : "The designated collection area is "+String(result.hub_name)+", based on your order coverage zone. The exact street address is not yet listed in our hub directory, so please contact LaundryPoint support before travelling.";
             const lineBreak = String.fromCharCode(10);
-            await sendFixedReply("Confirmed! Order #"+result.order_no+" is set for hub collection. Collection is FREE — no delivery fee is payable."+lineBreak+lineBreak+"Your designated LaundryPoint collection hub/coverage area: "+String(result.hub_name)+"."+lineBreak+hubDetails+lineBreak+lineBreak+"Please tell the hub staff your order number.");
+            await sendFixedReply("Confirmed! Order #"+result.order_no+" is set for hub collection. Collection is FREE — no delivery fee is payable."+(Number(fulfilment.prepaid_kobo??0)>0?" The return fare paid at booking is not refunded.":"")+lineBreak+lineBreak+"Your designated LaundryPoint collection hub/coverage area: "+String(result.hub_name)+"."+lineBreak+hubDetails+lineBreak+lineBreak+"Please tell the hub staff your order number.");
             continue;
           }
           if(fulfilment.stage==="choice") {
@@ -529,7 +573,7 @@ Deno.serve(async (req) => {
               await closeState();
               const hubDetails = result.hub_note ? String(result.hub_note) : "The designated collection area is "+String(result.hub_name)+", based on your order coverage zone. The exact street address is not yet listed in our hub directory, so please contact LaundryPoint support before travelling.";
             const lineBreak = String.fromCharCode(10);
-            await sendFixedReply("Confirmed! Order #"+result.order_no+" is set for hub collection. Collection is FREE — no delivery fee is payable."+lineBreak+lineBreak+"Your designated LaundryPoint collection hub/coverage area: "+String(result.hub_name)+"."+lineBreak+hubDetails+lineBreak+lineBreak+"Please tell the hub staff your order number.");
+            await sendFixedReply("Confirmed! Order #"+result.order_no+" is set for hub collection. Collection is FREE — no delivery fee is payable."+(Number(fulfilment.prepaid_kobo??0)>0?" The return fare paid at booking is not refunded.":"")+lineBreak+lineBreak+"Your designated LaundryPoint collection hub/coverage area: "+String(result.hub_name)+"."+lineBreak+hubDetails+lineBreak+lineBreak+"Please tell the hub staff your order number.");
               continue;
             }
             if(wantsDeliver) {
@@ -542,7 +586,9 @@ Deno.serve(async (req) => {
               }
               continue;
             }
-            await sendFixedReply("Please choose how to receive Order #"+fulfilment.order_no+":\n1. Collect from the hub — FREE\n2. Deliver to an address — delivery fee applies.\nReply 1 or 2.");
+            await sendFixedReply(Number(fulfilment.prepaid_kobo??0)>0
+              ? "Please choose how to receive Order #"+fulfilment.order_no+":\n1. Collect from the hub (the return fare you prepaid is not refunded)\n2. Deliver to me — already paid when you booked.\nReply 1 or 2."
+              : "Please choose how to receive Order #"+fulfilment.order_no+":\n1. Collect from the hub — FREE\n2. Deliver to an address — delivery fee applies.\nReply 1 or 2.");
             continue;
           }
           if(fulfilment.stage==="address_choice") {
@@ -610,7 +656,7 @@ Deno.serve(async (req) => {
               await sendFixedReply("Please share the new delivery location pin.\n\nHow to share your location on WhatsApp:\n\n1. Android: tap the paperclip 📎 beside the message box.\n2. iPhone: tap the + beside the message box.\n3. Choose Location.\n4. Tap Send your current location.\n\nChoose Send your current location, not Share live location. LaundryPoint only needs a one-time pin, not live tracking. If the pin is not exactly where you are, move the map to the correct spot and send that pin.\n\nThen type the full address.");
               continue;
             }
-            await sendFixedReply("The delivery fee is "+naira(Number(fulfilment.fare_kobo))+". Reply YES to receive a secure payment link, NO to change the address, or COLLECT for free hub collection.");
+            await sendFixedReply((Number(fulfilment.prepaid_kobo??0)>0?"The extra to pay for this address is ":"The delivery fee is ")+naira(Number(fulfilment.fare_kobo))+". Reply YES to receive a secure payment link, NO to change the address, or COLLECT for free hub collection.");
             continue;
           }
         }
@@ -1387,6 +1433,13 @@ Deno.serve(async (req) => {
           status: "open",
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
+        const handoffAt = new Date().toISOString();
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
+          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+          response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
+        }, { onConflict: "phone" });
+        if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
         handedOff++;
         if (withinCustomerCareWindow && waToken && phoneNumberId) {
           const handoffReply = "Thanks for letting us know. I've flagged this for our team to review. A staff member will follow up as soon as possible.";
@@ -1519,6 +1572,13 @@ Deno.serve(async (req) => {
           reason: "assistant_could_not_safely_resolve", message_text: body.slice(0, 2000), status: "open",
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
+        const handoffAt = new Date().toISOString();
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
+          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+          response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
+        }, { onConflict: "phone" });
+        if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
       }
       const providerMessageId = await sendWhatsApp(from, answer, waToken, phoneNumberId);
       await recordConversationMessage(db, { phone: from, direction: "outbound", body: answer, providerMessageId, deliveryStatus: "sent" });

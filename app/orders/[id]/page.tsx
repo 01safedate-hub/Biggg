@@ -70,7 +70,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
       <div className="container-page mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
       {(LIVE.includes(o.status) || confirming) && <AutoRefresh seconds={5} />}
       <Link href="/orders" className="text-sm font-medium text-ink-soft hover:text-ink">&larr; My orders</Link>
-      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{agentAtDoor ? "Agent at your door — confirm the pickup code" : o.status === "awaiting_delivery_fare" ? "Clothes ready · delivery payment pending" : STATUS_LABEL[o.status] ?? o.status}</p></div>
+      <div><h1 className="text-3xl font-bold tracking-tight">Order #{o.order_no}</h1><p className="mt-1 text-ink-soft">{agentAtDoor ? "Agent at your door — confirm the pickup code" : o.status === "awaiting_delivery_fare" ? (o.source === "one_time" && Number(o.return_prepaid_kobo ?? 0) > 0 ? "Clothes ready · extra for new address pending" : "Clothes ready · delivery payment pending") : STATUS_LABEL[o.status] ?? o.status}</p></div>
       {showNotice && <NoCashNotice subscription={o.source === "subscription"} />}
 
       <ol className="grid grid-cols-4 gap-2 text-center text-xs sm:grid-cols-8" aria-label="Progress">
@@ -173,6 +173,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           status={o.status}
           choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
           deliveryPaid={Boolean(deliveryPayment)}
+          prepaidKobo={o.source === "one_time" ? Number(o.return_prepaid_kobo ?? 0) : 0}
         />
       )}
       {o.status === "ready" && o.source === "subscription" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">Your clothes are ready</h2><p className="text-sm text-ink-soft">Delivery is included in your monthly plan for covered garments. We are arranging your return delivery.</p></section>}
@@ -186,6 +187,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           status={o.status}
           choice={(o as typeof o & { fulfillment_choice?: string | null }).fulfillment_choice ?? null}
           deliveryPaid={Boolean(deliveryPayment)}
+          prepaidKobo={o.source === "one_time" ? Number(o.return_prepaid_kobo ?? 0) : 0}
         />
       )}
       {o.status === "out_for_delivery" && (

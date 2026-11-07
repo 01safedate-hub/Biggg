@@ -14,7 +14,7 @@ const GROUPS: NavGroup[] = [
     PLAN_ITEM,
     { href: "/request", label: "Book a pickup", icon: "dispatch", exact: true },
     { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
-    { href: "/account", label: "My account", icon: "settings", exact: true },
+    { href: "/account", label: "Settings", icon: "settings", exact: true },
   ] },
 ];
 
@@ -50,7 +50,7 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         hasActiveSubscription ? MANAGE_ITEM : PLAN_ITEM,
         { href: "/request", label: "Book a pickup", icon: "dispatch", exact: true },
         { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
-        { href: "/account", label: "My account", icon: "settings", exact: true },
+        { href: "/account", label: "Settings", icon: "settings", exact: true },
       ] }];
   return <Sidebar title="Customer" name={name} groups={groups} showNotifications={false} />;
 }

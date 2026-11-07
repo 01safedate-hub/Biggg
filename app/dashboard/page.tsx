@@ -5,11 +5,13 @@ import { requireUser } from "@/lib/roles";
 export const metadata = { title: "Customer dashboard" };
 export const dynamic = "force-dynamic";
 
-export default async function CustomerDashboardPage() {
+export default async function CustomerDashboardPage({ searchParams }: { searchParams: Promise<{ welcome?: string }> }) {
+  const { welcome } = await searchParams;
   const { supabase, user } = await requireUser("/dashboard");
-  const [{ count: orderCount }, { data: subscription }] = await Promise.all([
+  const [{ count: orderCount }, { data: subscription }, { count: addressCount }] = await Promise.all([
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("customer_id", user.id),
     supabase.from("subscriptions").select("id,status,current_period_end").eq("customer_id", user.id).in("status", ["active", "pending"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
   ]);
 
   const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Customer";
@@ -18,13 +20,24 @@ export default async function CustomerDashboardPage() {
     { number: "02", title: "Book a pickup", description: "Schedule a collection that fits your day.", href: "/request", label: "Schedule pickup" },
     { number: "03", title: "Monthly plans", description: "Review your allowance and manage your plan.", href: subscription?.status === "active" ? "/subscriptions/manage" : "/subscriptions", label: subscription?.status === "active" ? "Manage subscription" : "Choose a plan" },
     { number: "04", title: "Extra-clothes bills", description: "See additional pieces and pay outstanding bills online.", href: "/account/extra-clothes", label: "View bills" },
-    { number: "05", title: "My account", description: "Update your profile and collection address.", href: "/account", label: "Account settings" },
+    { number: "05", title: "Settings", description: "Profile, password and email, order history, and partnering with us.", href: "/account", label: "Open settings" },
   ];
 
   return (
     <main id="main" className="min-h-screen w-full bg-canvas">
       <CustomerSidebar name={displayName} />
       <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+        {welcome === "1" && (
+          <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+            <strong>Welcome to LaundryPoint, {displayName}!</strong> Your account is ready. Book a pickup whenever you like, or look around first.
+          </p>
+        )}
+        {!addressCount && (
+          <section aria-label="Pickup location" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4 text-sm shadow-sm">
+            <p className="text-ink-soft"><strong className="text-ink">Add your pickup location</strong> so we can check we cover your area and fill it in for you when you book.</p>
+            <Link href="/onboarding/location" className="btn-secondary">Add location</Link>
+          </section>
+        )}
         <section aria-label="Account overview" className="grid gap-4 md:grid-cols-2">
           <article className="relative overflow-hidden rounded-2xl border border-line bg-white p-6 shadow-sm sm:p-7">
             <div className="flex items-start justify-between gap-4">
