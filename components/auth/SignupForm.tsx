@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cleanPhone, isPwnedPassword, MIN_PASSWORD, passwordProblem, PWNED_MESSAGE } from "@/lib/auth";
 import { Field, FormMessage } from "./AuthShell";
 
 export function SignupForm() {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export function SignupForm() {
     const { data, error: err } = await createClient().auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/account`, data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false", whatsapp_opt_in: whatsappOptIn } },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/dashboard`, data: { full_name: fullName, phone, marketing_opt_in: f.get("offers") === "on" ? "true" : "false", whatsapp_opt_in: whatsappOptIn } },
     });
     setBusy(false);
     if (err) return setError(err.message.toLowerCase().includes("rate") ? "Too many attempts. Please wait a few minutes and try again." : err.message);
@@ -39,6 +41,13 @@ export function SignupForm() {
     if (data.user && data.user.identities && data.user.identities.length === 0) {
       return setError("An account with this email may already exist. Try signing in, or reset your password.");
     }
+    // Accounts are confirmed automatically, so a session comes back straight away: go to the dashboard.
+    if (data.session) {
+      router.replace("/dashboard?welcome=1");
+      router.refresh();
+      return;
+    }
+    // Only if email confirmation is ever switched back on in Supabase.
     setSentTo(email);
   }
 

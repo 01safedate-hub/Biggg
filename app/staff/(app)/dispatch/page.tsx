@@ -5,6 +5,7 @@ import { AssignForm, CancelPaidForm, RedispatchButton } from "@/components/ops/D
 import { LogContactForm } from "@/components/ops/DeskFollowUps";
 import { mapsLink } from "@/lib/orders";
 import { naira } from "@/lib/format";
+import { prepaidReturnCovers } from "@/lib/online-orders";
 
 export const metadata = { title: "Dispatch" };
 
@@ -13,7 +14,7 @@ export default async function DispatchPage() {
   const [{ data: orders }, { data: ag }, { data: back }, { data: cb }, { data: readyReturnRows }] = await Promise.all([
     supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,zone_id,pickup_agent_id,scheduled_for,customer_id,created_at,pickup_fare_kobo,updated_at").in("status", ["awaiting_dispatch", "agent_assigned"]).order("created_at"),
     supabase.rpc("list_agents"),
-    supabase.from("orders").select("id,order_no,status,pickup_address,pickup_lat,pickup_lng,delivery_agent_id,customer_id,updated_at,instant,instant_target_at,instant_promise_at").in("status", ["out_for_delivery", "failed_delivery"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at"),
+    supabase.from("orders").select("id,order_no,status,source,pickup_address,pickup_lat,pickup_lng,return_delivery_address,return_delivery_lat,return_delivery_lng,delivery_agent_id,customer_id,updated_at,instant,instant_target_at,instant_promise_at").in("status", ["out_for_delivery", "failed_delivery"]).order("instant", { ascending: false }).order("instant_target_at", { ascending: true, nullsFirst: false }).order("updated_at"),
     supabase.rpc("callbacks_queue"),
     supabase.from("orders").select("*").eq("source", "one_time").eq("status", "ready"),
   ]);
@@ -25,7 +26,8 @@ export default async function DispatchPage() {
     ? await supabase.from("payments").select("order_id").in("order_id", readyReturnCandidates.map((row) => row.id)).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success")
     : { data: [] };
   const paidReadyReturnIds = new Set((readyReturnPayments ?? []).map((payment) => payment.order_id));
-  const paidReadyReturns = readyReturnCandidates.filter((row) => paidReadyReturnIds.has(row.id));
+  // Online orders whose return was paid at booking need no second payment.
+  const paidReadyReturns = readyReturnCandidates.filter((row) => paidReadyReturnIds.has(row.id) || prepaidReturnCovers(row as typeof row & { fulfillment_choice?: string | null; return_prepaid_kobo?: number | null }));
   const callbacks = (Array.isArray(cb) ? cb : []) as unknown as CB[];
   const mustCall = new Set(callbacks.filter((c) => c.needs_call).map((c) => c.order_id));
   const OUTCOME: Record<string, string> = { reached: "Spoke to customer", rescheduled: "New time agreed", no_answer: "No answer", wrong_number: "Wrong number" };
@@ -82,7 +84,7 @@ export default async function DispatchPage() {
       </section>
       {paidReadyReturns.length > 0 && (
         <section className="space-y-3">
-          <div><h2 className="text-xl font-bold tracking-tight">Return deliveries ready for assignment</h2><p className="mt-1 text-sm text-ink-soft">These one-time orders remain marked Ready after delivery payment so the laundry timeline does not reset. Assigning an agent moves them into the active delivery queue.</p></div>
+          <div><h2 className="text-xl font-bold tracking-tight">Online returns ready for a rider</h2><p className="mt-1 text-sm text-ink-soft">Online orders washed and ready. The return trip is already paid, so never ask the customer for a delivery fee. Assigning a rider moves them into the delivery queue below.</p></div>
           {paidReadyReturns.map((o) => {
             const row = o as typeof o & { return_delivery_address?: string | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null; delivery_agent_id?: string | null; fulfillment_choice?: string | null };
             const customer = who.get(o.customer_id);
@@ -90,19 +92,19 @@ export default async function DispatchPage() {
             return <article key={o.id} className="card space-y-3 p-4">
               <p className="font-semibold">Order #{o.order_no} · {customer?.full_name}</p>
               <p className="text-sm text-ink-soft">{row.return_delivery_address ?? "No return address"} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={customer?.phone} /></p>
-              <p className="text-xs font-semibold text-brand-dark">Delivery fee paid · Needs an agent</p>
+              <p className="text-xs font-semibold text-brand-dark">{paidReadyReturnIds.has(o.id) ? "Extra delivery fee paid online" : "Return paid at booking"} · Needs a rider</p>
               <AssignForm orderId={o.id} agents={agentsWithStations.map((a) => ({ ...a, name: a.station_name ? `${a.name} · ${a.station_name}` : a.name }))} current={row.delivery_agent_id ?? null} kind="delivery" />
             </article>;
           })}
         </section>
       )}
-      <div><h2 className="text-xl font-bold tracking-tight">Deliveries</h2><p className="mt-1 text-sm text-ink-soft">Clean clothes going back to customers. The customer has paid the delivery fare before they appear here.</p></div>
+      <div><h2 className="text-xl font-bold tracking-tight">Deliveries</h2><p className="mt-1 text-sm text-ink-soft">Clean clothes going back to customers. Their return trip is already paid before they appear here.</p></div>
       <section className="space-y-3">
         {(back ?? []).map((o) => {
-          const c = who.get(o.customer_id); const map = mapsLink(o.pickup_lat, o.pickup_lng);
+          const c = who.get(o.customer_id); const map = mapsLink(o.return_delivery_lat ?? o.pickup_lat, o.return_delivery_lng ?? o.pickup_lng);
           return (
             <article key={o.id} className="card space-y-3 p-4">
-              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={c?.phone} /></p></div>
+              <div className="flex flex-wrap justify-between gap-2"><div><p className="font-semibold">Order #{o.order_no} · {c?.full_name} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{o.return_delivery_address ?? o.pickup_address} {map && <a className="underline" target="_blank" rel="noopener noreferrer" href={map}>map</a>} <PhoneActions phone={c?.phone} /></p></div>
                 <div className="text-right"><p className={`text-xs font-semibold ${o.status === "failed_delivery" ? "text-red-700" : "text-brand-dark"}`}>{o.status === "failed_delivery" ? "Delivery failed" : o.delivery_agent_id ? `With ${name.get(o.delivery_agent_id) ?? "agent"}` : "Needs an agent"}</p><p className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${o.status !== "failed_delivery" && late(o.updated_at, o.delivery_agent_id ? 90 : 20) ? "bg-red-100 text-red-800" : "bg-slate-100 text-ink-soft"}`}>Waiting {waited(o.updated_at)}</p></div></div>
               {o.status === "failed_delivery" && (() => { const d = dcase.get(o.id); return d ? <p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Storage fee: {d.status === "accruing" ? `running, ${naira(d.accrued_kobo)} so far` : d.status === "paid" ? "paid" : d.status === "waived" ? "waived" : `free until ${new Date(d.grace_ends_at).toLocaleString("en-NG", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}`}. The customer pays it on their order page.</p> : null; })()}
               {o.status === "failed_delivery" ? mustCall.has(o.id) ? <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">Call the customer first (see Calls to make above).</p> : <RedispatchButton orderId={o.id} /> : <AssignForm orderId={o.id} agents={agentsWithStations.map((a) => ({ ...a, name: a.station_name ? `${a.name} · ${a.station_name}` : a.name }))} current={o.delivery_agent_id} kind="delivery" />}

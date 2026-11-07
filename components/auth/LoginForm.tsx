@@ -45,10 +45,7 @@ export function LoginForm({ next }: { next: string }) {
       return;
     }
 
-    const [{ data: roleRows, error: rolesError }, { count: addressCount, error: addressError }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", user.id),
-      supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    ]);
+    const { data: roleRows, error: rolesError } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
     const roles = (roleRows ?? []).map((r) => r.role);
     const isSuperAdmin = roles.includes("super_admin");
     const isStaff = roles.some((role) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(role));
@@ -72,11 +69,11 @@ export function LoginForm({ next }: { next: string }) {
     }
 
     // Fail closed if roles cannot be checked; never guess that a staff account is a customer.
-    if (rolesError || addressError) {
+    if (rolesError) {
       setError("We couldn't verify your account routing. Please try again.");
       return;
     }
-    router.replace(addressCount === 0 ? "/onboarding/location" : "/dashboard");
+    router.replace("/dashboard");
     router.refresh();
     return;
     router.replace(destination);

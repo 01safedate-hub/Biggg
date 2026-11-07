@@ -52,18 +52,14 @@ export async function updateSession(request: NextRequest) {
         if (isStaff) {
           destination.pathname = "/staff";
         } else {
-          const { count: addressCount, error: addressError } = await supabase
-            .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-          destination.pathname = addressError ? "/dashboard" : addressCount === 0 ? "/onboarding/location" : "/dashboard";
+          destination.pathname = "/dashboard";
         }
         destination.search = "";
         return NextResponse.redirect(destination);
       }
     } else if (!isStaff) {
       const destination = request.nextUrl.clone();
-      const { count: addressCount, error: addressError } = await supabase
-        .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-      destination.pathname = addressError ? "/dashboard" : addressCount === 0 ? "/onboarding/location" : "/dashboard";
+      destination.pathname = "/dashboard";
       destination.search = "";
       return NextResponse.redirect(destination);
     }
@@ -109,19 +105,6 @@ export async function updateSession(request: NextRequest) {
         }
       }
       if (destination.pathname !== "/account/security") destination.search = "";
-      return NextResponse.redirect(destination);
-    }
-  }
-
-  // Direct visits to the generic account landing follow the same new/returning
-  // customer rule as a successful login.
-  if (path === "/account") {
-    const { count: addressCount, error: addressError } = await supabase
-      .from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id);
-    if (!addressError) {
-      const destination = request.nextUrl.clone();
-      destination.pathname = addressCount === 0 ? "/onboarding/location" : "/dashboard";
-      destination.search = "";
       return NextResponse.redirect(destination);
     }
   }

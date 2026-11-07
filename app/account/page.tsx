@@ -5,8 +5,9 @@ import { ProfileForm } from "@/components/account/ProfileForm";
 import { OffersToggle } from "@/components/account/OffersToggle";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { redirect } from "next/navigation";
+import { SettingsTabs } from "@/components/account/SettingsTabs";
 
-export const metadata = { title: "My account" };
+export const metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -33,18 +34,13 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const isStaff = keys.some((k) => ["super_admin", "admin", "secretary", "cashier", "delivery_agent"].includes(k));
   // Customer account data is not a staff landing page. Route staff through their own portal.
   if (isStaff) redirect(keys.includes("super_admin") ? "/admin" : "/staff");
-  const [{ count: addressCount }, { data: activeSubscription }] = await Promise.all([
-    supabase.from("addresses").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("subscriptions").select("id").eq("customer_id", user.id).eq("status", "active").lte("current_period_start", new Date().toISOString()).gt("current_period_end", new Date().toISOString()).limit(1).maybeSingle(),
-  ]);
-  if (!addressCount) redirect("/onboarding/location");
-  if (!activeSubscription) redirect("/subscriptions");
+  const { data: address } = await supabase.from("addresses").select("formatted_address,label").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
 
   return (
     <main id="main" className="min-h-screen w-full">
       <CustomerSidebar name={profile?.full_name || profile?.email || user.email || "Customer"} />
       <div className="container-page mx-auto max-w-3xl py-4 sm:py-6">
-      <h1 className="text-3xl font-bold tracking-tight">My account</h1>
+      <SettingsTabs current="/account" />
       {notice && NOTICE[notice] && <div className="mt-4"><FormMessage kind="info">{NOTICE[notice]}</FormMessage></div>}
       <div className="card mt-8 divide-y divide-line">
         {[
@@ -63,14 +59,15 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       </div>
       <section className="card mt-8 p-6 space-y-3">
         <h2 className="text-lg font-semibold">Pickup location</h2>
+        <p className="text-sm">{address ? <>Saved: <strong>{address.formatted_address || address.label}</strong></> : "No location saved yet."}</p>
         <p className="text-sm text-ink-soft">Moved or need to change your collection address? Check service coverage and save your updated location.</p>
-        <Link href="/onboarding/location" className="btn-secondary inline-block">Update my location</Link>
+        <Link href="/onboarding/location" className="btn-secondary inline-block">{address ? "Update my location" : "Add my location"}</Link>
       </section>
       <section className="card mt-8 p-6">
         <h2 className="mb-4 text-lg font-semibold">Your details</h2>
         <ProfileForm name={profile?.full_name ?? ""} phone={profile?.phone ?? ""} />
         <div className="mt-5 border-t border-line pt-5"><OffersToggle initial={profile?.marketing_opt_in ?? false} /></div>
-        <p className="mt-4 text-sm"><Link href="/account/security" className="font-medium text-brand-dark hover:underline">Change password or email</Link></p>
+
       </section>
       </div>
     </main>

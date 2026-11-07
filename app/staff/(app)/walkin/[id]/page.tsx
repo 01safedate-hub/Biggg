@@ -10,6 +10,7 @@ import { AssignForm } from "@/components/ops/DeskTools";
 import { PrintButton } from "@/components/orders/PrintButton";
 import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { lineKey } from "@/lib/services";
+import { prepaidReturnCovers } from "@/lib/online-orders";
 
 export const metadata = { title: "Walk-in order" };
 export const dynamic = "force-dynamic";
@@ -33,7 +34,10 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
   const returnRow = o as typeof o & { return_delivery_address?: string | null; return_delivery_distance_km?: number | null; return_delivery_lat?: number | null; return_delivery_lng?: number | null };
   const returnDestination = returnRow.return_delivery_address ?? null;
   const { data: returnFeePayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
-  const returnDeliveryReady = o.source === "one_time" && o.status === "ready" && fulfillmentChoice === "deliver" && Boolean(returnFeePayment);
+  const isOnline = o.source === "one_time";
+  const prepaidKobo = Number((o as typeof o & { return_prepaid_kobo?: number | null }).return_prepaid_kobo ?? 0);
+  const returnCovered = isOnline && (Boolean(returnFeePayment) || prepaidReturnCovers({ ...o, fulfillment_choice: fulfillmentChoice ?? null, return_prepaid_kobo: prepaidKobo }));
+  const returnDeliveryReady = isOnline && o.status === "ready" && fulfillmentChoice === "deliver" && returnCovered;
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }, { data: pts }, { data: pay }, { data: related }, { data: icfg }, { data: stainRows }, { data: agentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo,service").eq("order_id", id).is("removed_at", null),
@@ -107,7 +111,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           {fulfillmentChoice === "collect" ? (
             <><p className="font-medium text-emerald-700">Collection requested by customer</p><p className="text-sm text-ink-soft">No delivery fee is due. Keep this order at the hub and confirm handover after the customer collects the clothes.</p></>
           ) : fulfillmentChoice === "deliver" ? (
-            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Return address: {returnDestination || "Not provided"}</p><p className="text-sm">Return distance: {(o as typeof o & { return_delivery_distance_km?: number | null }).return_delivery_distance_km ?? "—"} km · Delivery fare: {naira(o.delivery_fare_kobo ?? 0)} · {returnFeePayment ? "PAID" : "PAYMENT PENDING"}</p></>
+            <><p className="font-medium text-brand-dark">Delivery requested by customer</p><p className="text-sm text-ink-soft">Use the saved delivery address and latest fare below. Do not hand over as a collection unless the customer changes their choice.</p><p className="text-sm">Return address: {returnDestination || "Not provided"}</p><p className="text-sm">Return distance: {(o as typeof o & { return_delivery_distance_km?: number | null }).return_delivery_distance_km ?? "—"} km · {prepaidKobo > 0 ? <>Return paid at booking: {naira(prepaidKobo)}{Number(o.delivery_fare_kobo ?? 0) > 0 ? <> · Extra for further address: {naira(o.delivery_fare_kobo ?? 0)} {returnFeePayment ? "(PAID)" : "(waiting for customer)"}</> : " · Nothing more to pay"}</> : <>Delivery fare: {naira(o.delivery_fare_kobo ?? 0)} · {returnFeePayment ? "PAID" : "PAYMENT PENDING"}</>}</p></>
           ) : (
             <p className="text-sm text-ink-soft">The customer has not saved a collection or delivery choice yet. Contact them before arranging fulfillment.</p>
           )}
@@ -121,23 +125,33 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
           {fulfillmentChoice !== "deliver" && <WalkinActions orderId={id} kind="handover" />}
           {!onPlan && <div className="border-t border-line pt-4">{returnDeliveryReady ? (
             <div className="space-y-3">
-              <p className="font-medium text-emerald-700">Delivery fee paid. Assign a delivery agent.</p>
+              <p className="font-medium text-emerald-700">{returnFeePayment ? "Delivery fee paid." : "Return paid at booking."} Assign a delivery agent.</p>
               <p className="text-sm text-ink-soft">Deliver to: {returnDestination || "Customer delivery address not found"}</p>
               <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
             </div>
           ) : fulfillmentChoice === "deliver" ? (
             <p className="text-sm text-ink-soft">Delivery is selected. Waiting for the customer to pay the delivery fee before an agent can be assigned.</p>
+          ) : isOnline ? (
+            <p className="text-sm text-ink-soft">Online order: the customer chooses delivery or collection on their order page or on WhatsApp. {prepaidKobo > 0 ? "Their return trip is already paid, so do not ask them for a delivery fee." : ""}</p>
           ) : (
             <DeliveryPanel orderId={id} customerId={o.customer_id} status="ready" address={o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={o.pickup_lat} pickupLng={o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} />
           )}</div>}
         </section>
       )}
-      {o.status === "awaiting_delivery_fare" && (
+      {o.status === "awaiting_delivery_fare" && isOnline && (
+        <section className="card space-y-2 p-5 print:hidden">
+          <h2 className="text-lg font-semibold">Waiting for the extra delivery payment</h2>
+          <p className="text-sm text-ink-soft">Customer destination: {returnDestination || "Not provided"}</p>
+          <p className="text-sm">{prepaidKobo > 0 ? `Return paid at booking: ${naira(prepaidKobo)}. ` : ""}Still to pay online: <strong>{naira(o.delivery_fare_kobo ?? 0)}</strong></p>
+          <p className="rounded-md bg-amber-50 p-2 text-sm text-amber-950">This is an online order. The customer pays from their order page or WhatsApp; desk payments are only for walk-in orders. Do not collect cash.</p>
+        </section>
+      )}
+      {o.status === "awaiting_delivery_fare" && !isOnline && (
         <section className="card space-y-3 p-5 print:hidden"><h2 className="text-lg font-semibold">Waiting for the delivery fee</h2><p className="text-sm text-ink-soft">Customer destination: {returnDestination || "Not provided"} · {naira(o.delivery_fare_kobo ?? 0)}</p><DeliveryPanel orderId={id} customerId={o.customer_id} status="awaiting_delivery_fare" address={returnDestination ?? o.pickup_address} fareKobo={o.delivery_fare_kobo ?? 0} hasAccount={!cust?.is_walk_in} pickupLat={returnRow.return_delivery_lat ?? o.pickup_lat} pickupLng={returnRow.return_delivery_lng ?? o.pickup_lng} points={(pts ?? []).map((p) => ({ id: p.id, name: p.name }))} /></section>
       )}
       {o.status === "out_for_delivery" && (
         <section className="card space-y-3 p-5 print:hidden">
-          <h2 className="text-lg font-semibold">Delivery fee paid: assign a rider</h2>
+          <h2 className="text-lg font-semibold">{isOnline && !returnFeePayment ? "Return paid at booking" : "Delivery fee paid"}: assign a rider</h2>
           <p className="text-sm text-ink-soft">Deliver to: {returnDestination ?? o.pickup_address}</p>
           <AssignForm orderId={id} agents={agents} current={o.delivery_agent_id} kind="delivery" />
         </section>
