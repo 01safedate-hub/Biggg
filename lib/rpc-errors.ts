@@ -137,6 +137,7 @@ const MESSAGES: Record<string, string> = {
   invalid_slots: "Check the slot settings: a window of 15 to 240 minutes, 1 to 30 days ahead, and a capacity of at least 1.",
   invalid_location: "That location looks wrong. Please try again.",
   basis_invalid: "Choose what you counted against.",
+  staff_station_required: "Your staff account has no hub station yet, so you cannot start walk-in orders. Ask a super admin to set your station under Admin → Staff.",
 };
 
 export function friendlyError(message: string | undefined): string {

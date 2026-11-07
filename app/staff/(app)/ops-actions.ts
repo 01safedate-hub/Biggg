@@ -377,7 +377,6 @@ export async function addClient(v: { name: string; email: string; phone: string 
     return { ok: false, message: friendlyError(String(code)) };
   }
   if (!(data as { ok?: boolean } | null)?.ok) return { ok: false, message: "Something went wrong. Please try again." };
-  revalidatePath("/staff/clients");
   revalidatePath("/staff/referrals");
   return { ok: true, message: "Added. We sent them an email to choose a password." };
 }

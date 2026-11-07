@@ -12,7 +12,7 @@ export default async function StaffLayout({children}:{children:React.ReactNode})
  if(roles.includes("secretary")||roles.includes("super_admin"))work.push({href:"/staff/expenses",label:"Record expense",icon:"record"});
  if(roles.some(r=>["secretary","admin","super_admin"].includes(r)))work.push({href:"/staff/agent-verification",label:"Verify agents",icon:"customers"});
  if(roles.some(r=>["delivery_agent","commission_agent"].includes(r)))work.push({href:"/staff/jobs",label:"My jobs",icon:"jobs"});
- if(roles.some(r=>["delivery_agent","commission_agent","admin","super_admin"].includes(r)))work.push({href:"/staff/clients",label:"My clients",icon:"customers"},{href:"/staff/referrals",label:"Referrals",icon:"customers"});
+ if(roles.some(r=>["delivery_agent","commission_agent","admin","super_admin"].includes(r)))work.push({href:"/staff/referrals",label:"Referrals",icon:"customers"});
  if(roles.some(r=>["delivery_agent","commission_agent"].includes(r)))work.push({href:"/staff/commissions",label:"My commissions",icon:"money"});
  if(roles.some(r=>["secretary","admin","super_admin"].includes(r))){work.push({href:"/staff/dispatch",label:"Dispatch",icon:"dispatch"},{href:"/staff/online",label:"Online orders",icon:"dispatch"},{href:"/staff/instant",label:"Instant orders",icon:"dispatch"},{href:"/staff/walkin",label:"Walk-in orders",icon:"customers"},{href:"/staff/receiving",label:"Receiving",icon:"receiving"},{href:"/staff/hub",label:"Wash queue",icon:"hub"},{href:"/staff/issues",label:"Customer problems",icon:"reports"},{href:"/staff/roster",label:"Shift roster",icon:"weekly"});}
  if(roles.some(r=>["admin","super_admin"].includes(r)))work.push({href:"/staff/speed",label:"Speed analytics",icon:"overview"});

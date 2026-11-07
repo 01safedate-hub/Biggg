@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata = { title: "Welcome to LaundryPoint", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-/** Where an invited team member lands after accepting the invitation, to choose a password. */
+/** Where invited staff, and customers added by an agent or at the desk, land after accepting the invitation to choose a password. */
 export default async function WelcomePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

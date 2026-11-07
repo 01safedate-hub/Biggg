@@ -31,8 +31,15 @@ export function ResetForm({ mode = "reset" }: { mode?: "reset" | "welcome" }) {
       return setError(err.message.toLowerCase().includes("different") ? "Choose a password you have not used before." : err.message);
     }
     await supabase.auth.signOut({ scope: "others" }); // anyone else signed in with the old password is signed out
+    let next = "/account?notice=password_changed";
+    if (mode === "welcome") {
+      // The same invitation page serves staff and customers (added by an agent or at the desk).
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: roles } = user ? await supabase.from("user_roles").select("role").eq("user_id", user.id) : { data: [] };
+      next = (roles ?? []).length > 0 ? "/staff/onboarding" : "/dashboard?welcome=1";
+    }
     setBusy(false);
-    router.replace(mode === "welcome" ? "/staff/onboarding" : "/account?notice=password_changed");
+    router.replace(next);
     router.refresh();
   }
 

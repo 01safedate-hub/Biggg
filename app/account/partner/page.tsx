@@ -7,8 +7,8 @@ import { PartnerInterestButton } from "@/components/account/PartnerInterestButto
 export const metadata = { title: "Partner with us" };
 export const dynamic = "force-dynamic";
 
-type Terms = { commission_pct: number; months: number; hold_hours: number; min_payout_kobo: number; min_first_order_kobo: number };
-const FALLBACK: Terms = { commission_pct: 10, months: 12, hold_hours: 48, min_payout_kobo: 100000, min_first_order_kobo: 200000 };
+type Terms = { commission_pct: number; months: number; hold_hours: number; min_payout_kobo: number; min_order_kobo: number };
+const FALLBACK: Terms = { commission_pct: 10, months: 12, hold_hours: 48, min_payout_kobo: 100000, min_order_kobo: 2000000 };
 
 /** Small inline illustrations, drawn in the brand colour, one per step. */
 function StepIcon({ kind }: { kind: "apply" | "hub" | "sign" | "share" | "earn" }) {
@@ -31,7 +31,7 @@ export default async function PartnerPage() {
   ]);
   const t = { ...FALLBACK, ...((termsRow ?? {}) as Partial<Terms>) };
   const pct = Number(t.commission_pct);
-  const exampleBill = 1000000; // ₦10,000 of laundry a month
+  const exampleBill = Math.max(2500000, Number(t.min_order_kobo)); // one qualifying order a month
   const exampleMonthly = Math.round(exampleBill * pct / 100);
   const requested = Boolean(request && ["new", "contacted", "invited"].includes(request.status));
 
@@ -40,7 +40,7 @@ export default async function PartnerPage() {
     { kind: "hub", title: "Visit the hub", body: "Bring a valid ID for a quick identity check, and we walk you through how LaundryPoint works: pickups, payments and customer care." },
     { kind: "sign", title: "Accept the agent terms", body: "Read and accept the commission agent terms in the app. Once approved, your agent account is switched on." },
     { kind: "share", title: "Bring in customers", body: "Invite people you know: neighbours, offices, hostels, shops. They sign up through your referral, so they're linked to you." },
-    { kind: "earn", title: "Earn on every paid order", body: `You earn ${pct}% of what your customers pay for laundry, on every paid and delivered order for ${t.months} months after they join.` },
+    { kind: "earn", title: "Earn on every paid order", body: `You earn ${pct}% of what your customers pay for laundry on every paid and delivered order of ${naira(t.min_order_kobo)} or more, for ${t.months} months after they join.` },
   ];
 
   return (
@@ -78,7 +78,7 @@ export default async function PartnerPage() {
 
         <section aria-labelledby="example-h" className="card space-y-3 p-5">
           <h2 id="example-h" className="text-lg font-semibold">An example</h2>
-          <p className="text-sm text-ink-soft">You bring in 10 customers. Each spends about {naira(exampleBill)} on laundry a month.</p>
+          <p className="text-sm text-ink-soft">You bring in 10 customers. Each places one {naira(exampleBill)} laundry order a month.</p>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-canvas p-4 text-sm"><span className="block text-ink-soft">Per customer, per month</span><strong className="text-xl">{naira(exampleMonthly)}</strong></div>
             <div className="rounded-xl bg-canvas p-4 text-sm"><span className="block text-ink-soft">10 customers, per month</span><strong className="text-xl">{naira(exampleMonthly * 10)}</strong></div>
@@ -91,7 +91,8 @@ export default async function PartnerPage() {
           <h2 id="rules-h" className="text-lg font-semibold">Good to know</h2>
           <ul className="list-disc space-y-2 pl-5 text-sm text-ink-soft">
             <li>Commission is earned when your customer&apos;s order is paid and delivered. Refunded or cancelled orders don&apos;t count.</li>
-            <li>A new customer&apos;s first order must be at least {naira(t.min_first_order_kobo)} to count.</li>
+            <li>Only orders of {naira(t.min_order_kobo)} or more (the laundry bill, after any discount) earn commission. Smaller orders don&apos;t count.</li>
+            <li>You earn on a customer for {t.months} months, counted from the day they accept your invitation.</li>
             <li>Each commission is held for {t.hold_hours} hours, then paid out weekly once your balance reaches {naira(t.min_payout_kobo)}.</li>
             <li>Customers always pay LaundryPoint directly online or at the hub. Agents never collect customer money.</li>
             <li>Commission is for bringing customers, not for recruiting other agents. It is not a salary.</li>
