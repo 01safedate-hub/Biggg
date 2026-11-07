@@ -34,6 +34,18 @@ export async function bookPickup(v: { lat: number; lng: number; address: string;
   return { ok: true, message: "Pickup request submitted. It is awaiting agent assignment; no payment is due at booking.", id };
 }
 
+export async function bookPaidSubscriptionPickup(v: { lat: number; lng: number; address: string; notes: string; slot?: string | null }): Promise<R & { id?: string }> {
+  const { supabase } = await requireUser("/request");
+  const { data, error } = await supabase.rpc("book_subscription_paid_pickup", { _lat: v.lat, _lng: v.lng, _address: v.address, _notes: v.notes, _slot: (v.slot || null) as string });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  const id = String(data);
+  revalidatePath("/request");
+  revalidatePath("/orders");
+  revalidatePath("/dashboard");
+  revalidatePath(`/orders/${id}`);
+  return { ok: true, message: "Pickup prepared. Pay for transport to confirm it.", id };
+}
+
 export async function cancelOrder(id: string): Promise<R> {
   const { supabase } = await requireUser("/orders");
   const { error } = await supabase.rpc("cancel_my_order", { _order: id });

@@ -19,7 +19,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             <p className="eyebrow">Monthly plans</p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">Predictable pricing for regular laundry</h2>
             <p className="mt-4 max-w-xl text-ink-soft">
-              Plans include two pickups per month, scheduled about 14 days (2 weeks) apart. Your monthly piece allowance is shared across both pickups. Each pickup has its own included-piece limit; unused pieces do not roll over.
+              Household plans include free pickups you can use any time in the month. Student plans cover school uniforms: drop off at the hub or book a paid pickup. Unused pieces do not carry over to the next month.
             </p>
           </div>
           <div role="group" aria-label="Billing period" className="inline-flex flex-wrap rounded-md border border-line p-1 text-sm font-medium">
@@ -45,7 +45,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
               const months = billingPeriod === "yearly" ? 12 : billingPeriod === "six_month" ? 6 : billingPeriod === "three_month" ? 3 : 1;
               const discountPct = billingPeriod === "yearly" ? Number(p.yearly_discount_pct ?? yearlyDiscountPct) : billingPeriod === "six_month" ? Number(p.six_month_discount_pct ?? 5) : billingPeriod === "three_month" ? Number(p.three_month_discount_pct ?? 2) : Number(p.monthly_discount_pct ?? 0);
               const total = Math.round(p.monthly_price_kobo * months * (100 - discountPct) / 100);
-              const featured = i === 1;
+              const featured = p.slug === "small_family";
               return (
                 <div key={p.id} className={`card flex flex-col p-6 ${featured ? "border-brand ring-1 ring-brand" : ""}`}>
                   <div className="flex items-center justify-between">
@@ -60,7 +60,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
                   <ul className="mt-6 space-y-3 text-sm text-ink-soft">
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{p.pieces_per_month.toLocaleString()} pieces per month</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Up to {Math.min(p.weekly_allowance, p.pieces_per_month).toLocaleString()} included pieces per pickup, within the monthly allowance</li>
-                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{pickupsPerMonth} pickups each month · about 14 days apart</li>
+                    <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />{Number(p.pickups_per_month ?? pickupsPerMonth) > 0 ? `${p.pickups_per_month ?? pickupsPerMonth} free pickups a month, any time` : "Hub drop-off, or pickups with paid transport"}{p.requires_student_id ? " · student ID needed" : ""}</li>
                     <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-dark" aria-hidden />Pieces above the monthly or per-pickup allowance are billed at the standard price of the items</li>
                   </ul>
                   {Object.keys(p.category_limits ?? {}).length > 0 ? <details className="mt-4 rounded-lg border border-line p-3"><summary className="cursor-pointer text-sm font-semibold">View category limits and exclusions</summary><ul className="mt-3 space-y-1 text-xs text-ink-soft">{Object.entries(p.category_limits ?? {}).map(([key, limit]) => <li key={key} className="flex justify-between gap-3"><span>{key.replaceAll("_", " ").replaceAll("-", " ")}</span><span className="font-medium">{Number(limit) === 0 ? "Excluded" : `Up to ${limit} per month`}</span></li>)}</ul></details> : null}
@@ -70,7 +70,7 @@ export function Pricing({ plans, pickupsPerMonth, yearlyDiscountPct }: { plans: 
             })}
           </div>
         )}
-        <p className="mt-6 text-xs text-ink-mute">Pickup and delivery transport are charged separately by distance. Open each plan’s category details to see excluded categories and category limits.</p>
+        <p className="mt-6 text-xs text-ink-mute">Free pickups are included in household plans; extra pickups and student plan pickups pay transport by distance. Open each plan’s category details to see excluded categories and category limits.</p>
       </div>
     </section>
   );

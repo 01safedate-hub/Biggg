@@ -30,7 +30,7 @@ const services = [
   {
     number: "04",
     title: "Monthly laundry plans",
-    description: "Pay once per month for a set number of garment pieces. The allowance counts all garment types together and is shared across two pickups during the billing period. Pieces above the remaining allowance are billed separately online.",
+    description: "Pay once per month for a set number of garment pieces. The allowance counts all garment types together and is shared across the month's pickups and hub drop-offs, and unused pieces do not carry over. Pieces above the remaining allowance are billed separately online.",
   },
 ];
 

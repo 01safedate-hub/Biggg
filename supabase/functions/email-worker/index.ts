@@ -143,6 +143,100 @@ function agentJob(p: Record<string, unknown>) {
   return { subject: `${title} - order #${p.order_no}`, html: layout(esc(title), lines), text: `Hello ${first}, ${title.toLowerCase()}.\nOrder #${p.order_no}\n${p.delivery ? "Deliver to" : "Pickup address"}: ${p.address ?? "See the job page"}\nOpen the job: ${link}\nNever collect cash from the customer.` };
 }
 
+const dayOnly = (iso: unknown) => {
+  const d = new Date(String(iso ?? ""));
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
+};
+/** The last day of a term stored as an exclusive end timestamp (midnight Lagos). */
+const lastDay = (iso: unknown) => {
+  const d = new Date(String(iso ?? ""));
+  return Number.isNaN(d.getTime()) ? "" : dayOnly(new Date(d.getTime() - 60_000).toISOString());
+};
+
+/** All subscriber emails. payload.kind picks the message. */
+function subscription(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const plan = String(p.plan ?? "your plan");
+  const manage = `${SITE}/subscriptions/manage`;
+  const renew = `${SITE}/subscriptions/checkout`;
+  const pickups = Number(p.pickups ?? 0);
+  const allowance = `${esc(p.pieces)} pieces a month${pickups > 0 ? ` and ${pickups} free pickup${pickups === 1 ? "" : "s"} each month` : ". Bring your clothes to the hub, or book a pickup and pay for transport"}`;
+  const receipt = p.reference ? `<br>Payment reference: ${esc(p.reference)}` : "";
+  const H = (heading: string, subject: string, lines: string[], cta?: [string, string]) => {
+    const body = [`Hello ${esc(first)},`, ...lines, ...(cta ? [button(cta[0], cta[1])] : [])];
+    const text = [`Hello ${first},`, ...lines.map((l) => l.replace(/<br>/g, "\n").replace(/<[^>]+>/g, "")), cta ? `${cta[1]}: ${cta[0]}` : ""].filter(Boolean).join("\n\n");
+    return { subject, html: layout(esc(heading), body), text };
+  };
+  switch (String(p.kind)) {
+    case "activated":
+      return H("Your plan is active", `Your ${plan} plan is active`, [
+        p.after_review ? "We have checked your student ID. Thank you." : "Thank you, we have received your payment.",
+        `<strong>${esc(plan)}</strong> is active from ${esc(dayOnly(p.period_start))} to ${esc(lastDay(p.period_end))}.`,
+        `You get ${allowance}. Unused pieces do not carry over to the next month.`,
+        p.amount_kobo ? `Amount paid: ${money(p.amount_kobo)}${receipt}` : "",
+      ].filter(Boolean), [pickups > 0 ? `${SITE}/request` : manage, pickups > 0 ? "Book a pickup" : "See your plan"]);
+    case "under_review":
+      return H("We are checking your student ID", "We received your payment: student ID check in progress", [
+        `Thank you, we received ${p.amount_kobo ? money(p.amount_kobo) : "your payment"} for <strong>${esc(plan)}</strong>.${receipt}`,
+        "Our team is checking your student ID. Your plan starts on the day we approve it, so you do not lose any days while you wait.",
+        "If we cannot accept the ID, we will cancel the plan and refund you in full.",
+      ], [manage, "See your plan"]);
+    case "id_rejected":
+      return H("We could not accept your student ID", "Your student ID was not accepted", [
+        `We could not accept the student ID you sent${p.reason ? `: ${esc(p.reason)}` : "."}`,
+        Number(p.refund_kobo ?? 0) > 0 ? `Your plan has been cancelled and we will refund ${money(p.refund_kobo)} to you. Refunds can take a few working days to arrive.` : "",
+        "You can upload a clearer or valid student ID and try again, or choose one of our other plans.",
+      ].filter(Boolean), [`${SITE}/subscriptions`, "See plans"]);
+    case "next_term_paid": {
+      const changed = p.changed === true && p.next_plan;
+      return H(changed ? "Your plan change is booked" : "Your renewal is paid", changed ? `Your switch to ${p.next_plan} is booked` : `Your ${plan} renewal is paid`, [
+        `Thank you, we received ${money(p.amount_kobo)}.${receipt}`,
+        changed
+          ? `You stay on <strong>${esc(plan)}</strong> until ${esc(lastDay(p.period_end))}. <strong>${esc(p.next_plan)}</strong> starts on ${esc(dayOnly(p.starts_on))} and runs to ${esc(dayOnly(p.ends_on))}.`
+          : `Your next term starts on ${esc(dayOnly(p.starts_on))} and runs to ${esc(dayOnly(p.ends_on))}. Nothing changes before then.`,
+      ], [manage, "See your plan"]);
+    }
+    case "renewal_due": {
+      const stage = Number(p.stage ?? 1);
+      const when = stage >= 3 ? "today" : stage === 2 ? "in 2 days" : "in 5 days";
+      return H(stage >= 3 ? "Your plan ends today" : "Your plan renews soon", stage >= 3 ? `Your ${plan} plan ends today` : `Your ${plan} plan ends ${when}`, [
+        `Your <strong>${esc(plan)}</strong> plan ends ${when}, on ${esc(lastDay(p.period_end))}.`,
+        `Renew now to keep your pickups and allowance${p.amount_kobo ? ` (${money(p.amount_kobo)})` : ""}. You can also switch to a different plan; the change starts when this term ends.`,
+        stage >= 3 ? "If you do not renew today, your plan will end tonight." : "",
+      ].filter(Boolean), [renew, "Renew or change plan"]);
+    }
+    case "renewed":
+      return H("Your new term has started", p.changed ? `You are now on ${plan}` : `Your ${plan} plan has renewed`, [
+        `Your <strong>${esc(plan)}</strong> plan runs from ${esc(dayOnly(p.period_start))} to ${esc(lastDay(p.period_end))}.`,
+        `You get ${allowance}.`,
+      ], [manage, "See your plan"]);
+    case "expired":
+      return H("Your plan has ended", `Your ${plan} plan has ended`, [
+        `Your <strong>${esc(plan)}</strong> plan ended because it was not renewed. Pickups and the piece allowance have stopped.`,
+        "Clothes already with us will still be finished and returned. You can start a plan again any time.",
+      ], [`${SITE}/subscriptions`, "Choose a plan"]);
+    case "cancel_scheduled":
+      return H("Your plan will not renew", `Your ${plan} plan will end on ${lastDay(p.period_end)}`, [
+        `As you asked, <strong>${esc(plan)}</strong> will not renew. You can keep using it until ${esc(lastDay(p.period_end))}.`,
+        "Changed your mind? You can undo this from your plan page before that date.",
+      ], [manage, "Manage plan"]);
+    case "ended":
+      return H("Your plan has ended", `Your ${plan} plan has ended`, [
+        `Your <strong>${esc(plan)}</strong> plan has ended as you asked. Thank you for using LaundryPoint.`,
+        "You can start a plan again any time.",
+      ], [`${SITE}/subscriptions`, "See plans"]);
+    case "extra_bill": {
+      const lines = [`We counted ${esc(p.pieces_counted)} pieces from order #${esc(p.order_no)} on your <strong>${esc(plan)}</strong> plan.`];
+      if (Number(p.overage_pieces ?? 0) > 0) lines.push(`${esc(p.overage_pieces)} piece(s) were above your plan's allowance or a category limit: ${money(p.overage_kobo)}.`);
+      if (Number(p.excluded_pieces ?? 0) > 0) lines.push(`${esc(p.excluded_pieces)} piece(s) are not covered by your plan and are charged at the normal price: ${money(p.excluded_kobo)}.`);
+      lines.push(`<strong>Amount to pay: ${money(p.amount_kobo)}</strong>. We start washing once this is paid.`);
+      return H("Extra pieces on your pickup", `Extra pieces to pay for: ${money(p.amount_kobo)}, order #${p.order_no}`, lines, [`${SITE}/account/extra-clothes`, "Pay now"]);
+    }
+    default:
+      return H("Your plan was updated", "Your LaundryPoint plan was updated", ["There is an update on your plan."], [manage, "See your plan"]);
+  }
+}
+
 function render(r: Row): { subject: string; html: string; text: string; unsub?: string } {
   const p = r.payload ?? {};
   const order = p.order_no ? `#${esc(p.order_no)}` : "your order";
@@ -188,6 +282,14 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       }
       const lines = [`Hello ${esc(first)}, we looked at your details and need you to change something before we can approve them.`, `<strong>What to fix:</strong> ${esc(p.note)}`, `Sign in, correct your details, and submit them again.`];
       return { subject: "Please update your LaundryPoint details", html: layout("A change is needed", lines), text: `Hello ${first}, we need a change before approving your details: ${p.note}. Sign in, update and submit again.` };
+    }
+    case "subscription":
+      return subscription(p);
+    case "staff_student_id": {
+      const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+      const link = `${SITE}/staff/student-ids`;
+      const lines = [`Hello ${esc(first)}, ${esc(p.customer || "A customer")} paid for <strong>${esc(p.plan)}</strong>${p.amount_kobo ? ` (${money(p.amount_kobo)})` : ""} and uploaded a student ID.`, "The plan starts when the ID is approved. Please check it soon.", button(link, "Review student IDs")];
+      return { subject: `Student ID to review: ${p.customer ?? "customer"}`, html: layout("A student ID needs review", lines), text: `${p.customer ?? "A customer"} paid for ${p.plan} and uploaded a student ID. Review it: ${link}` };
     }
     case "count_summary":
       return countSummary(p);

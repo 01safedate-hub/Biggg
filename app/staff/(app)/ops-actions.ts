@@ -180,7 +180,7 @@ export async function pingLocation(orderId: string, lat: number, lng: number, ac
 }
 
 // ---------- walk-in orders made at the desk ----------
-export async function findDeskCustomers(q: string): Promise<{ ok: boolean; message: string; rows: { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number }[] }> {
+export async function findDeskCustomers(q: string): Promise<{ ok: boolean; message: string; rows: { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number; plan?: string | null }[] }> {
   const { supabase } = await requireRole([...DESK]);
   const { data, error } = await supabase.rpc("desk_find_customer", { _q: q.slice(0, 60) });
   if (error) return { ok: false, message: friendlyError(error.message), rows: [] };
@@ -206,6 +206,14 @@ export async function addWalkinCustomer(name: string, phone: string, email = "",
 export async function startWalkin(customerId: string, notes: string): Promise<R & { id?: string }> {
   const { supabase } = await requireRole([...DESK]);
   const { data, error } = await supabase.rpc("desk_create_walkin_order", { _customer: customerId, _notes: notes.trim().slice(0, 300) });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/walkin");
+  return { ok: true, message: "", id: String(data) };
+}
+
+export async function startPlanDropoff(customerId: string, notes: string): Promise<R & { id?: string }> {
+  const { supabase } = await requireRole([...DESK]);
+  const { data, error } = await supabase.rpc("desk_create_subscription_dropoff", { _customer: customerId, _notes: notes.trim().slice(0, 300) });
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/walkin");
   return { ok: true, message: "", id: String(data) };
