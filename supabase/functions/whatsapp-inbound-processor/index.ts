@@ -224,6 +224,40 @@ Deno.serve(async (req) => {
 
 
 
+      // Respect staff ownership before running any automated booking or AI workflow.
+      // An expired handoff resumes AI using the persisted conversation history below.
+      const { data: supportState, error: supportStateError } = await db
+        .from("whatsapp_support_conversations")
+        .select("mode,response_due_at")
+        .eq("phone", from)
+        .maybeSingle();
+      if (supportStateError) throw new Error("support_mode_lookup_failed");
+      if (supportState?.mode === "human") {
+        const expired = supportState.response_due_at
+          ? Date.parse(String(supportState.response_due_at)) <= Date.now()
+          : false;
+        if (expired) {
+          const { error: resumeError } = await db.from("whatsapp_support_conversations")
+            .update({ mode: "ai", assigned_to: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
+            .eq("phone", from).eq("mode", "human");
+          if (resumeError) throw new Error("support_timeout_resume_failed");
+        } else {
+          await db.from("whatsapp_support_conversations")
+            .update({ unread_at: receivedAt.toISOString(), updated_at: new Date().toISOString() })
+            .eq("phone", from);
+          await db.from("whatsapp_inbound_messages").update({
+            status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          }).eq("id", item.id);
+          processed++;
+          continue;
+        }
+      } else if (supportState?.mode === "resolved") {
+        const { error: reopenError } = await db.from("whatsapp_support_conversations")
+          .update({ mode: "ai", assigned_to: null, resolved_at: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
+          .eq("phone", from).eq("mode", "resolved");
+        if (reopenError) throw new Error("support_resolved_reopen_failed");
+      }
+
       async function getVerifiedSession() {
         const { data, error } = await db.from("whatsapp_account_verifications")
           .select("customer_id,verified_until")
@@ -1399,6 +1433,13 @@ Deno.serve(async (req) => {
           status: "open",
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
+        const handoffAt = new Date().toISOString();
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
+          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+          response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
+        }, { onConflict: "phone" });
+        if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
         handedOff++;
         if (withinCustomerCareWindow && waToken && phoneNumberId) {
           const handoffReply = "Thanks for letting us know. I've flagged this for our team to review. A staff member will follow up as soon as possible.";
@@ -1531,6 +1572,13 @@ Deno.serve(async (req) => {
           reason: "assistant_could_not_safely_resolve", message_text: body.slice(0, 2000), status: "open",
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
+        const handoffAt = new Date().toISOString();
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
+          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+          response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
+        }, { onConflict: "phone" });
+        if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
       }
       const providerMessageId = await sendWhatsApp(from, answer, waToken, phoneNumberId);
       await recordConversationMessage(db, { phone: from, direction: "outbound", body: answer, providerMessageId, deliveryStatus: "sent" });
