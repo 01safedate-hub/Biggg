@@ -138,6 +138,9 @@ const MESSAGES: Record<string, string> = {
   invalid_location: "That location looks wrong. Please try again.",
   basis_invalid: "Choose what you counted against.",
   staff_station_required: "Your staff account has no hub station yet, so you cannot start walk-in orders. Ask a super admin to set your station under Admin → Staff.",
+  station_required: "Choose a hub station. Desk staff, washers and delivery agents need one.",
+  invalid_station: "That station is not available. Choose a live service area from the list.",
+  station_save_failed: "The station could not be saved. Please try again.",
 };
 
 export function friendlyError(message: string | undefined): string {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createStaff, inviteStaff } from "@/app/admin/staff/actions";
-import { STAFF_ROLES } from "@/lib/staff";
+import { STAFF_ROLES, needsStation } from "@/lib/staff";
 import type { StationOption } from "@/lib/stations";
 import { inputCls, labelCls } from "./ui";
 
@@ -21,7 +21,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
     const form = e.currentTarget;
     const f = new FormData(form);
     if (roles.length === 0) return setMsg({ ok: false, text: "Choose at least one role." });
-    if (!stationZoneId) return setMsg({ ok: false, text: "Choose the hub / pickup station where this staff member will work." });
+    if (!stationZoneId && needsStation(roles)) return setMsg({ ok: false, text: "Choose the hub / pickup station where this staff member will work." });
     if (roles.includes("super_admin") && !window.confirm("A super admin has full control, including approving expenses and seeing all money. Continue?")) return;
     if (roles.includes("washer") && roles.length > 1 && !window.confirm("Washer has limited wash-queue access. Adding another role also grants that role’s access. Continue?")) return;
     setBusy(true);
@@ -55,7 +55,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
         <div><label htmlFor="inv-phone" className={labelCls}>Phone</label><input id="inv-phone" name="phone" type="tel" required className={inputCls} /></div>
         {mode === "password" && <div><label htmlFor="inv-pw" className={labelCls}>First password</label><input id="inv-pw" name="password" type="text" required minLength={10} autoComplete="off" className={inputCls} placeholder="At least 10 characters, letters and numbers" /></div>}
       </div>
-      <div><label htmlFor="staff-station" className={labelCls}>Pickup station / service area</label><select id="staff-station" value={stationZoneId} onChange={(e) => setStationZoneId(e.target.value)} className={inputCls}><option value="">No station assigned</option>{stations.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><p className="mt-1 text-xs text-ink-mute">This is the hub where this staff member works.</p></div>
+      <div><label htmlFor="staff-station" className={labelCls}>Pickup station / service area</label><select id="staff-station" value={stationZoneId} onChange={(e) => setStationZoneId(e.target.value)} className={inputCls}><option value="">No station assigned</option>{stations.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select><p className="mt-1 text-xs text-ink-mute">{needsStation(roles) || roles.length === 0 ? "This is the hub where this staff member works." : "Optional for super admins, admins and commission agents. Set one if they will take walk-in orders."}</p></div>
       <fieldset>
         <legend className={labelCls}>Role</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">

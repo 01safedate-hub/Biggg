@@ -79,7 +79,7 @@ export function RenameCategory({ id, name }: { id: string; name: string }) {
   );
 }
 
-export function ItemRow({ id, name, priceKobo, ironKobo, ironAllowed, active }: { id: string; name: string; priceKobo: number; ironKobo?: number | null; ironAllowed: boolean; active: boolean }) {
+export function ItemRow({ id, name, priceKobo, ironKobo, ironAllowed, active, searchText }: { id: string; name: string; priceKobo: number; ironKobo?: number | null; ironAllowed: boolean; active: boolean; searchText?: string }) {
   const { busy, msg, run } = useRun();
   const [n, setN] = useState(name);
   const [p, setP] = useState(String(priceKobo / 100));
@@ -88,7 +88,7 @@ export function ItemRow({ id, name, priceKobo, ironKobo, ironAllowed, active }: 
   const kobo = p.trim() === "0" ? 0 : toKobo(p);
   const dirty = n !== name || kobo !== priceKobo || a !== active || ia !== ironAllowed;
   return (
-    <li className="grid gap-2 py-2 sm:grid-cols-[1fr_9rem_7rem_auto_auto_auto] sm:items-center">
+    <li data-search={searchText ?? name} className="grid gap-2 py-2 sm:grid-cols-[1fr_9rem_7rem_auto_auto_auto] sm:items-center">
       <input value={n} onChange={(e) => setN(e.target.value)} aria-label="Item name" className="rounded-md border border-line px-3 py-1.5 text-sm" />
       <input value={p} onChange={(e) => setP(e.target.value)} inputMode="decimal" aria-label="Dry clean price in naira" className="rounded-md border border-line px-3 py-1.5 text-sm" />
       <span className="text-xs text-ink-mute" title="Worked out from the dry clean price using the iron-only rule above">{!ia ? "No iron only" : ironKobo != null ? `Iron only ${naira(ironKobo)}` : ""}</span>

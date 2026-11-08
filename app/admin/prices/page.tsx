@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/roles";
 import { AddCategory, AddItem, IronOnlyForm, ItemRow } from "@/components/admin/CatalogForms";
+import { ListSearch } from "@/components/admin/ListSearch";
 
 export const metadata = { title: "Price list" };
 
@@ -19,15 +20,17 @@ export default async function PricesPage() {
         <p className="mt-1 text-sm text-ink-soft">What customers see and pay per item for the full service (dry clean: wash and iron). Iron only is worked out from it. A price change applies to new orders only. Take an item off sale instead of deleting it.</p></div>
       {roles.includes("super_admin") ? <IronOnlyForm pct={Number(cfg.pct_of_dry_clean ?? 40)} minKobo={Number(cfg.min_kobo ?? 20000)} /> : <p className="card p-4 text-sm text-ink-soft">Iron only is {Number(cfg.pct_of_dry_clean ?? 40)}% of the dry clean price, with a minimum of ₦{Number(cfg.min_kobo ?? 20000) / 100}. Only the super admin can change this.</p>}
       <AddCategory kind="item" />
+      <ListSearch label="Search the price list" placeholder="Search items or categories, e.g. shirt, duvet, uniforms">
       {(cats ?? []).map((c) => (
-        <section key={c.id} className="card p-5">
+        <section key={c.id} data-search-group={c.name} className="card p-5">
           <h2 className="text-lg font-semibold">{c.name}</h2>
           <ul className="mt-2 divide-y divide-line">
-            {(items ?? []).filter((i) => i.category_id === c.id).map((i) => <ItemRow key={i.id} id={i.id} name={i.name} priceKobo={Number(i.price_kobo)} ironKobo={ironById.get(i.id) ?? null} ironAllowed={!!i.iron_only_allowed} active={!!i.active} />)}
+            {(items ?? []).filter((i) => i.category_id === c.id).map((i) => <ItemRow key={i.id} id={i.id} name={i.name} priceKobo={Number(i.price_kobo)} ironKobo={ironById.get(i.id) ?? null} ironAllowed={!!i.iron_only_allowed} active={!!i.active} searchText={`${i.name} ${c.name} ${(Number(i.price_kobo) / 100).toFixed(0)} ${i.active ? "" : "off sale"}`} />)}
           </ul>
           <AddItem categoryId={c.id} />
         </section>
       ))}
+      </ListSearch>
     </div>
   );
 }
