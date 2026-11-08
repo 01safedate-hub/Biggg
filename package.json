@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:money": "psql \"$SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f supabase/tests/money_flows.sql"
   },
   "engines": {
     "node": ">=22"

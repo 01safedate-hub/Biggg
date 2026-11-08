@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/roles";
 import { friendlyError } from "@/lib/rpc-errors";
 
-export type ActionResult = { ok: boolean; message: string };
+export type ActionResult = { ok: boolean; message: string; warn?: boolean };
 
 async function callStaffAdmin(body: Record<string, unknown>): Promise<{ ok: boolean; data?: Record<string, unknown>; error?: string }> {
   const { supabase } = await requireRole(["super_admin"]);
@@ -24,6 +24,9 @@ export async function inviteStaff(input: { email: string; full_name: string; pho
   const r = await callStaffAdmin({ action: "invite", ...input });
   if (!r.ok) return { ok: false, message: r.error ?? "Could not send the invitation." };
   revalidatePath("/admin/staff");
+  if (r.data?.warning === "station_not_saved") {
+    return { ok: true, warn: true, message: `Invitation sent to ${input.email}, but their station did not save. Set it on their row in the team list below, or walk-in and the wash queue will not work for them.` };
+  }
   return r.data?.mode === "existing_account"
     ? { ok: true, message: `${r.data.name ?? "This person"} already had an account, so the access was added. No email was needed.` }
     : { ok: true, message: `Invitation sent to ${input.email}. It stays valid for the time set in Supabase, and you can resend it.` };

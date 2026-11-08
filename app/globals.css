@@ -22,6 +22,8 @@
   .card { @apply rounded-lg border border-line bg-white shadow-card; }
 }
 
+@keyframes wa-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { dialog[open] { animation: none !important; } }
 @keyframes ring-fill { from { stroke-dashoffset: var(--ring-full); } }
 .ring-arc { animation: ring-fill 2.8s cubic-bezier(.22,.8,.2,1) both; }
 @keyframes ring-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
