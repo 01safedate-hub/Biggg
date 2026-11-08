@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ShieldCheck, Clock, BadgeCheck, MessageCircle } from "lucide-react";
+import { ShieldCheck, Clock, BadgeCheck } from "lucide-react";
+import { WhatsAppConnect } from "./WhatsAppConnect";
 import { AreaCheck } from "./AreaCheck";
 import { HoursNotice } from "./HoursNotice";
 import { HeroArt } from "./HeroArt";
@@ -24,12 +25,7 @@ export function Hero({ eta, open, close, tz, whatsapp }: { eta: number; open: st
               <b className="font-semibold text-ink">Heavy duvets, blankets, shoes, suits, curtains, wedding gowns, agbada and lace</b>
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              {ai && (
-                <a href={ai} target="_blank" rel="noopener noreferrer" className="btn-primary">
-                  <MessageCircle className="h-4 w-4" aria-hidden />
-                  Connect to our AI on WhatsApp
-                </a>
-              )}
+              {ai && <WhatsAppConnect href={ai} />}
               <Link href="/request" className="btn-secondary">Request pickup</Link>
             </div>
           </div>

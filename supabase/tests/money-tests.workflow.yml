@@ -1,0 +1,43 @@
+# To switch this on: git mv supabase/tests/money-tests.workflow.yml .github/workflows/money-tests.yml
+# (needs a GitHub login or token with the "workflow" permission), then add the SUPABASE_DB_URL repository secret.
+name: Money tests
+
+# Runs supabase/tests/money_flows.sql against the database: walk-in desk payment, online prepayment,
+# refunds and agent commission. Everything runs inside one transaction that is rolled back, so no data is kept.
+# Needs the repository secret SUPABASE_DB_URL (Supabase > Project Settings > Database > Connection string, "Session pooler").
+# Without the secret the job is skipped, not failed.
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["supabase/**", ".github/workflows/money-tests.yml"]
+  push:
+    branches: [main]
+    paths: ["supabase/**", ".github/workflows/money-tests.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: money-tests
+  cancel-in-progress: false
+
+jobs:
+  money:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Skip when the database secret is not set
+        if: env.SUPABASE_DB_URL == ''
+        run: echo "::notice::SUPABASE_DB_URL is not set, so the money tests were skipped."
+      - name: Install psql
+        if: env.SUPABASE_DB_URL != ''
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Run money tests (rolled back)
+        if: env.SUPABASE_DB_URL != ''
+        run: psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f supabase/tests/money_flows.sql

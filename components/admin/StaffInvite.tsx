@@ -13,7 +13,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
   const [busy, setBusy] = useState(false);
   const [roles, setRoles] = useState<string[]>([]);
   const [stationZoneId, setStationZoneId] = useState("");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string; warn?: boolean } | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,7 +35,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
     }
     const r = await inviteStaff(base);
     setBusy(false);
-    setMsg({ ok: r.ok, text: r.message });
+    setMsg({ ok: r.ok, text: r.message, warn: r.warn });
     if (r.ok) { form.reset(); setRoles([]); setStationZoneId(""); }
   }
 
@@ -48,7 +48,7 @@ export function StaffInvite({ stations }: { stations: StationOption[] }) {
         ))}
       </div>
       <p className="text-sm text-ink-soft">{mode === "invite" ? "They get an email to accept and choose their own password. You never see or set it." : "Give them the password in person. They must replace it the first time they sign in. After creating, you can fill in their NIN, photo, referee and pay."}</p>
-      {msg && <p role={msg.ok ? "status" : "alert"} className={`rounded-md border p-3 text-sm ${msg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{msg.text}</p>}
+      {msg && <p role={msg.ok && !msg.warn ? "status" : "alert"} className={`rounded-md border p-3 text-sm ${msg.warn ? "border-amber-200 bg-amber-50 text-amber-900" : msg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{msg.text}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label htmlFor="inv-name" className={labelCls}>Full name</label><input id="inv-name" name="full_name" required minLength={2} className={inputCls} /></div>
         <div><label htmlFor="inv-email" className={labelCls}>Email</label><input id="inv-email" name="email" type="email" required className={inputCls} /></div>

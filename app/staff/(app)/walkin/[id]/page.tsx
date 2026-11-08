@@ -104,7 +104,7 @@ export default async function WalkinOrder({ params }: { params: Promise<{ id: st
         </section>
       )}
 
-      {moving && <p className="card p-5 text-sm text-ink-soft print:hidden">Paid. {o.status === "count_confirmed" ? "Next: mark it received on the Receiving page, then it joins the wash queue." : "It is in the wash queue. It will show as ready here when washing is done."}</p>}
+      {moving && <p className="card p-5 text-sm text-ink-soft print:hidden">Paid. {o.status === "count_confirmed" ? "Waiting on the Receiving page. Check it in there and it joins the wash queue." : "It is in the wash queue. It will show as ready here when washing is done."}</p>}
       {o.source === "one_time" && o.status === "ready" && (
         <section className="card space-y-2 border-brand/30 p-5">
           <h2 className="text-lg font-semibold">Customer fulfillment choice</h2>
