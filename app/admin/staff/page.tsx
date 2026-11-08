@@ -4,6 +4,8 @@ import { StaffInvite } from "@/components/admin/StaffInvite";
 import { StaffRow } from "@/components/admin/StaffRow";
 import type { StaffRowData } from "@/lib/staff";
 import type { StationOption } from "@/lib/stations";
+import { ListSearch } from "@/components/admin/ListSearch";
+import { ROLE_NAME } from "@/lib/staff";
 
 export const metadata = { title: "Staff" };
 
@@ -43,7 +45,13 @@ export default async function StaffPage() {
       <section aria-label="Team" className="space-y-3">
         <h2 className="text-lg font-semibold">Team ({staff.length})</h2>
         {error && <p role="alert" className="text-sm text-red-700">The team list could not be loaded. Please refresh.</p>}
-        {staffWithStations.map((s) => <StaffRow key={s.id} s={s} isMe={s.id === user.id} onboarding={onboarding[s.id] ?? "incomplete"} stations={stations} />)}
+        <ListSearch label="Search staff" placeholder="Search by name, email, phone, role or station">
+          {staffWithStations.map((s) => (
+            <div key={s.id} data-search={[s.full_name, s.email, s.phone, ...s.roles.map((r) => ROLE_NAME[r] ?? r), s.station_label ?? "no station", s.status === "active" ? "active" : s.status === "restricted" ? "suspended" : "dismissed"].filter(Boolean).join(" ")}>
+              <StaffRow s={s} isMe={s.id === user.id} onboarding={onboarding[s.id] ?? "incomplete"} stations={stations} />
+            </div>
+          ))}
+        </ListSearch>
       </section>
     </div>
   );

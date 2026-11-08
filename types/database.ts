@@ -3031,6 +3031,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_revenue_chart: {
+        Args: { _bucket: string }
+        Returns: Json
+      }
       partner_programme_terms: {
         Args: never
         Returns: Json

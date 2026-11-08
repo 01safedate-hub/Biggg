@@ -21,13 +21,26 @@ function cleanPhone(v: string) {
 }
 
 
-async function persistStation(admin: ReturnType<typeof createClient>, userId: string, value: unknown, roles: string[]) {
+// Anyone who works from a hub (desk staff, washers, delivery agents) needs a station: walk-in orders, hub drop-offs,
+// the wash queue and check-in all use it. Super admins, admins and commission-only agents may have one but do not need it.
+const STATION_OPTIONAL = new Set(["super_admin", "admin", "commission_agent"]);
+const stationNeeded = (roles: string[]) => roles.some((r) => !STATION_OPTIONAL.has(r));
+
+// Validate first, save later: nothing (roles, invitation email, account) is created until the station is known to be valid.
+async function checkStation(admin: ReturnType<typeof createClient>, value: unknown, roles: string[]): Promise<{ error: string | null; id: string | null }> {
   const stationId = clean(value);
-  if (!stationId) return "station_required";
-  if (!/^[0-9a-f-]{36}$/i.test(stationId)) return "invalid_station";
+  if (!stationId) return { error: stationNeeded(roles) ? "station_required" : null, id: null };
+  if (!/^[0-9a-f-]{36}$/i.test(stationId)) return { error: "invalid_station", id: null };
   const { data: zone, error: zoneError } = await admin.from("zones").select("id").eq("id", stationId).eq("kind", "area").eq("is_live", true).not("centre_lat", "is", null).not("centre_lng", "is", null).maybeSingle();
-  if (zoneError || !zone) return "invalid_station";
-  const { error } = await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId }, { onConflict: "user_id" });
+  if (zoneError || !zone) return { error: "invalid_station", id: null };
+  return { error: null, id: stationId };
+}
+
+async function saveStation(admin: ReturnType<typeof createClient>, userId: string, stationId: string | null) {
+  // No station: clear an existing one, but do not create an empty staff profile for someone who never had one.
+  const { error } = stationId
+    ? await admin.from("staff_profiles").upsert({ user_id: userId, station_zone_id: stationId }, { onConflict: "user_id" })
+    : await admin.from("staff_profiles").update({ station_zone_id: null }).eq("user_id", userId);
   return error ? "station_save_failed" : null;
 }
 
@@ -60,13 +73,20 @@ Deno.serve(async (req) => {
     const existing = gate.data as { id: string; full_name: string; status: string; roles: string[] } | null;
     if (existing) {
       // The person already has an account (a customer, or earlier staff): grant the roles instead of inviting again.
-      const r = await asCaller.rpc("set_staff_roles", { _user: existing.id, _roles: Array.from(new Set([...existing.roles, ...roles])) });
+      const allRoles = Array.from(new Set([...existing.roles, ...roles]));
+      const station = await checkStation(admin, b.station_zone_id, allRoles);
+      if (station.error) return json(400, { error: station.error });
+      const r = await asCaller.rpc("set_staff_roles", { _user: existing.id, _roles: allRoles });
       if (r.error) return json(400, { error: r.error.message });
-      const stationError = await persistStation(admin, existing.id, b.station_zone_id, Array.from(new Set([...existing.roles, ...roles])));
-      if (stationError) return json(400, { error: stationError });
+      if (station.id) {
+        const saveError = await saveStation(admin, existing.id, station.id);
+        if (saveError) return json(400, { error: saveError });
+      }
       return json(200, { ok: true, mode: "existing_account", name: existing.full_name });
     }
 
+    const station = await checkStation(admin, b.station_zone_id, roles);
+    if (station.error) return json(400, { error: station.error });
     const inv = await admin.auth.admin.inviteUserByEmail(email, { data: { full_name: fullName, phone }, redirectTo: `${SITE}/auth/callback?next=/welcome` });
     if (inv.error || !inv.data.user) return json(400, { error: inv.error?.message ?? "invite_failed" });
     const role = await asCaller.rpc("set_staff_roles", { _user: inv.data.user.id, _roles: roles });
@@ -74,8 +94,10 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(inv.data.user.id); // do not leave an account with no role behind
       return json(400, { error: role.error.message });
     }
-    const stationError = await persistStation(admin, inv.data.user.id, b.station_zone_id, roles);
-    if (stationError) { await admin.auth.admin.deleteUser(inv.data.user.id); return json(400, { error: stationError }); }
+    if (station.id) {
+      const saveError = await saveStation(admin, inv.data.user.id, station.id);
+      if (saveError) return json(200, { ok: true, mode: "invited", warning: "station_not_saved" }); // invite already sent; set the station on the Staff page
+    }
     return json(200, { ok: true, mode: "invited" });
   }
 
@@ -94,6 +116,8 @@ Deno.serve(async (req) => {
       return json(400, { error: "weak_password" });
     }
     if (gate.data) return json(400, { error: "account_exists" });
+    const station = await checkStation(admin, b.station_zone_id, roles);
+    if (station.error) return json(400, { error: station.error });
 
     const made = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name: fullName, phone } });
     if (made.error || !made.data.user) return json(400, { error: made.error?.message ?? "create_failed" });
@@ -103,8 +127,10 @@ Deno.serve(async (req) => {
       await admin.auth.admin.deleteUser(uid);
       return json(400, { error: role.error.message });
     }
-    const stationError = await persistStation(admin, uid, b.station_zone_id, roles);
-    if (stationError) { await admin.auth.admin.deleteUser(uid); return json(400, { error: stationError }); }
+    if (station.id) {
+      const saveError = await saveStation(admin, uid, station.id);
+      if (saveError) { await admin.auth.admin.deleteUser(uid); return json(400, { error: saveError }); }
+    }
     const flag = await admin.rpc("flag_initial_password", { _user: uid });
     if (flag.error) {
       await admin.auth.admin.deleteUser(uid);
@@ -131,8 +157,10 @@ Deno.serve(async (req) => {
     if (list.error) return json(400, { error: list.error.message });
     const target = ((list.data ?? []) as { id: string; roles: string[] }[]).find((s) => s.id === id);
     if (!target) return json(404, { error: "user_not_found" });
-    const stationError = await persistStation(admin, id, stationId || null, target.roles);
-    if (stationError) return json(400, { error: stationError });
+    const station = await checkStation(admin, stationId, target.roles);
+    if (station.error) return json(400, { error: station.error });
+    const saveError = await saveStation(admin, id, station.id);
+    if (saveError) return json(400, { error: saveError });
     return json(200, { ok: true });
   }
 

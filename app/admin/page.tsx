@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RevenueChart, type ChartBucket, type ChartData } from "@/components/admin/RevenueChart";
 import { Stat } from "@/components/admin/Shell";
 import { Kpi } from "@/components/admin/Kpi";
 import { RangeBar } from "@/components/admin/RangeBar";
@@ -30,12 +31,17 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const range = resolveRange(await searchParams);
   const { supabase } = await requireRole(["super_admin"]);
   const monthStart = `${range.today.slice(0, 8)}01`;
-  const [rec, dash, month, settings] = await Promise.all([
+  const [rec, dash, month, settings, chartDay, chartWeek, chartMonth, chartAll] = await Promise.all([
     supabase.rpc("recovery_detail"),
     supabase.rpc("admin_dashboard", { _from: range.from, _to: range.to }),
     supabase.rpc("finance_overview", { _from: monthStart, _to: range.today }),
     supabase.from("settings").select("key,value").in("key", ["contact", "whatsapp", "hub", "targets"]),
+    supabase.rpc("admin_revenue_chart", { _bucket: "day" }),
+    supabase.rpc("admin_revenue_chart", { _bucket: "week" }),
+    supabase.rpc("admin_revenue_chart", { _bucket: "month" }),
+    supabase.rpc("admin_revenue_chart", { _bucket: "all" }),
   ]);
+  const chart = { day: chartDay.data, week: chartWeek.data, month: chartMonth.data, all: chartAll.data } as unknown as Record<ChartBucket, ChartData | null>;
   const r = rec.data as unknown as Recovery | null;
   const d = dash.data as unknown as Dashboard | null;
   const m = month.data as unknown as { profit_kobo: number } | null;
@@ -87,6 +93,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           {d.now.pending_expenses} expense{d.now.pending_expenses === 1 ? "" : "s"} waiting for your approval. Review them now.
         </Link>
       )}
+
+      {chart.day && <RevenueChart data={chart} />}
 
       {r && (
         <section aria-label="Cost recovery" className="card p-6">

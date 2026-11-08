@@ -7,5 +7,8 @@ export const STAFF_ROLES = [
   { key: "admin", label: "Admin", note: "Runs daily operations" },
   { key: "super_admin", label: "Super admin", note: "Full control, approves expenses" },
 ] as const;
+/** Roles that may work without a hub station. Everyone else (desk staff, washers, delivery agents) needs one. Mirrors staff-admin. */
+export const STATION_OPTIONAL_ROLES = ["super_admin", "admin", "commission_agent"];
+export const needsStation = (roles: readonly string[]) => roles.some((r) => !STATION_OPTIONAL_ROLES.includes(r));
 export const ROLE_NAME: Record<string,string> = Object.fromEntries(STAFF_ROLES.map(r=>[r.key,r.label]));
 export type StaffRowData={id:string;full_name:string;email:string|null;phone:string|null;status:"active"|"restricted"|"dismissed";status_reason:string|null;roles:string[];accepted:boolean;invited_at:string|null;last_sign_in_at:string|null;station_label?:string|null;station_zone_id?:string|null};
