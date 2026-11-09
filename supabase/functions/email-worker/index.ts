@@ -237,6 +237,52 @@ function subscription(p: Record<string, unknown>) {
   }
 }
 
+/** Weekly team target: set or changed. Tells members the target, how the pool is shared, and how to hit it. */
+function weeklyTargetSet(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const units = Number(p.target_units ?? 0).toLocaleString("en-NG");
+  const members = Number(p.members ?? 0);
+  const fee = Number(p.fee_pct ?? 10);
+  const range = `${dayOnly(p.week_start)} to ${dayOnly(p.week_end)}`;
+  const heading = p.updated ? "This week's team target was updated" : "This week's team target";
+  const box = `<div style="margin:8px 0 20px;padding:18px;border-radius:12px;background:#fff7ed;border:1px solid #fdba74;text-align:center">
+<div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#9a3412;font-weight:700">Team target</div>
+<div style="margin:4px 0;font-size:30px;font-weight:800;color:#c2410c">${esc(units)} clothes</div>
+<div style="font-size:14px;color:#7c2d12">Pool: <strong>${money(p.pool_kobo)}</strong> &middot; Your share: <strong>${money(p.share_net_kobo)}</strong></div></div>`;
+  const tips = [
+    "Visit estates, hostels, offices and salons near the hub. Tell them we pick up, wash and deliver.",
+    "Ask every happy customer to refer one friend this week.",
+    "Remind customers about heavy items: duvets, curtains, blankets and suits count too.",
+    "Turn orders around fast and handle clothes with care, so customers come back.",
+    "Put every item through the app. Only clothes that enter the wash queue in the app count.",
+  ];
+  const lines = [
+    `Hello ${esc(first)}, here is the team target for ${esc(range)}.`,
+    box,
+    `<strong>How it is shared:</strong> when the whole team reaches ${esc(units)} clothes, the ${money(p.pool_kobo)} pool is shared equally among the ${members} people on the weekly target. That is ${money(p.share_gross_kobo)} each. ${fee}% (${money(p.share_fee_kobo)}) is kept for running costs, so you receive <strong>${money(p.share_net_kobo)}</strong>.`,
+    `<strong>How it is counted:</strong> every item that enters the wash queue this week counts automatically. ${Number(p.units_so_far ?? 0) > 0 ? `The team is already at ${esc(Number(p.units_so_far).toLocaleString("en-NG"))}.` : ""}`,
+    `<strong>How to hit it:</strong><br>${tips.map((t) => `&bull; ${esc(t)}`).join("<br>")}`,
+    button(`${SITE}/staff`, "See the team's progress"),
+  ];
+  const text = [`Hello ${first}, team target for ${range}: ${units} clothes.`, `Pool ${money(p.pool_kobo)}, shared equally among ${members} people: ${money(p.share_gross_kobo)} each, ${fee}% kept for running costs, you receive ${money(p.share_net_kobo)}.`,
+    "Every item that enters the wash queue this week counts automatically.", "How to hit it:", ...tips.map((t) => `- ${t}`), `Progress: ${SITE}/staff`].join("\n");
+  return { subject: p.updated ? `Updated team target: ${units} clothes this week` : `This week's team target: ${units} clothes`, html: layout(esc(heading), lines), text };
+}
+
+/** Weekly team target reached. */
+function weeklyTargetHit(p: Record<string, unknown>) {
+  const first = String(p.name ?? "").trim().split(/\s+/)[0] || "there";
+  const fee = Number(p.fee_pct ?? 10);
+  const lines = [
+    `Hello ${esc(first)}, the team did it! ${esc(Number(p.units ?? 0).toLocaleString("en-NG"))} clothes went into the wash queue this week, past the target of ${esc(Number(p.target_units ?? 0).toLocaleString("en-NG"))}.`,
+    `<div style="margin:8px 0 20px;padding:18px;border-radius:12px;background:#ecfdf5;border:1px solid #6ee7b7;text-align:center"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#065f46;font-weight:700">Your share</div><div style="margin:4px 0;font-size:30px;font-weight:800;color:#047857">${money(p.share_net_kobo)}</div><div style="font-size:13px;color:#065f46">${money(p.share_gross_kobo)} less ${fee}% for running costs</div></div>`,
+    `The ${money(p.pool_kobo)} pool is shared equally among the ${esc(p.members)} people on the weekly target. It will be paid to the bank account in your staff details, so make sure they are correct.`,
+    button(`${SITE}/staff/onboarding`, "Check my bank details"),
+  ];
+  return { subject: `Team target hit! Your share: ${money(p.share_net_kobo)}`, html: layout("Team target hit!", lines),
+    text: `Hello ${first}, the team hit this week's target (${p.units} clothes). Your share: ${money(p.share_net_kobo)} (${money(p.share_gross_kobo)} less ${fee}% for running costs). It will be paid to the bank account in your staff details.` };
+}
+
 function render(r: Row): { subject: string; html: string; text: string; unsub?: string } {
   const p = r.payload ?? {};
   const order = p.order_no ? `#${esc(p.order_no)}` : "your order";
@@ -299,6 +345,10 @@ function render(r: Row): { subject: string; html: string; text: string; unsub?: 
       return readyCollect(p);
     case "agent_job":
       return agentJob(p);
+    case "weekly_target_set":
+      return weeklyTargetSet(p);
+    case "weekly_target_hit":
+      return weeklyTargetHit(p);
     case "whatsapp_verification": {
       const code = String(p.code ?? "").trim();
       const minutes = Math.max(1, Number(p.expires_minutes ?? 10) || 10);

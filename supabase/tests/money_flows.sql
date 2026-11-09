@@ -235,6 +235,24 @@ begin
   perform pg_temp.check((select pickup_agent_id is null from public.orders where id = _o), 'commission: walk-ins are not assigned to an agent');
   update public.profiles set onboarded_by = null, onboarded_at = null where id = _plain;
 
+  -- Before the start-up capital is recovered, nothing is earned (even on a big order).
+  delete from public.settings where key = 'capital_recovered';
+  if not private.unlocked() then
+    _o := pg_temp.delivered_order(_new, 2500000);
+    perform pg_temp.check(not exists (select 1 from public.commissions where order_id = _o), 'commission: nothing before the start-up capital is recovered');
+  end if;
+  -- From here on, pretend the capital was recovered a minute before this test started.
+  insert into public.settings (key, value) values ('capital_recovered', jsonb_build_object('at', now() - interval '1 minute'))
+  on conflict (key) do update set value = excluded.value;
+  -- An order delivered before recovery still never earns.
+  insert into public.orders (customer_id, source, status, pickup_fare_kobo, delivery_fare_kobo)
+  values (_new, 'one_time', 'received', 0, 0) returning id into _o;
+  insert into public.order_items (order_id, name, qty, unit_price_kobo) values (_o, 'Money test bundle', 1, 2500000);
+  insert into public.payments (order_id, customer_id, purpose, kind, mode, amount_kobo, reference, status, money_point_id)
+  values (_o, _new, 'items', 'payment', 'paystack', 2500000, 'MONEYTEST-OLD-' || _o, 'success', private.online_money_point());
+  update public.orders set delivered_at = now() - interval '1 day' where id = _o;
+  perform pg_temp.check(not exists (select 1 from public.commissions where order_id = _o), 'commission: an order delivered before recovery never earns');
+
   -- ₦25,000 from a customer who joined this month: earns commission.
   _o := pg_temp.delivered_order(_new, 2500000);
   select * into _c from public.commissions where order_id = _o;
@@ -257,6 +275,124 @@ begin
   -- Customer nobody referred.
   _o := pg_temp.delivered_order(_plain, 2500000);
   perform pg_temp.check(not exists (select 1 from public.commissions where order_id = _o), 'commission: nothing for customers with no agent');
+
+  -- Withdrawing: the agent asks in the app, 10% stays for running costs.
+  update public.profiles set full_name = 'Money Test Agent' where id = _agent;
+  update public.staff_profiles set bank_name = 'Test Bank', bank_account_number = '0123456789', bank_account_name = 'Money Test Agent' where user_id = _agent;
+  update public.commissions set status = 'approved' where agent_id = _agent and status = 'pending';
+  perform pg_temp.act_as(_agent);
+  declare _w jsonb; _r jsonb; _gross bigint;
+  begin
+    select coalesce(sum(amount_kobo), 0) into _gross from public.commissions where agent_id = _agent and status = 'approved' and payout_id is null;
+    _w := public.my_commission_wallet();
+    perform pg_temp.check((_w->>'available_kobo')::bigint = _gross and (_w->>'bank_ok')::boolean, format('withdraw: wallet shows %s kobo available', _gross));
+    perform pg_temp.check((_w->>'fee_kobo')::bigint = round(_gross * 0.10) and (_w->>'net_kobo')::bigint = _gross - round(_gross * 0.10), 'withdraw: wallet shows the 10% kept and what the agent receives');
+    _r := public.request_commission_withdrawal();
+    perform pg_temp.check((select gross_kobo = _gross and running_costs_kobo = round(_gross * 0.10) and amount_kobo = _gross - round(_gross * 0.10) and status = 'pending'
+                             from public.commission_payouts where id = (_r->>'payout_id')::uuid), 'withdraw: payout is the total minus 10%, waiting for approval');
+    perform pg_temp.check(not exists (select 1 from public.commissions where agent_id = _agent and status = 'approved' and payout_id is null), 'withdraw: every approved commission is in the payout');
+    perform pg_temp.expect_error('select public.request_commission_withdrawal()', 'withdrawal_already_pending', 'withdraw: only one request at a time');
+  end;
+  perform pg_temp.act_as(_new);
+  perform pg_temp.expect_error('select public.request_commission_withdrawal()', 'not_allowed', 'withdraw: customers cannot withdraw');
+end $t$;
+
+-- ---------- 5. Weekly team target ----------
+do $t$
+declare
+  _owner uuid := (select nullif(value->>'user_id', '')::uuid from public.settings where key = 'weekly_target_owner');
+  _boss uuid := pg_temp.new_user('Money test other super admin');
+  _desk uuid := pg_temp.new_user('Money test desk 3');
+  _cust uuid := pg_temp.new_user('Money test team customer');
+  _m1 uuid := pg_temp.new_user('Money test washer A');
+  _m2 uuid := pg_temp.new_user('Money test washer B');
+  _w date := date_trunc('week', private.today_lagos())::date;
+  _before int; _n int; _gross bigint; _fee bigint; _r jsonb; _order uuid; _item uuid; _cash uuid; _station uuid; _pay jsonb;
+begin
+  perform pg_temp.check(_owner is not null, 'team target: owner account is set');
+  insert into public.user_roles (user_id, role) values (_boss, 'super_admin'), (_desk, 'secretary');
+  insert into public.user_roles (user_id, role) values (_m1, 'washer'), (_m2, 'washer');
+  insert into public.staff_pay (user_id, base_salary_kobo, active, earns_weekly_bonus) values (_m1, 5000000, true, true), (_m2, 5000000, true, true);
+  select id into _station from public.zones where kind = 'area' and is_live and centre_lat is not null order by name limit 1;
+  insert into public.staff_profiles (user_id, station_zone_id) values (_desk, _station);
+  select id into _cash from public.money_points where active and kind = 'cash' order by name limit 1;
+  select i.id into _item from public.items i where i.active and private.service_price_kobo(i.id, 'dry_clean') > 0 order by i.name limit 1;
+  delete from public.team_weekly_targets where week_start = _w;
+  _before := private.team_week_units(_w);
+  select count(*) into _n from private.team_target_members();
+  _gross := floor(10000000::numeric / _n); _fee := round(_gross * 0.10);
+
+  perform pg_temp.act_as(_boss);
+  perform pg_temp.expect_error(format('select public.set_team_weekly_target(%L, 100, 10000000)', _w), 'not_weekly_target_owner', 'team target: only the owner account can set it');
+  perform pg_temp.act_as(_owner);
+  if _before >= 1 then
+    perform pg_temp.expect_error(format('select public.set_team_weekly_target(%L, %s, 10000000)', _w, _before), 'target_already_reached', 'team target: cannot set a target the team has already reached');
+  end if;
+  _r := public.set_team_weekly_target(_w, _before + 3, 10000000);
+  perform pg_temp.check((_r->>'members')::int = _n and (_r->>'share_net_kobo')::bigint = _gross - _fee, format('team target: %s members, each would get %s kobo after 10%%', _n, _gross - _fee));
+  perform pg_temp.check((select count(*) from public.email_outbox where template = 'weekly_target_set' and user_id in (_m1, _m2)) = 2, 'team target: members are emailed when it is set');
+  _r := public.set_team_weekly_target(_w, _before + 4, 10000000);
+  perform pg_temp.check((select count(*) from public.email_outbox where template = 'weekly_target_set' and user_id = _m1 and (payload->>'updated')::boolean) = 1, 'team target: members are emailed again when it changes');
+
+  perform pg_temp.act_as(_m1);
+  _pay := public.my_pay_overview();
+  perform pg_temp.check((_pay->'team'->>'target_units')::int = _before + 4 and (_pay->>'weekly_enabled')::boolean, 'team target: members see it on their home page');
+
+  -- 3 items in: not yet (target is +4).
+  perform pg_temp.act_as(_desk);
+  _order := public.desk_create_walkin_order(_cust, 'team target test');
+  perform public.desk_set_item(_order, _item, 3, 'dry_clean');
+  perform public.desk_submit_count(_order);
+  perform public.desk_record_payment(_order, 'cash', _cash, null);
+  perform pg_temp.check(private.team_week_units(_w) = _before + 3, 'team target: clothes entering the wash queue count automatically');
+  perform pg_temp.check((select status from public.team_weekly_targets where week_start = _w) = 'open', 'team target: not hit one item short');
+  -- One more item: hit.
+  _order := public.desk_create_walkin_order(_cust, 'team target test 2');
+  perform public.desk_set_item(_order, _item, 1, 'dry_clean');
+  perform public.desk_submit_count(_order);
+  perform public.desk_record_payment(_order, 'cash', _cash, null);
+  perform pg_temp.check((select status from public.team_weekly_targets where week_start = _w) = 'hit', 'team target: hit the moment the team reaches it');
+  perform pg_temp.check((select count(*) from public.weekly_payouts where week_start = _w) = _n, 'team target: every member gets a share');
+  perform pg_temp.check((select bool_and(gross_kobo = _gross and running_costs_kobo = _fee and amount_kobo = _gross - _fee) from public.weekly_payouts where week_start = _w), 'team target: equal shares, 10% kept');
+  perform pg_temp.check((select count(*) from public.email_outbox where template = 'weekly_target_hit' and user_id in (_m1, _m2)) = 2, 'team target: members are emailed when it is hit');
+  perform pg_temp.act_as(_owner);
+  perform pg_temp.expect_error(format('select public.set_team_weekly_target(%L, 999, 10000000)', _w), 'target_already_hit', 'team target: cannot be changed once hit');
+end $t$;
+
+-- ---------- 6. Savings ----------
+do $t$
+declare
+  _boss uuid := pg_temp.new_user('Money test savings admin');
+  _s uuid := pg_temp.new_user('Money test saver');
+  _m date := date_trunc('month', private.today_lagos())::date;
+  _sv jsonb; _paid bigint;
+begin
+  insert into public.user_roles (user_id, role) values (_boss, 'super_admin'), (_s, 'washer');
+  insert into public.staff_pay (user_id, base_salary_kobo, active) values (_s, 10000000, true);
+  perform pg_temp.act_as(_s);
+  _sv := public.my_savings();
+  perform pg_temp.check((_sv->>'pct')::int = 10 and (_sv->>'balance_kobo')::bigint = 0, 'savings: starts at 10%');
+  perform pg_temp.expect_error('select public.set_my_savings_rate(12)', 'invalid_savings_rate', 'savings: only 15% or 20%');
+  perform public.set_my_savings_rate(15);
+  perform pg_temp.expect_error('select public.set_my_savings_rate(15)', 'savings_rate_cannot_decrease', 'savings: same rate again is refused');
+  perform pg_temp.expect_error(format('update public.staff_pay set savings_pct = 10 where user_id = %L', _s), 'savings_rate_cannot_decrease', 'savings: nobody can lower a rate, even directly');
+  perform pg_temp.expect_error(format('select public.confirm_salaries(%L, %L)', _m, jsonb_build_array(jsonb_build_object('staff_id', _s, 'salary_kobo', 10000000))), 'not_super_admin', 'savings: staff cannot confirm salaries');
+
+  perform pg_temp.act_as(_boss);
+  delete from public.salary_months where month = _m;
+  perform public.confirm_salaries(_m, jsonb_build_array(jsonb_build_object('staff_id', _s, 'salary_kobo', 10000000)));
+  perform pg_temp.check((select amount_kobo = 1500000 and take_home_kobo = 8500000 from public.savings_entries where staff_id = _s and kind = 'deposit'), 'savings: ₦100,000 salary at 15% saves ₦15,000, take-home ₦85,000');
+  perform pg_temp.expect_error(format('select public.confirm_salaries(%L, %L)', _m, jsonb_build_array(jsonb_build_object('staff_id', _s, 'salary_kobo', 10000000))), 'month_already_confirmed', 'savings: a month cannot be confirmed twice');
+
+  perform pg_temp.act_as(_s);
+  perform pg_temp.expect_error(format('select public.give_notice(%L, null)', private.today_lagos() + 30), 'notice_too_short', 'savings: notice must be at least two months');
+  perform public.give_notice((private.today_lagos() + interval '2 months')::date, 'Moving city');
+  perform pg_temp.act_as(_boss);
+  perform pg_temp.expect_error(format('select public.pay_out_savings(%L, %L)', _s, 'Transfer 123'), 'savings_not_due', 'savings: not paid before the last day');
+  perform public.record_dismissal(_s, 'Test dismissal');
+  _paid := public.pay_out_savings(_s, 'Transfer 123');
+  perform pg_temp.check(_paid = 1500000 and private.savings_balance(_s) = 0, 'savings: a dismissed person is paid their full savings');
+  perform pg_temp.expect_error(format('select public.pay_out_savings(%L, %L)', _s, 'Transfer 124'), 'savings_already_paid', 'savings: cannot be paid twice');
 end $t$;
 
 do $$ begin raise notice 'ALL MONEY TESTS PASSED'; end $$;
