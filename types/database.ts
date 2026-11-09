@@ -2975,8 +2975,8 @@ export type Database = {
         Relationships: []
       }
       commission_payouts: {
-        Row: { id:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status:string; payment_method:string|null; payment_reference:string|null; note:string|null; created_by:string|null; approved_by:string|null; paid_by:string|null; approved_at:string|null; paid_at:string|null; created_at:string }
-        Insert: { id?:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string }
+        Row: { id:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status:string; payment_method:string|null; payment_reference:string|null; note:string|null; created_by:string|null; approved_by:string|null; paid_by:string|null; approved_at:string|null; paid_at:string|null; created_at:string; gross_kobo:number|null; running_costs_kobo:number; requested_by:string|null }
+        Insert: { id?:string; agent_id:string; period_start:string; period_end:string; amount_kobo:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string; gross_kobo?:number|null; running_costs_kobo?:number; requested_by?:string|null }
         Update: { id?:string; agent_id?:string; period_start?:string; period_end?:string; amount_kobo?:number; status?:string; payment_method?:string|null; payment_reference?:string|null; note?:string|null; created_by?:string|null; approved_by?:string|null; paid_by?:string|null; approved_at?:string|null; paid_at?:string|null; created_at?:string }
         Relationships: []
       }
@@ -3035,6 +3035,17 @@ export type Database = {
         Args: { _bucket: string }
         Returns: Json
       }
+      set_team_weekly_target: { Args: { _week_start: string; _units: number; _pool_kobo: number }; Returns: Json }
+      my_commission_wallet: { Args: Record<PropertyKey, never>; Returns: Json }
+      request_commission_withdrawal: { Args: Record<PropertyKey, never>; Returns: Json }
+      my_savings: { Args: Record<PropertyKey, never>; Returns: Json }
+      set_my_savings_rate: { Args: { _pct: number }; Returns: undefined }
+      give_notice: { Args: { _last_day: string; _reason: string }; Returns: undefined }
+      savings_board: { Args: Record<PropertyKey, never>; Returns: Json }
+      confirm_salaries: { Args: { _month: string; _lines: Json }; Returns: Json }
+      record_dismissal: { Args: { _staff: string; _reason: string }; Returns: undefined }
+      cancel_staff_exit: { Args: { _staff: string }; Returns: undefined }
+      pay_out_savings: { Args: { _staff: string; _reference: string }; Returns: number }
       partner_programme_terms: {
         Args: never
         Returns: Json

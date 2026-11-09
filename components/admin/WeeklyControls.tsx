@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { closeWeek, logUnits, markPaid, saveWeeklyTarget, voidUnits } from "@/app/admin/weekly/actions";
+import { markPaid, setTeamTarget } from "@/app/admin/weekly/actions";
 import { toKobo } from "@/lib/money";
+import { naira } from "@/lib/format";
 import { inputCls, labelCls } from "./ui";
 
 type R = { ok: boolean; message: string };
@@ -13,65 +14,51 @@ function useRun() {
 }
 const Msg = ({ m }: { m: R | null }) => m ? <p role={m.ok ? "status" : "alert"} className={`rounded-md border p-2 text-sm ${m.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{m.message}</p> : null;
 
-export function WeeklyTargetForm({ units, payoutKobo }: { units: number | null; payoutKobo: number }) {
+/** Owner-only form. Shows live what each person would receive before saving. */
+export function TeamTargetForm({ weekStart, label, units, poolKobo, members, feePct, editing }: {
+  weekStart: string; label: string; units: number | null; poolKobo: number | null; members: number; feePct: number; editing: boolean;
+}) {
   const { busy, msg, run } = useRun();
+  const [u, setU] = useState(units ? String(units) : "");
+  const [pool, setPool] = useState(poolKobo ? String(poolKobo / 100) : "");
+  const poolK = toKobo(pool) ?? 0;
+  const gross = members > 0 ? Math.floor(poolK / members) : 0;
+  const fee = Math.round((gross * feePct) / 100);
   return (
-    <form className="card space-y-3 p-5" onSubmit={(e) => {
+    <form className="space-y-3" onSubmit={(e) => {
       e.preventDefault();
-      const f = new FormData(e.currentTarget);
-      const u = String(f.get("units") ?? "").trim();
-      const p = toKobo(String(f.get("payout") ?? ""));
-      if (!p) return;
-      void run(() => saveWeeklyTarget(u ? Number(u) : null, p));
+      const n = Number(u);
+      if (!Number.isInteger(n) || n < 1 || !poolK) return;
+      if (!window.confirm(`${editing ? "Update" : "Set"} the target for ${label} to ${n.toLocaleString("en-NG")} clothes with a ${naira(poolK)} pool?\n\nEveryone on the weekly target (${members}) will be emailed.`)) return;
+      void run(() => setTeamTarget(weekStart, n, poolK));
     }}>
-      <h2 className="text-lg font-semibold">Weekly target and payout</h2>
-      <p className="text-sm text-ink-soft">Only you can change this. Staff see a progress bar, never the number of units.</p>
       <Msg m={msg} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <div><label htmlFor="wk-units" className={labelCls}>Units to wash per week</label><input id="wk-units" name="units" inputMode="numeric" pattern="\d*" defaultValue={units ?? ""} className={inputCls} placeholder="Not set" /></div>
-        <div><label htmlFor="wk-pay" className={labelCls}>Weekly payout (₦)</label><input id="wk-pay" name="payout" inputMode="decimal" required defaultValue={payoutKobo / 100} className={inputCls} /></div>
+        <div><label htmlFor={`tt-u-${weekStart}`} className={labelCls}>Clothes to wash as a team</label>
+          <input id={`tt-u-${weekStart}`} value={u} onChange={(e) => setU(e.target.value.replace(/\D/g, ""))} inputMode="numeric" required className={inputCls} placeholder="e.g. 800" /></div>
+        <div><label htmlFor={`tt-p-${weekStart}`} className={labelCls}>Pool to share (₦)</label>
+          <input id={`tt-p-${weekStart}`} value={pool} onChange={(e) => setPool(e.target.value)} inputMode="decimal" required className={inputCls} placeholder="e.g. 100000" /></div>
       </div>
-      <button className="btn-primary" disabled={busy}>{busy ? "Saving" : "Save"}</button>
+      {poolK > 0 && members > 0 && (
+        <p className="rounded-md bg-canvas p-3 text-sm text-ink-soft">
+          Shared equally by <b className="text-ink">{members}</b>: {naira(gross)} each, less {feePct}% for running costs ({naira(fee)}) = <b className="text-ink">{naira(gross - fee)} each</b>.
+        </p>
+      )}
+      <button className="btn-primary" disabled={busy}>{busy ? "Saving" : editing ? "Update target and email the team" : "Set target and email the team"}</button>
     </form>
   );
 }
 
-export function LogUnits({ staffId }: { staffId: string }) {
+export function MarkPaid({ id, name, amount }: { id: string; name: string; amount: number }) {
   const { busy, msg, run } = useRun();
-  const [units, setUnits] = useState("");
+  if (msg?.ok) return <span className="text-sm font-medium text-emerald-700">Paid</span>;
   return (
     <div className="space-y-1">
-      <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const n = Number(units); if (!Number.isInteger(n) || n < 1) return; const r = await run(() => logUnits(staffId, n, "")); if (r.ok) setUnits(""); }}>
-        <input aria-label="Units washed" inputMode="numeric" value={units} onChange={(e) => setUnits(e.target.value.replace(/\D/g, ""))} placeholder="Units" className="w-24 rounded-md border border-line px-2 py-1.5 text-sm" />
-        <button className="btn-secondary !px-3 !py-1.5" disabled={busy || !units}>Add</button>
-      </form>
-      {msg && !msg.ok && <p role="alert" className="text-xs text-red-700">{msg.message}</p>}
+      <button type="button" className="btn-secondary !px-3 !py-1.5 text-sm" disabled={busy}
+        onClick={() => { if (window.confirm(`Mark ${naira(amount)} to ${name} as paid? Only do this after the transfer has gone through.`)) void run(() => markPaid(id)); }}>
+        {busy ? "Saving" : "Mark paid"}
+      </button>
+      {msg && !msg.ok && <Msg m={msg} />}
     </div>
   );
-}
-
-export function VoidButton({ id }: { id: string }) {
-  const { busy, msg, run } = useRun();
-  return (
-    <span>
-      <button className="text-xs font-medium text-red-700 hover:underline" disabled={busy} onClick={() => { const r = window.prompt("Why is this entry being voided?"); if (r) void run(() => voidUnits(id, r)); }}>Void</button>
-      {msg && !msg.ok && <span role="alert" className="ml-2 text-xs text-red-700">{msg.message}</span>}
-    </span>
-  );
-}
-
-export function CloseWeek({ weekStart, disabledReason }: { weekStart: string; disabledReason: string | null }) {
-  const { busy, msg, run } = useRun();
-  return (
-    <div className="space-y-2">
-      <Msg m={msg} />
-      <button className="btn-primary" disabled={busy || !!disabledReason} onClick={() => { if (window.confirm("Close this week and create payouts for everyone who reached the target?")) void run(() => closeWeek(weekStart)); }}>Close week and create payouts</button>
-      {disabledReason && <p className="text-xs text-ink-mute">{disabledReason}</p>}
-    </div>
-  );
-}
-
-export function MarkPaid({ id }: { id: string }) {
-  const { busy, msg, run } = useRun();
-  return <span><button className="btn-secondary !px-3 !py-1" disabled={busy} onClick={() => run(() => markPaid(id))}>Mark paid</button>{msg && !msg.ok && <span role="alert" className="ml-2 text-xs text-red-700">{msg.message}</span>}</span>;
 }
