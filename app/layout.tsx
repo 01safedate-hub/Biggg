@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/components/brand/PwaRegister";
+import { Toaster } from "sonner";
 
 const DEFAULT_SITE = "https://laundrypoint.app";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
+        <Toaster position="top-right" richColors closeButton duration={6000} />
         <PwaRegister />
       </body>
     </html>
