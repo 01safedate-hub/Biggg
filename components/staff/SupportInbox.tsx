@@ -8,7 +8,7 @@ type Message = {id:string;direction:string;body:string;created_at:string;deliver
 const fmt=(v:string|null)=>v?new Intl.DateTimeFormat("en-NG",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"";
 export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  const messagesEndRef=useRef<HTMLDivElement|null>(null);
- const [rows,setRows]=useState(initial),[tab,setTab]=useState<"ai"|"human"|"resolved">("human"),[phone,setPhone]=useState<string|null>(null),[messages,setMessages]=useState<Message[]>([]),[draft,setDraft]=useState(""),[sound,setSound]=useState(true),[error,setError]=useState(""),[busy,start]=useTransition() ;
+ const [rows,setRows]=useState(initial),[tab,setTab]=useState<"ai"|"human"|"resolved">("human"),[phone,setPhone]=useState<string|null>(null),[messages,setMessages]=useState<Message[]>([]),[draft,setDraft]=useState(""),[error,setError]=useState(""),[busy,start]=useTransition() ;
  const lastInboundIds=useRef<Set<string>>(new Set());
  const refresh=useCallback(async()=>{try{const d=await loadSupport("all");setRows(Array.isArray(d)?d as SupportConversation[]:[]);}catch(e){setError(e instanceof Error?e.message:"Refresh failed");}},[]);
  
@@ -34,14 +34,13 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
   return()=>{if(refreshTimer)clearTimeout(refreshTimer);clearInterval(fallback);void supabase.removeChannel(channel);};
  },[refresh,phone]);
  useEffect(()=>{messagesEndRef.current?.scrollIntoView({block:"end",behavior:"auto"});},[messages,phone]);
- useEffect(()=>{if(!sound)return;const count=rows.filter(r=>r.mode==="human"&&r.unread_count>0).length; if(count>0){try{const C=window.AudioContext|| (window as any).webkitAudioContext;if(C){const ctx=new C();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.035;o.start();o.stop(ctx.currentTime+.16);o.onended=()=>ctx.close();}}catch{}}},[rows.filter(r=>r.mode==="human").map(r=>r.unread_count).join(","),sound]);
  const selected=rows.find(r=>r.phone===phone);
  const shown=useMemo(()=>rows.filter(r=>r.mode===tab).sort((a,b)=>(b.last_message_at??"").localeCompare(a.last_message_at??"")),[rows,tab]);
  async function open(r:SupportConversation){setPhone(r.phone);setError("");try{const d=await loadSupportHistory(r.phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);await refresh();}catch(e){setError(e instanceof Error?e.message:"Unable to load chat");}}
  async function act(fn:()=>Promise<unknown>){setError("");start(()=>{void fn().then(refresh).catch(e=>setError(e instanceof Error?e.message:"Action failed"));});}
  async function send(){if(!phone||!draft.trim())return;const body=draft.trim();setDraft("");act(async()=>{await supportReply(phone,body);const d=await loadSupportHistory(phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);});}
  return <div className="w-full min-w-0 max-w-full space-y-5 overflow-x-hidden">
-  <header className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Customer support</h1><p className="mt-1 text-sm text-ink-soft">WhatsApp conversations · human handover expires after one hour without a staff reply.</p></div><div className="flex flex-wrap gap-2"><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>setSound(v=>!v)}>{sound?"🔔 Sound on":"🔕 Sound off"}</button></div></header>
+  <header className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Customer support</h1><p className="mt-1 text-sm text-ink-soft">WhatsApp conversations · human handover expires after one hour without a staff reply.</p></div></header>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
   <nav className="grid w-full min-w-0 grid-cols-3 gap-2">{(["ai","human","resolved"] as const).map(t=><button key={t} onClick={()=>setTab(t)} className={`rounded-xl border p-3 text-sm font-semibold capitalize ${tab===t?"border-brand bg-brand/10 text-brand-dark":"bg-white"}`}>{t}<span className="ml-2 rounded-full bg-black/5 px-2 py-0.5">{rows.filter(r=>r.mode===t).length}</span></button>)}</nav>
   <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
