@@ -29,23 +29,30 @@ export function SupportNotifications() {
       if (!AudioContextClass) return;
       const context = audioContext.current ?? new AudioContextClass();
       audioContext.current = context;
-      if (context.state !== "running") return;
 
-      const now = context.currentTime;
-      [660, 880].forEach((frequency, index) => {
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        const startAt = now + index * 0.12;
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(frequency, startAt);
-        gain.gain.setValueAtTime(0.0001, startAt);
-        gain.gain.exponentialRampToValueAtTime(0.045, startAt + 0.025);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.18);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start(startAt);
-        oscillator.stop(startAt + 0.19);
-      });
+      const play = () => {
+        const now = context.currentTime;
+        // A clear, two-note chime with a longer tail and stronger volume.
+        [740, 988].forEach((frequency, index) => {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          const startAt = now + index * 0.16;
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, startAt);
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(0.14, startAt + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.32);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(startAt);
+          oscillator.stop(startAt + 0.34);
+        });
+      };
+
+      if (context.state === "running") play();
+      else void context.resume().then(() => {
+        if (context.state === "running") play();
+      }).catch(() => {});
     } catch {
       // Notifications must never interrupt dashboard navigation.
     }
@@ -63,8 +70,8 @@ export function SupportNotifications() {
         // Audio remains unavailable until the browser permits it.
       }
     };
-    window.addEventListener("pointerdown", unlockAudio, { once: true });
-    window.addEventListener("keydown", unlockAudio, { once: true });
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
     return () => {
       window.removeEventListener("pointerdown", unlockAudio);
       window.removeEventListener("keydown", unlockAudio);
@@ -139,6 +146,18 @@ export function SupportNotifications() {
       }
       return next;
     });
+    if (!soundEnabled) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          const context = audioContext.current ?? new AudioContextClass();
+          audioContext.current = context;
+          if (context.state === "suspended") void context.resume();
+        }
+      } catch {
+        // Browser audio may remain unavailable.
+      }
+    }
   }
 
   return (
