@@ -192,6 +192,8 @@ Deno.serve(async (req) => {
         inboundMessageId: String(item.id),
         deliveryStatus: "received",
       });
+      const { data: conversationId, error: conversationIdError } = await db.rpc("whatsapp_active_support_conversation", { _phone: from });
+      if (conversationIdError || !conversationId) throw new Error("support_conversation_lookup_failed");
 
       // Do not infer WhatsApp consent from an inbound message. Consent is requested
       // only after verified account access and saved only after an explicit YES.
@@ -248,9 +250,9 @@ Deno.serve(async (req) => {
             .eq("id", conversationId).eq("mode", "human");
           if (resumeError) throw new Error("support_timeout_resume_failed");
         } else {
-          await db.from("whatsapp_support_conversations")
+          await db .from("whatsapp_support_conversations")
             .update({ unread_at: receivedAt.toISOString(), updated_at: new Date().toISOString() })
-            .eq("conversation_id", conversationId);
+            .eq("id", conversationId);
           await db.from("whatsapp_inbound_messages").update({
             status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           }).eq("id", item.id);
