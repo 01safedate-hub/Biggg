@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { loadSupport, loadSupportHistory, supportReply, supportResolve, supportReturnAI, supportTakeover } from "@/app/staff/(app)/support/actions";
 import type { SupportConversation } from "@/app/staff/(app)/support/page";
+import { createClient } from "@/lib/supabase/client";
 
 type Message = {id:string;direction:string;body:string;created_at:string;delivery_status?:string};
 const fmt=(v:string|null)=>v?new Intl.DateTimeFormat("en-NG",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"";
@@ -9,7 +10,23 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  const messagesEndRef=useRef<HTMLDivElement|null>(null);
  const [rows,setRows]=useState(initial),[tab,setTab]=useState<"ai"|"human"|"resolved">("human"),[phone,setPhone]=useState<string|null>(null),[messages,setMessages]=useState<Message[]>([]),[draft,setDraft]=useState(""),[sound,setSound]=useState(true),[error,setError]=useState(""),[busy,start]=useTransition();
  const refresh=useCallback(async()=>{try{const d=await loadSupport("all");setRows(Array.isArray(d)?d as SupportConversation[]:[]);}catch(e){setError(e instanceof Error?e.message:"Refresh failed");}},[]);
- useEffect(()=>{const timer=setInterval(refresh,12000);return()=>clearInterval(timer);},[refresh]);
+ useEffect(()=>{
+  const supabase=createClient();
+  let refreshTimer: ReturnType<typeof setTimeout>|undefined;
+  const scheduleRefresh=()=>{if(refreshTimer)clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{void refresh();},180);};
+  const channel=supabase.channel("staff-support-live")
+   .on("postgres_changes",{event:"*",schema:"public",table:"whatsapp_support_conversations"},scheduleRefresh)
+   .on("postgres_changes",{event:"*",schema:"public",table:"whatsapp_conversation_messages"},payload=>{
+     scheduleRefresh();
+     const changedPhone=String((payload.new as {phone?:string}|null)?.phone??(payload.old as {phone?:string}|null)?.phone??"");
+     if(phone&&changedPhone===phone){
+       void loadSupportHistory(phone).then(d=>setMessages(Array.isArray(d)?d as Message[]:d?[d as Message]:[])).catch(()=>{});
+     }
+   })
+   .subscribe();
+  const fallback=setInterval(()=>{void refresh();if(phone)void loadSupportHistory(phone).then(d=>setMessages(Array.isArray(d)?d as Message[]:d?[d as Message]:[])).catch(()=>{});},60000);
+  return()=>{if(refreshTimer)clearTimeout(refreshTimer);clearInterval(fallback);void supabase.removeChannel(channel);};
+ },[refresh,phone]);
  useEffect(()=>{messagesEndRef.current?.scrollIntoView({block:"end",behavior:"auto"});},[messages,phone]);
  useEffect(()=>{if(!sound)return;const count=rows.filter(r=>r.mode==="human"&&r.unread_count>0).length; if(count>0){try{const C=window.AudioContext|| (window as any).webkitAudioContext;if(C){const ctx=new C();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.035;o.start();o.stop(ctx.currentTime+.16);o.onended=()=>ctx.close();}}catch{}}},[rows.filter(r=>r.mode==="human").map(r=>r.unread_count).join(","),sound]);
  const selected=rows.find(r=>r.phone===phone);
