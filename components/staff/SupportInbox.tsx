@@ -12,7 +12,7 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  useEffect(()=>{if(!sound)return;const count=rows.filter(r=>r.mode==="human"&&r.unread_count>0).length; if(count>0){try{const C=window.AudioContext|| (window as any).webkitAudioContext;if(C){const ctx=new C();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.value=.035;o.start();o.stop(ctx.currentTime+.16);o.onended=()=>ctx.close();}}catch{}}},[rows.filter(r=>r.mode==="human").map(r=>r.unread_count).join(","),sound]);
  const selected=rows.find(r=>r.phone===phone);
  const shown=useMemo(()=>rows.filter(r=>r.mode===tab).sort((a,b)=>(b.last_message_at??"").localeCompare(a.last_message_at??"")),[rows,tab]);
- async function open(r:SupportConversation){setPhone(r.phone);setError("");try{const d=await loadSupportHistory(r.phone);setMessages(Array.isArray(d)?d as Message:[]);await refresh();}catch(e){setError(e instanceof Error?e.message:"Unable to load chat");}}
+ async function open(r:SupportConversation){setPhone(r.phone);setError("");try{const d=await loadSupportHistory(r.phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);await refresh();}catch(e){setError(e instanceof Error?e.message:"Unable to load chat");}}
  async function act(fn:()=>Promise<unknown>){setError("");start(()=>{void fn().then(refresh).catch(e=>setError(e instanceof Error?e.message:"Action failed"));});}
  async function send(){if(!phone||!draft.trim())return;const body=draft.trim();setDraft("");act(async()=>{await supportReply(phone,body);const d=await loadSupportHistory(phone);setMessages(Array.isArray(d)?d as Message:[]);});}
  return <div className="space-y-5">
