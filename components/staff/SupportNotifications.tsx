@@ -15,11 +15,20 @@ export function SupportNotifications() {
   const [soundEnabled, setSoundEnabled] = useState(true);
 
   useEffect(() => {
-    try {
-      setSoundEnabled(window.localStorage.getItem("staff-notification-sound") !== "off");
-    } catch {
-      // Keep sound enabled when browser storage is unavailable.
-    }
+    const readPreference = () => {
+      try {
+        setSoundEnabled(window.localStorage.getItem("staff-notification-sound") !== "off");
+      } catch {
+        setSoundEnabled(true);
+      }
+    };
+    readPreference();
+    window.addEventListener("storage", readPreference);
+    window.addEventListener("staff-notification-sound-change", readPreference);
+    return () => {
+      window.removeEventListener("storage", readPreference);
+      window.removeEventListener("staff-notification-sound-change", readPreference);
+    };
   }, []);
 
   const playChime = useCallback(() => {
@@ -136,39 +145,7 @@ export function SupportNotifications() {
     };
   }, [router, playChime]);
 
-  function toggleSound() {
-    setSoundEnabled((enabled) => {
-      const next = !enabled;
-      try {
-        window.localStorage.setItem("staff-notification-sound", next ? "on" : "off");
-      } catch {
-        // The preference still applies for this session.
-      }
-      return next;
-    });
-    if (!soundEnabled) {
-      try {
-        const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (AudioContextClass) {
-          const context = audioContext.current ?? new AudioContextClass();
-          audioContext.current = context;
-          if (context.state === "suspended") void context.resume();
-        }
-      } catch {
-        // Browser audio may remain unavailable.
-      }
-    }
-  }
+  return null;
+}
 
-  return (
-    <button
-      type="button"
-      onClick={toggleSound}
-      aria-label={soundEnabled ? "Mute notification sound" : "Enable notification sound"}
-      title={soundEnabled ? "Notification sound on" : "Notification sound off"}
-      className="fixed bottom-5 right-5 z-[90] rounded-full border border-orange-300 bg-orange-600 px-3 py-2 text-sm font-semibold text-white shadow-lg hover:bg-orange-700"
-    >
-      {soundEnabled ? "🔔 Sound on" : "🔕 Sound off"}
-    </button>
-  );
 }
