@@ -10,23 +10,24 @@ $$;
 create or replace function public.expire_staff_support_handoffs()
 returns integer language plpgsql security definer set search_path=''
 as $$
-declare affected integer;
+declare r record; affected integer:=0; msg text:='A support teammate was not available to reply within one hour, so I have resumed as your LaundryPoint AI assistant. Please tell me how I can help.';
 begin
- update public.whatsapp_support_conversations
- set mode='ai',assigned_to=null,handoff_started_at=null,response_due_at=null,updated_at=now()
- where mode='human' and response_due_at is not null and response_due_at <= now()
-   and (last_staff_reply_at is null or last_staff_reply_at < response_due_at - interval '1 hour');
- get diagnostics affected = row_count;
+ for r in
+   update public.whatsapp_support_conversations
+   set mode='ai',assigned_to=null,handoff_started_at=null,response_due_at=null,updated_at=now()
+   where mode='human' and response_due_at is not null and response_due_at <= now()
+     and last_staff_reply_at is null
+   returning phone
+ loop
+   insert into public.whatsapp_outbox(to_phone,event,template,variables,condition,idempotency_key)
+   values(r.phone,'support_timeout_resume','freeform_text',jsonb_build_object('text_body',msg),'{}'::jsonb,'support-timeout-'||md5(r.phone||':'||now()::text));
+   insert into public.whatsapp_conversation_messages(phone,direction,body,delivery_status)
+   values(r.phone,'outbound',msg,'queued');
+   affected:=affected+1;
+ end loop;
  return affected;
 end;
 $$;
-do $$
-begin
- if exists(select 1 from pg_extension where extname='pg_cron') then
-   perform cron.unschedule(jobid) from cron.job where jobname='expire-staff-support-handoffs';
-   perform cron.schedule('expire-staff-support-handoffs','* * * * *','select public.expire_staff_support_handoffs();');
- end if;
-end $$;
 revoke all on function public.expire_staff_support_handoffs() from public, anon, authenticated;
 grant execute on function public.expire_staff_support_handoffs() to service_role;
 create or replace function public.staff_support_takeover(_phone text)
