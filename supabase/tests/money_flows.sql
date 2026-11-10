@@ -396,49 +396,100 @@ begin
 end $t$;
 
 
--- ---------- 7. Shelves: required at Mark ready, movable, released on delivery ----------
+-- ---------- 7. Shelves, end to end: drop-off, wash, shelve, move, collect, deliver, fail, cancel ----------
 do $t$
 declare
   _desk uuid := pg_temp.new_user('Shelf test desk');
+  _washer uuid := pg_temp.new_user('Shelf test washer');
+  _far uuid := pg_temp.new_user('Shelf test washer elsewhere');
   _cust uuid := pg_temp.new_user('Shelf test customer');
-  _station uuid; _cash uuid; _item uuid; _order uuid; _board jsonb;
+  _station uuid; _other uuid; _cash uuid; _item uuid; _o1 uuid; _o2 uuid; _o3 uuid; _board jsonb; _n int;
 begin
   select id into _station from public.zones where kind = 'area' and is_live and centre_lat is not null order by name limit 1;
+  select id into _other from public.zones where id <> _station order by name limit 1;
   select id into _cash from public.money_points where active and kind = 'cash' order by name limit 1;
   select i.id into _item from public.items i where i.active and private.service_price_kobo(i.id, 'dry_clean') > 0 order by i.name limit 1;
-  insert into public.user_roles (user_id, role) values (_desk, 'secretary');
-  insert into public.staff_profiles (user_id, station_zone_id) values (_desk, _station);
+  perform pg_temp.check(_station is not null and _other is not null and _cash is not null and _item is not null, 'shelves: fixtures exist');
+  insert into public.user_roles (user_id, role) values (_desk, 'secretary'), (_washer, 'washer'), (_far, 'washer');
+  insert into public.staff_profiles (user_id, station_zone_id) values (_desk, _station), (_washer, _station), (_far, _other);
+
+  -- Three walk-in orders, counted, paid in cash and washing.
   perform pg_temp.act_as(_desk);
-  _order := public.desk_create_walkin_order(_cust, 'shelf test');
-  perform public.desk_set_item(_order, _item, 2, 'dry_clean');
-  perform public.desk_submit_count(_order);
-  perform public.desk_record_payment(_order, 'cash', _cash, null);
-  perform public.start_washing(_order);
+  _o1 := public.desk_create_walkin_order(_cust, 'shelf test 1');
+  _o2 := public.desk_create_walkin_order(_cust, 'shelf test 2');
+  _o3 := public.desk_create_walkin_order(_cust, 'shelf test 3');
+  perform public.desk_set_item(_o1, _item, 2, 'dry_clean'); perform public.desk_submit_count(_o1); perform public.desk_record_payment(_o1, 'cash', _cash, null);
+  perform public.desk_set_item(_o2, _item, 1, 'dry_clean'); perform public.desk_submit_count(_o2); perform public.desk_record_payment(_o2, 'cash', _cash, null);
+  perform public.desk_set_item(_o3, _item, 1, 'dry_clean'); perform public.desk_submit_count(_o3); perform public.desk_record_payment(_o3, 'cash', _cash, null);
+  perform pg_temp.check((select count(*) from public.orders where id in (_o1, _o2, _o3) and status = 'received') = 3, 'shelves: three paid walk-ins in the wash queue');
 
-  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{}'), 'shelf_required', 'shelves: Mark ready needs a shelf');
-  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{H1}'), 'invalid_shelf', 'shelves: only A1-G9 exist');
-  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{A0}'), 'invalid_shelf', 'shelves: shelf 0 does not exist');
-  perform pg_temp.check((select status from public.orders where id = _order) = 'in_house', 'shelves: a refused Mark ready leaves the order being washed');
+  -- The washer at this station starts and finishes them; a washer at another station cannot.
+  perform pg_temp.act_as(_washer);
+  perform public.start_washing(_o1); perform public.start_washing(_o2); perform public.start_washing(_o3);
+  perform pg_temp.act_as(_far);
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _o1, '{A1}'), 'not_allowed', 'shelves: a washer at another station cannot mark it ready');
+  perform pg_temp.act_as(_washer);
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _o1, '{}'), 'shelf_required', 'shelves: Mark ready needs a shelf');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, null::text[])', _o1), 'shelf_required', 'shelves: Mark ready with no list needs a shelf');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _o1, '{H1}'), 'invalid_shelf', 'shelves: row H does not exist');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _o1, '{A0}'), 'invalid_shelf', 'shelves: shelf 0 does not exist');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _o1, '{A1,A2,A3,A4,A5,A6,A7,A8,A9,B1,B2}'), 'too_many_shelves', 'shelves: at most 10 shelves');
+  perform pg_temp.check((select status from public.orders where id = _o1) = 'in_house', 'shelves: a refused Mark ready leaves the order being washed');
+  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _o1), 'shelves: nothing saved when Mark ready is refused');
 
-  perform public.mark_ready(_order, array[' a1', 'A1', 'c 4']);
-  perform pg_temp.check((select status from public.orders where id = _order) = 'ready', 'shelves: order is ready');
-  perform pg_temp.check((select array_agg(shelf order by shelf) from public.order_shelves where order_id = _order and released_at is null) = array['A1', 'C4'],
-    'shelves: one order can take several shelves, cleaned and without duplicates');
+  perform public.mark_ready(_o1, array[' a1', 'A1', 'c 4']);
+  perform public.mark_ready(_o2, array['C4']);
+  perform public.mark_ready(_o3, array['G9']);
+  perform pg_temp.check((select count(*) from public.orders where id in (_o1, _o2, _o3) and status = 'ready') = 3, 'shelves: all three ready for collection');
+  perform pg_temp.check((select array_agg(shelf order by shelf) from public.order_shelves where order_id = _o1 and released_at is null) = array['A1', 'C4'],
+    'shelves: one order on two shelves, cleaned, no duplicates');
+  perform pg_temp.check((select count(*) from public.order_shelves where shelf = 'C4' and released_at is null and order_id in (_o1, _o2)) = 2, 'shelves: one shelf holds two orders');
+  perform pg_temp.check(exists (select 1 from public.order_events where order_id = _o1 and event = 'shelved' and actor_id = _washer), 'shelves: who shelved it is recorded');
 
+  -- Washers see the map without customer names; desk staff see names.
   _board := public.shelf_board();
-  perform pg_temp.check(exists (select 1 from jsonb_array_elements(_board) e where (e->>'order_id')::uuid = _order and e->>'shelf' = 'C4' and e->>'customer' is not null),
-    'shelves: the shelf map shows the order and customer to desk staff');
+  perform pg_temp.check(exists (select 1 from jsonb_array_elements(_board) e where (e->>'order_id')::uuid = _o3 and e->>'shelf' = 'G9' and e->>'customer' is null), 'shelves: washer map has no customer names');
+  perform pg_temp.act_as(_desk);
+  _board := public.shelf_board();
+  perform pg_temp.check(exists (select 1 from jsonb_array_elements(_board) e where (e->>'order_id')::uuid = _o1 and e->>'shelf' = 'C4' and e->>'customer' is not null and (e->>'pieces')::int = 2),
+    'shelves: desk map shows order, customer and pieces');
 
-  perform public.set_order_shelves(_order, array['B2']);
-  perform pg_temp.check((select array_agg(shelf) from public.order_shelves where order_id = _order and released_at is null) = array['B2'], 'shelves: order moved to B2, old shelves freed');
+  -- Move order 1 to B2: A1 and C4 are freed, order 2 stays on C4.
+  perform public.set_order_shelves(_o1, array['B2']);
+  perform pg_temp.check((select array_agg(shelf) from public.order_shelves where order_id = _o1 and released_at is null) = array['B2'], 'shelves: order 1 moved to B2');
+  perform pg_temp.check(exists (select 1 from public.order_shelves where order_id = _o2 and shelf = 'C4' and released_at is null), 'shelves: moving one order leaves the other on C4');
 
+  -- Customers can see their own order's shelf, but cannot move shelves or see the map.
   perform pg_temp.act_as(_cust);
-  perform pg_temp.expect_error(format('select public.set_order_shelves(%L, %L::text[])', _order, '{A1}'), 'not_allowed', 'shelves: customers cannot move shelves');
+  perform pg_temp.expect_error(format('select public.set_order_shelves(%L, %L::text[])', _o1, '{A1}'), 'not_allowed', 'shelves: customers cannot move shelves');
   perform pg_temp.expect_error('select public.shelf_board()', 'not_allowed', 'shelves: customers cannot see the shelf map');
 
+  -- Order 1: the customer collects at the desk, and B2 is freed.
+  perform pg_temp.act_as(_desk);
+  perform public.desk_handover(_o1);
+  perform pg_temp.check((select status from public.orders where id = _o1) = 'delivered', 'shelves: order 1 handed over at the desk');
+  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _o1 and released_at is null), 'shelves: B2 freed when order 1 is collected');
+  perform pg_temp.expect_error(format('select public.set_order_shelves(%L, %L::text[])', _o1, '{A1}'), 'wrong_state', 'shelves: a collected order cannot be put back on a shelf');
+
+  -- Order 2: goes out for delivery (still on C4 until delivered), fails, comes back, is moved, then delivered.
   perform pg_temp.act_as(null);
-  update public.orders set status = 'closed' where id = _order;
-  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _order and released_at is null), 'shelves: shelf freed when the order is closed');
+  update public.orders set status = 'out_for_delivery' where id = _o2;
+  perform pg_temp.check(exists (select 1 from public.order_shelves where order_id = _o2 and shelf = 'C4' and released_at is null), 'shelves: kept while out for delivery');
+  update public.orders set status = 'failed_delivery' where id = _o2;
+  perform pg_temp.act_as(_desk);
+  perform public.set_order_shelves(_o2, array['D5']);
+  perform pg_temp.check((select array_agg(shelf) from public.order_shelves where order_id = _o2 and released_at is null) = array['D5'], 'shelves: failed delivery put back on D5');
+  perform pg_temp.act_as(null);
+  update public.orders set status = 'delivered', delivered_at = now() where id = _o2;
+  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _o2 and released_at is null), 'shelves: D5 freed on delivery');
+
+  -- Order 3: cancelled, G9 is freed.
+  update public.orders set status = 'cancelled' where id = _o3;
+  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _o3 and released_at is null), 'shelves: G9 freed when cancelled');
+
+  -- History is kept: every shelf each order was on.
+  select count(*) into _n from public.order_shelves where order_id in (_o1, _o2, _o3);
+  perform pg_temp.check(_n = 6, format('shelves: full history kept (6 entries, got %s)', _n));
 end $t$;
 
 do $$ begin raise notice 'ALL MONEY TESTS PASSED'; end $$;
