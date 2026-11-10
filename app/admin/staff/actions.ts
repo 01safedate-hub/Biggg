@@ -66,3 +66,12 @@ export async function createStaff(input: { email: string; full_name: string; pho
   revalidatePath("/admin/staff");
   return { ok: true, message: "Account created. Share the password with them in person. They must change it at first sign-in.", userId: String(r.data?.user_id ?? "") };
 }
+
+export async function grantSupportAccess(userId: string, grant: boolean): Promise<ActionResult> {
+  const { supabase } = await requireRole(["super_admin"]);
+  const { error } = await supabase.rpc("staff_support_grant", { _user: userId, _grant: grant });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/admin/staff");
+  revalidatePath("/staff");
+  return { ok: true, message: grant ? "Support access granted." : "Support access revoked." };
+}
