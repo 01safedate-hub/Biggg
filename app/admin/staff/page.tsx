@@ -6,6 +6,7 @@ import type { StaffRowData } from "@/lib/staff";
 import type { StationOption } from "@/lib/stations";
 import { ListSearch } from "@/components/admin/ListSearch";
 import { ROLE_NAME } from "@/lib/staff";
+import { SupportAccess } from "@/components/admin/SupportAccess";
 
 export const metadata = { title: "Staff" };
 
@@ -23,6 +24,8 @@ export default async function StaffPage() {
   const { data: parents } = parentIds.length ? await supabase.from("zones").select("id,name").in("id", parentIds) : { data: [] };
   const parentNames = new Map((parents ?? []).map((z) => [z.id, z.name]));
   const stations = (zones ?? []).map((z) => ({ id: z.id, label: `${z.name}${z.parent_id && parentNames.has(z.parent_id) ? ` · ${parentNames.get(z.parent_id)}` : ""}` })) as StationOption[];
+  const { data: supportGrants } = await supabase.rpc("staff_support_permissions_list");
+  const supportGranted = new Set((supportGrants ?? []).map(x => x.user_id));
   const { data: assignments } = staff.length ? await supabase.from("staff_profiles").select("user_id,station_zone_id").in("user_id", staff.map((s) => s.id)) : { data: [] };
   const assignedZone = new Map((assignments ?? []).filter((a) => a.station_zone_id).map((a) => [a.user_id, a.station_zone_id]));
   const stationLabels = new Map(stations.map((s) => [s.id, s.label]));
@@ -42,6 +45,7 @@ export default async function StaffPage() {
         </section>
       )}
       <StaffInvite stations={stations} />
+      <SupportAccess people={staff.map(s => ({ id:s.id, name:s.full_name, email:s.email, roles:s.roles, enabled:supportGranted.has(s.id) }))} />
       <section aria-label="Team" className="space-y-3">
         <h2 className="text-lg font-semibold">Team ({staff.length})</h2>
         {error && <p role="alert" className="text-sm text-red-700">The team list could not be loaded. Please refresh.</p>}

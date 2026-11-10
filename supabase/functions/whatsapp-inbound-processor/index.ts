@@ -40,8 +40,23 @@ async function recordConversationMessage(
   db: ReturnType<typeof createClient>,
   entry: { phone: string; direction: "inbound" | "outbound"; body: string; inboundMessageId?: string; providerMessageId?: string; deliveryStatus?: string },
 ) {
+  let conversationId: string | null = null;
+  if (entry.inboundMessageId) {
+    const { data: existingMessage } = await db.from("whatsapp_conversation_messages")
+      .select("conversation_id").eq("inbound_message_id", entry.inboundMessageId).maybeSingle();
+    conversationId = existingMessage?.conversation_id ?? null;
+  }
+  if (!conversationId) {
+    const { data, error: conversationError } = await db.rpc("whatsapp_active_support_conversation", { _phone: entry.phone });
+    if (conversationError || !data) {
+      console.error("whatsapp_support_conversation_resolve_failed", { code: conversationError?.code });
+      return;
+    }
+    conversationId = data;
+  }
   const row: Record<string, unknown> = {
     phone: entry.phone,
+    conversation_id: conversationId,
     direction: entry.direction,
     body: entry.body.slice(0, 4000),
     delivery_status: entry.deliveryStatus ?? (entry.direction === "inbound" ? "received" : "sent"),
@@ -186,6 +201,8 @@ Deno.serve(async (req) => {
         inboundMessageId: String(item.id),
         deliveryStatus: "received",
       });
+      const { data: conversationId, error: conversationIdError } = await db.rpc("whatsapp_active_support_conversation", { _phone: from });
+      if (conversationIdError || !conversationId) throw new Error("support_conversation_lookup_failed");
 
       // Do not infer WhatsApp consent from an inbound message. Consent is requested
       // only after verified account access and saved only after an explicit YES.
@@ -228,8 +245,8 @@ Deno.serve(async (req) => {
       // An expired handoff resumes AI using the persisted conversation history below.
       const { data: supportState, error: supportStateError } = await db
         .from("whatsapp_support_conversations")
-        .select("mode,response_due_at")
-        .eq("phone", from)
+        .select("id,mode,response_due_at")
+        .eq("id", conversationId)
         .maybeSingle();
       if (supportStateError) throw new Error("support_mode_lookup_failed");
       if (supportState?.mode === "human") {
@@ -239,23 +256,18 @@ Deno.serve(async (req) => {
         if (expired) {
           const { error: resumeError } = await db.from("whatsapp_support_conversations")
             .update({ mode: "ai", assigned_to: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
-            .eq("phone", from).eq("mode", "human");
+            .eq("id", conversationId).eq("mode", "human");
           if (resumeError) throw new Error("support_timeout_resume_failed");
         } else {
-          await db.from("whatsapp_support_conversations")
+          await db .from("whatsapp_support_conversations")
             .update({ unread_at: receivedAt.toISOString(), updated_at: new Date().toISOString() })
-            .eq("phone", from);
+            .eq("id", conversationId);
           await db.from("whatsapp_inbound_messages").update({
             status: "processed", processed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           }).eq("id", item.id);
           processed++;
           continue;
         }
-      } else if (supportState?.mode === "resolved") {
-        const { error: reopenError } = await db.from("whatsapp_support_conversations")
-          .update({ mode: "ai", assigned_to: null, resolved_at: null, handoff_started_at: null, response_due_at: null, updated_at: new Date().toISOString() })
-          .eq("phone", from).eq("mode", "resolved");
-        if (reopenError) throw new Error("support_resolved_reopen_failed");
       }
 
       async function getVerifiedSession() {
@@ -297,7 +309,7 @@ Deno.serve(async (req) => {
       }
       async function getPending(prefix: string) {
         const { data, error } = await db.from("whatsapp_conversation_messages").select("body")
-          .eq("phone",from).eq("direction","outbound").eq("delivery_status","internal")
+          .eq("conversation_id",conversationId).eq("direction","outbound").eq("delivery_status","internal")
           .like("body",prefix+"%").order("created_at",{ascending:false}).limit(20);
         if(error) throw new Error("pickup_state_lookup_failed");
         for (const row of (data ?? [])) {
@@ -341,7 +353,7 @@ Deno.serve(async (req) => {
         // Read the customer's preceding message to distinguish a coverage question from an active booking request.
         const { data: recentMessages, error: recentMessagesError } = await db.from("whatsapp_conversation_messages")
           .select("direction,body,created_at")
-          .eq("phone", from)
+          .eq("conversation_id", conversationId)
           .eq("direction", "inbound")
           .order("created_at", { ascending: false })
           .limit(5);
@@ -407,7 +419,7 @@ Deno.serve(async (req) => {
       if (activeSession?.customer_id) {
         const getFulfilmentPending = async () => {
           const {data,error}=await db.from("whatsapp_conversation_messages").select("body")
-            .eq("phone",from).eq("direction","outbound").eq("delivery_status","internal")
+            .eq("conversation_id",conversationId).eq("direction","outbound").eq("delivery_status","internal")
             .like("body","ORDER_READY_FULFILLMENT_PENDING:%").order("created_at",{ascending:false}).limit(1);
           if(error) throw new Error("fulfilment_state_lookup_failed");
           if(!data?.length) return null;
@@ -473,7 +485,7 @@ Deno.serve(async (req) => {
         }
         if (activeSession?.customer_id) {
         const { data: pickupChoiceRow, error: pickupChoiceError } = await db.from("whatsapp_conversation_messages")
-          .select("body").eq("phone", from).eq("direction", "outbound").eq("delivery_status", "internal")
+          .select("body").eq("conversation_id", conversationId).eq("direction", "outbound").eq("delivery_status", "internal")
           .like("body", "SUBSCRIPTION_PICKUP_CHOICE_PENDING:%").order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (pickupChoiceError) throw new Error("subscription_pickup_choice_lookup_failed");
         if (pickupChoiceRow?.body) {
@@ -943,7 +955,7 @@ Deno.serve(async (req) => {
       if (emailMatch) {
         // Preserve the customer's original account request while email verification is in progress.
         const { data: recentInbound, error: recentInboundError } = await db.from("whatsapp_conversation_messages")
-          .select("body").eq("phone", from).eq("direction", "inbound")
+          .select("body").eq("conversation_id", conversationId).eq("direction", "inbound")
           .order("created_at", { ascending: false }).limit(12);
         if (recentInboundError) throw new Error("verification_resume_context_lookup_failed");
         const originalIntent = (recentInbound ?? []).map((row: any) => String(row.body ?? "").trim())
@@ -995,7 +1007,7 @@ Deno.serve(async (req) => {
           activeSession = await getVerifiedSession();
           // Resume the exact private request that triggered verification instead of ending the conversation.
           const { data: resumeRows, error: resumeReadError } = await db.from("whatsapp_conversation_messages")
-            .select("body").eq("phone", from).eq("direction", "outbound")
+            .select("body").eq("conversation_id", conversationId).eq("direction", "outbound")
             .eq("delivery_status", "internal").like("body", "WHATSAPP_VERIFICATION_RESUME:%")
             .order("created_at", { ascending: false }).limit(1);
           if (resumeReadError) throw new Error("verification_resume_context_read_failed");
@@ -1071,7 +1083,7 @@ Deno.serve(async (req) => {
       const { data: pendingConsent, error: pendingConsentReadError } = await db
         .from("whatsapp_conversation_messages")
         .select("body")
-        .eq("phone", from)
+        .eq("conversation_id", conversationId)
         .eq("direction", "outbound")
         .eq("delivery_status", "internal")
         .like("body", "WHATSAPP_CONSENT_PENDING:%")
@@ -1245,7 +1257,7 @@ Deno.serve(async (req) => {
       // an email when a verified customer is already authenticated.
       const getLatestSubscriptionPending = async () => {
         const {data,error}=await db.from("whatsapp_conversation_messages").select("body")
-          .eq("phone",from).eq("direction","outbound").eq("delivery_status","internal")
+          .eq("conversation_id",conversationId).eq("direction","outbound").eq("delivery_status","internal")
           .like("body","WHATSAPP_SUBSCRIPTION_PENDING:%").order("created_at",{ascending:false}).limit(1);
         if(error) throw new Error("subscription_state_lookup_failed");
         if(!data?.length) return null;
@@ -1266,7 +1278,7 @@ Deno.serve(async (req) => {
       const subscribeIntent = ["i want to subscribe","want to subscribe","subscribe me","sign me up","sign up for the plan","start my subscription","i want a subscription"]
         .some((phrase)=>lowerBody.includes(phrase));
       const recentTurnsForSubscription = await db.from("whatsapp_conversation_messages")
-        .select("direction,body").eq("phone",from).order("created_at",{ascending:false}).limit(12);
+        .select("direction,body").eq("conversation_id",conversationId).order("created_at",{ascending:false}).limit(12);
       const recentSubscribeContext = latestSubscriptionState?.completed!==true && (recentTurnsForSubscription.data ?? []).some((turn:any) => {
         const text=String(turn.body??"").toLowerCase();
         return text.includes("i want to subscribe") || text.includes("want to subscribe") ||
@@ -1434,11 +1446,11 @@ Deno.serve(async (req) => {
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
         const handoffAt = new Date().toISOString();
-        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
-          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").update({
+          mode: "human", assigned_to: null, handoff_started_at: handoffAt,
           response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
-        }, { onConflict: "phone" });
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, updated_at: handoffAt,
+        }).eq("id", conversationId);
         if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
         handedOff++;
         if (withinCustomerCareWindow && waToken && phoneNumberId) {
@@ -1469,7 +1481,7 @@ Deno.serve(async (req) => {
       const { data: recentConversation, error: historyError } = await db
         .from("whatsapp_conversation_messages")
         .select("direction,body,created_at")
-        .eq("phone", from)
+        .eq("conversation_id", conversationId)
         .order("created_at", { ascending: false })
         .limit(16);
       if (historyError) console.error("whatsapp_history_read_failed", { code: historyError.code });
@@ -1573,11 +1585,11 @@ Deno.serve(async (req) => {
         }, { onConflict: "inbound_message_id", ignoreDuplicates: true });
         if (handoffError) throw new Error("handoff_create_failed");
         const handoffAt = new Date().toISOString();
-        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").upsert({
-          phone: from, mode: "human", assigned_to: null, handoff_started_at: handoffAt,
+        const { error: supportHandoffError } = await db.from("whatsapp_support_conversations").update({
+          mode: "human", assigned_to: null, handoff_started_at: handoffAt,
           response_due_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, resolved_at: null, updated_at: handoffAt,
-        }, { onConflict: "phone" });
+          unread_at: receivedAt.toISOString(), last_staff_reply_at: null, updated_at: handoffAt,
+        }).eq("id", conversationId);
         if (supportHandoffError) throw new Error("support_handoff_state_write_failed");
       }
       const providerMessageId = await sendWhatsApp(from, answer, waToken, phoneNumberId);

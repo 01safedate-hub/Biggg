@@ -21,7 +21,8 @@
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.22",
