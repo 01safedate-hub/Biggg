@@ -18,7 +18,7 @@ export default async function StaffLayout({children}:{children:React.ReactNode})
  if(roles.some(r=>["admin","super_admin"].includes(r)))work.push({href:"/staff/speed",label:"Speed analytics",icon:"overview"});
  if(!washerOnly)work.push({href:"/staff/spending",label:"Spending",icon:"spending"}); if(!washerOnly&&roles.some(r=>r!=="delivery_agent"&&r!=="commission_agent"))work.push({href:"/staff/count",label:"Count money",icon:"count"});
  const {data:supportAllowed}=await supabase.rpc("staff_support_allowed");
- if(supportAllowed===true)work.push({href:"/staff/support",label:"Customer support",icon:"reports"});
+ if(supportAllowed===true)work.push({href:"/staff/support",label:"Customer support",icon:"support"});
  const groups:NavGroup[]=[{label:"My work",items:work},{label:"Me",items:[{href:"/staff/onboarding",label:"My details",icon:"customers"},{href:"/staff/savings",label:"My savings",icon:"money"}]}]; if(roles.includes("super_admin"))groups.push({label:"Manage",items:[{href:"/admin",label:"Super admin",icon:"admin"}]});
  return <Shell title="Staff" name={name} groups={groups}>{children}</Shell>;
 }
