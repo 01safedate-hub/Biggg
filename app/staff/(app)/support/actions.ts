@@ -14,33 +14,33 @@ export async function loadSupport(mode: "all"|"ai"|"human"|"resolved" = "all") {
   if (error) throw new Error(error.message);
   return data;
 }
-export async function loadSupportHistory(phone: string) {
+export async function loadSupportHistory(conversationId: string) {
   const db = await supportClient();
-  const { data, error } = await db.rpc("staff_support_history", { _phone: phone });
+  const { data, error } = await db.rpc("staff_support_history", { _conversation_id: conversationId });
   if (error) throw new Error(error.message);
   return data;
 }
-export async function supportTakeover(phone: string) {
+export async function supportTakeover(conversationId: string) {
   const db = await supportClient();
-  const { error } = await db.rpc("staff_support_takeover", { _phone: phone });
+  const { error } = await db.rpc("staff_support_takeover", { _conversation_id: conversationId });
   if (error) throw new Error(error.message);
   revalidatePath("/staff/support");
 }
-export async function supportReply(phone: string, body: string) {
+export async function supportReply(conversationId: string, body: string) {
   const db = await supportClient();
-  const { error } = await db.rpc("staff_support_reply", { _phone: phone, _body: body });
+  const { error } = await db.rpc("staff_support_reply", { _conversation_id: conversationId, _body: body });
   if (error) throw new Error(error.message);
   revalidatePath("/staff/support");
 }
-export async function supportResolve(phone: string) {
+export async function supportResolve(conversationId: string) {
   const db = await supportClient();
-  const { error } = await db.rpc("staff_support_resolve", { _phone: phone });
+  const { error } = await db.rpc("staff_support_resolve", { _conversation_id: conversationId });
   if (error) throw new Error(error.message);
   revalidatePath("/staff/support");
 }
-export async function supportReturnAI(phone: string) {
+export async function supportReturnAI(conversationId: string) {
   const db = await supportClient();
-  const { error } = await db.rpc("staff_support_return_ai", { _phone: phone });
+  const { error } = await db.rpc("staff_support_return_ai", { _conversation_id: conversationId });
   if (error) throw new Error(error.message);
   revalidatePath("/staff/support");
 }
