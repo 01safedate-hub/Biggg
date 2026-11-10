@@ -528,7 +528,7 @@ begin
   if not exists (select 1 from public.custom_rates where custom_id = _custom) or not exists (select 1 from public.custom_members where custom_id = _custom and active) then
     raise exception 'custom_not_ready' using errcode = 'P0001';
   end if;
-  if _c.mode = 'plan' and not (_c.period_start <= _today and _c.period_end >= _today) then raise exception 'period_not_active' using errcode = 'P0001'; end if;
+  if _c.mode = 'plan' and not coalesce(_c.period_start <= _today and _c.period_end >= _today, false) then raise exception 'period_not_active' using errcode = 'P0001'; end if;
   if length(coalesce(_notes, '')) > 500 then raise exception 'notes_too_long' using errcode = 'P0001'; end if;
   select station_zone_id into _station from public.staff_profiles where user_id = auth.uid();
   if _station is null then raise exception 'staff_station_required' using errcode = 'P0001'; end if;
