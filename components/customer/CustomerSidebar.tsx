@@ -20,6 +20,7 @@ const GROUPS: NavGroup[] = [
 
 export function CustomerSidebar({ onboarding = false, name = "Customer account" }: { onboarding?: boolean; name?: string }) {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [hasCustoms, setHasCustoms] = useState(false);
 
   useEffect(() => {
     if (onboarding) return;
@@ -34,6 +35,8 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         .eq("status", "active")
         .limit(1);
       if (mounted) setHasActiveSubscription(Boolean(data?.length));
+      const { data: customs } = await supabase.rpc("my_customs");
+      if (mounted) setHasCustoms(Array.isArray(customs) && customs.length > 0);
     });
     return () => { mounted = false; };
   }, [onboarding]);
@@ -48,6 +51,7 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         { href: "/dashboard", label: "Dashboard", icon: "overview", exact: true },
         { href: "/orders", label: "My orders", icon: "dispatch", exact: true },
         hasActiveSubscription ? MANAGE_ITEM : PLAN_ITEM,
+        ...(hasCustoms ? [{ href: "/my-customs", label: "My customs", icon: "customers", exact: false }] : []),
         { href: "/request", label: "Book a pickup", icon: "dispatch", exact: true },
         { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
         { href: "/account", label: "Settings", icon: "settings", exact: true },

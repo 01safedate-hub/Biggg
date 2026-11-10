@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
-const PROTECTED = ["/account", "/staff", "/admin", "/welcome", "/orders", "/notifications", "/dashboard", "/request", "/subscriptions", "/onboarding/location"];
+const PROTECTED = ["/account", "/staff", "/admin", "/welcome", "/orders", "/notifications", "/dashboard", "/request", "/subscriptions", "/onboarding/location", "/my-customs"];
 const STAFF_ROLES = new Set(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"]);
 
 /** Refresh the verified Supabase session and keep staff/admin/customer route families isolated. */

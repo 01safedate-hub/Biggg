@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/roles";
 import { CUSTOMER_STEPS, STATUS_LABEL, type Timeline } from "@/lib/orders";
 import { naira } from "@/lib/format";
@@ -37,6 +37,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const sv = Object.fromEntries((st ?? []).map((r) => [r.key, r.value as Record<string, string> | null]));
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).eq("customer_id", user.id).maybeSingle();
   if (!o) notFound();
+  if (o.source === "custom" && o.custom_id) redirect(`/my-customs/${o.custom_id}`);
   const { data: deliveryPayment } = await supabase.from("payments").select("id").eq("order_id", id).eq("purpose", "delivery_fare").eq("kind", "payment").eq("status", "success").limit(1).maybeSingle();
   const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
   const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
