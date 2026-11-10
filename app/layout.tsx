@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         {children}
-        <Toaster position="top-right" richColors closeButton duration={6000} />
+        <Toaster position="top-right" closeButton duration={7000} toastOptions={{ className: "border border-orange-300 !bg-orange-600 !text-white shadow-xl", descriptionClassName: "!text-orange-50", actionButtonStyle: { background: "#fff", color: "#c2410c" }, cancelButtonStyle: { background: "#9a3412", color: "#fff" } }} />
         <PwaRegister />
       </body>
     </html>
