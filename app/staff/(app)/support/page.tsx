@@ -21,8 +21,10 @@ export default function SupportPage(){
  const [permissionMessage,setPermissionMessage]=useState("");
  const audio=useRef<AudioContext|null>(null);
  const seen=useRef("");
+ const supportRpc=supabase.rpc as unknown as (fn:string,args?:Record<string,unknown>)=>PromiseLike<{data:unknown;error:{message:string}|null}>;
+
  const refresh=useCallback(async()=>{
-   const {data,error}=await supabase.rpc("staff_support_list",{_mode:"all"});
+   const {data,error}=await supportRpc("staff_support_list",{_mode:"all"});
    if(error){setError(error.message);return;}
    const next=(Array.isArray(data)?data:[]) as Thread[];
    const newest=next.find(x=>x.mode!=="resolved"&&x.last_direction==="inbound")?.last_message_at??"";
@@ -33,9 +35,9 @@ export default function SupportPage(){
    setThreads(next);
  },[supabase,muted]);
  useEffect(()=>{void canManageSupport().then(setCanManage);void refresh();const id=setInterval(()=>void refresh(),8000);return()=>clearInterval(id);},[refresh]);
- const open=async(phone:string)=>{setSelected(phone);const {data,error}=await supabase.rpc("staff_support_history",{_phone:phone});if(error){setError(error.message);return;}setMessages((Array.isArray(data)?data:[]) as Message[]);};
- const act=async(fn:string,args:Record<string,unknown>={})=>{setBusy(true);setError("");const {error}=await supabase.rpc(fn,args);setBusy(false);if(error){setError(error.message);return;}await refresh();if(selected)await open(selected);};
- const send=async()=>{if(!selected||!draft.trim())return;setBusy(true);const {error}=await supabase.rpc("staff_support_reply",{_phone:selected,_body:draft.trim()});setBusy(false);if(error){setError(error.message);return;}setDraft("");await open(selected);await refresh();};
+ const open=async(phone:string)=>{setSelected(phone);const {data,error}=await supportRpc("staff_support_history",{_phone:phone});if(error){setError(error.message);return;}setMessages((Array.isArray(data)?data:[]) as Message[]);};
+ const act=async(fn:string,args:Record<string,unknown>={})=>{setBusy(true);setError("");const {error}=await supportRpc(fn,args);setBusy(false);if(error){setError(error.message);return;}await refresh();if(selected)await open(selected);};
+ const send=async()=>{if(!selected||!draft.trim())return;setBusy(true);const {error}=await supportRpc("staff_support_reply",{_phone:selected,_body:draft.trim()});setBusy(false);if(error){setError(error.message);return;}setDraft("");await open(selected);await refresh();};
  const visible=threads.filter(t=>t.mode===tab);
  const changePermission=async(grant:boolean)=>{const id=permissionUser.trim();if(!id)return;const result=await supportPermission(id,grant);setPermissionMessage(result.message);if(result.ok)setPermissionUser("");};
  const current=threads.find(t=>t.phone===selected);
