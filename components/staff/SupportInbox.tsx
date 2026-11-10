@@ -14,7 +14,7 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  const shown=useMemo(()=>rows.filter(r=>r.mode===tab).sort((a,b)=>(b.last_message_at??"").localeCompare(a.last_message_at??"")),[rows,tab]);
  async function open(r:SupportConversation){setPhone(r.phone);setError("");try{const d=await loadSupportHistory(r.phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);await refresh();}catch(e){setError(e instanceof Error?e.message:"Unable to load chat");}}
  async function act(fn:()=>Promise<unknown>){setError("");start(()=>{void fn().then(refresh).catch(e=>setError(e instanceof Error?e.message:"Action failed"));});}
- async function send(){if(!phone||!draft.trim())return;const body=draft.trim();setDraft("");act(async()=>{await supportReply(phone,body);const d=await loadSupportHistory(phone);setMessages(Array.isArray(d)?d as Message:[]);});}
+ async function send(){if(!phone||!draft.trim())return;const body=draft.trim();setDraft("");act(async()=>{await supportReply(phone,body);const d=await loadSupportHistory(phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);});}
  return <div className="space-y-5">
   <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Customer support</h1><p className="mt-1 text-sm text-ink-soft">WhatsApp conversations · human handover expires after one hour without a staff reply.</p></div><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>setSound(v=>!v)}>{sound?"🔔 Sound on":"🔕 Sound off"}</button></header>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
