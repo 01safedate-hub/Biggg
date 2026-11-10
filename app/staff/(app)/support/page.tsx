@@ -10,4 +10,4 @@ export default async function SupportPage() {
   if (error) throw new Error("Unable to load support inbox");
   return <SupportInbox initial={(Array.isArray(data) ? data : []) as SupportConversation[]} />;
 }
-export type SupportConversation = { phone:string; mode:"ai"|"human"|"resolved"; assigned_to:string|null; handoff_started_at:string|null; response_due_at:string|null; resolved_at:string|null; last_message:string|null; last_direction:string|null; last_message_at:string|null; unread_count:number };
+export type SupportConversation = { phone:string; customer_name:string|null; mode:"ai"|"human"|"resolved"; assigned_to:string|null; handoff_started_at:string|null; response_due_at:string|null; resolved_at:string|null; last_message:string|null; last_direction:string|null; last_message_at:string|null; unread_count:number };
