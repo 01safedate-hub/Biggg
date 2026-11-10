@@ -395,5 +395,51 @@ begin
   perform pg_temp.expect_error(format('select public.pay_out_savings(%L, %L)', _s, 'Transfer 124'), 'savings_already_paid', 'savings: cannot be paid twice');
 end $t$;
 
+
+-- ---------- 7. Shelves: required at Mark ready, movable, released on delivery ----------
+do $t$
+declare
+  _desk uuid := pg_temp.new_user('Shelf test desk');
+  _cust uuid := pg_temp.new_user('Shelf test customer');
+  _station uuid; _cash uuid; _item uuid; _order uuid; _board jsonb;
+begin
+  select id into _station from public.zones where kind = 'area' and is_live and centre_lat is not null order by name limit 1;
+  select id into _cash from public.money_points where active and kind = 'cash' order by name limit 1;
+  select i.id into _item from public.items i where i.active and private.service_price_kobo(i.id, 'dry_clean') > 0 order by i.name limit 1;
+  insert into public.user_roles (user_id, role) values (_desk, 'secretary');
+  insert into public.staff_profiles (user_id, station_zone_id) values (_desk, _station);
+  perform pg_temp.act_as(_desk);
+  _order := public.desk_create_walkin_order(_cust, 'shelf test');
+  perform public.desk_set_item(_order, _item, 2, 'dry_clean');
+  perform public.desk_submit_count(_order);
+  perform public.desk_record_payment(_order, 'cash', _cash, null);
+  perform public.start_washing(_order);
+
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{}'), 'shelf_required', 'shelves: Mark ready needs a shelf');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{H1}'), 'invalid_shelf', 'shelves: only A1-G9 exist');
+  perform pg_temp.expect_error(format('select public.mark_ready(%L, %L::text[])', _order, '{A0}'), 'invalid_shelf', 'shelves: shelf 0 does not exist');
+  perform pg_temp.check((select status from public.orders where id = _order) = 'in_house', 'shelves: a refused Mark ready leaves the order being washed');
+
+  perform public.mark_ready(_order, array[' a1', 'A1', 'c 4']);
+  perform pg_temp.check((select status from public.orders where id = _order) = 'ready', 'shelves: order is ready');
+  perform pg_temp.check((select array_agg(shelf order by shelf) from public.order_shelves where order_id = _order and released_at is null) = array['A1', 'C4'],
+    'shelves: one order can take several shelves, cleaned and without duplicates');
+
+  _board := public.shelf_board();
+  perform pg_temp.check(exists (select 1 from jsonb_array_elements(_board) e where (e->>'order_id')::uuid = _order and e->>'shelf' = 'C4' and e->>'customer' is not null),
+    'shelves: the shelf map shows the order and customer to desk staff');
+
+  perform public.set_order_shelves(_order, array['B2']);
+  perform pg_temp.check((select array_agg(shelf) from public.order_shelves where order_id = _order and released_at is null) = array['B2'], 'shelves: order moved to B2, old shelves freed');
+
+  perform pg_temp.act_as(_cust);
+  perform pg_temp.expect_error(format('select public.set_order_shelves(%L, %L::text[])', _order, '{A1}'), 'not_allowed', 'shelves: customers cannot move shelves');
+  perform pg_temp.expect_error('select public.shelf_board()', 'not_allowed', 'shelves: customers cannot see the shelf map');
+
+  perform pg_temp.act_as(null);
+  update public.orders set status = 'closed' where id = _order;
+  perform pg_temp.check(not exists (select 1 from public.order_shelves where order_id = _order and released_at is null), 'shelves: shelf freed when the order is closed');
+end $t$;
+
 do $$ begin raise notice 'ALL MONEY TESTS PASSED'; end $$;
 rollback;

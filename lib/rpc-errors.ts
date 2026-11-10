@@ -158,6 +158,9 @@ const MESSAGES: Record<string, string> = {
   invalid_salary: "One of the salaries is not a valid amount.",
   savings_not_due: "These savings are not due yet. They are paid on the last day of the notice, or after a dismissal.",
   savings_already_paid: "These savings have already been paid out.",
+  shelf_required: "Choose the shelf where the clothes are kept.",
+  invalid_shelf: "Shelves run from A1 to G9.",
+  too_many_shelves: "Choose at most 10 shelves for one order.",
   payment_method_and_reference_required: "Add how it was paid and a reference.",
   // Generic keys last: they are substrings of more specific ones above.
   not_allowed: "You do not have permission to do this.",

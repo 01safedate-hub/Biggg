@@ -27,6 +27,11 @@ export default async function HubPage() {
   const { data: counts } = (data ?? []).length ? await supabase.from("order_items").select("order_id,qty").in("order_id", (data ?? []).map((o) => o.id)).is("removed_at", null) : { data: [] };
   const pieces = new Map<string, number>();
   for (const c of counts ?? []) pieces.set(c.order_id, (pieces.get(c.order_id) ?? 0) + c.qty);
+  const { data: board } = await supabase.rpc("shelf_board");
+  const shelfRows = (board ?? []) as unknown as { shelf: string; order_id: string }[];
+  const shelfUse: Record<string, number> = {};
+  const shelvesOf = new Map<string, string[]>();
+  for (const b of shelfRows) { shelfUse[b.shelf] = (shelfUse[b.shelf] ?? 0) + 1; shelvesOf.set(b.order_id, [...(shelvesOf.get(b.order_id) ?? []), b.shelf]); }
   const col = (status: string, title: string, hint: string, action?: { step: "wash" | "ready"; label: string }) => {
     const rows = (data ?? []).filter((o) => o.status === status);
     return (
@@ -35,8 +40,8 @@ export default async function HubPage() {
         <div className="card divide-y divide-line">
           {rows.map((o) => (
             <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div><p className="font-medium">Order #{o.order_no} {(!washerOnly&&who.get(o.customer_id)?.full_name) ? `· ${who.get(o.customer_id)?.full_name}` : null} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && !washerOnly && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
-              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{!washerOnly&&(o.source === "walk_in" || o.source === "one_time") && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
+              <div><p className="font-medium">Order #{o.order_no} {(!washerOnly&&who.get(o.customer_id)?.full_name) ? `· ${who.get(o.customer_id)?.full_name}` : null} {o.instant && o.instant_target_at && <TimeLeft targetAt={o.instant_target_at} promiseAt={o.instant_promise_at} />}</p><p className="text-sm text-ink-soft">{shelvesOf.get(o.id) && <strong className="text-ink">Shelf {shelvesOf.get(o.id)!.join(", ")} · </strong>}{pieces.get(o.id) ?? 0} pieces · here for {ago(o.ready_at ?? o.updated_at)}{o.status === "ready" && !washerOnly && <> · <PhoneActions phone={who.get(o.customer_id)?.phone} message={`Hello ${(who.get(o.customer_id)?.full_name ?? "").split(" ")[0]}, your clothes (order #${o.order_no}) are ready at LaundryPoint. Please come to collect them, or tell us if you want them delivered.`} /></>}</p></div>
+              {action ? <HubButton orderId={o.id} step={action.step} label={action.label} shelfUse={shelfUse} /> : <div className="text-right"><p className="text-xs font-medium text-amber-700">{STATUS_LABEL[o.status]}</p>{!washerOnly&&(o.source === "walk_in" || o.source === "one_time") && <Link href={`/staff/walkin/${o.id}`} className="text-xs underline">Open / arrange delivery</Link>}</div>}
             </div>
           ))}
           {rows.length === 0 && <p className="p-5 text-sm text-ink-soft">Nothing here.</p>}
@@ -46,9 +51,9 @@ export default async function HubPage() {
   };
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight">Wash queue</h1><p className="mt-1 text-sm text-ink-soft">{washerOnly ? "Only received orders can be started. Only orders being washed can be marked ready." : "Move each order forward as the clothes are washed. When you mark one ready, the customer is asked to pay the delivery fare."}</p></div>
+      <div><h1 className="text-2xl font-bold tracking-tight">Wash queue</h1><p className="mt-1 text-sm text-ink-soft"><Link href="/staff/shelves" className="font-medium underline">Shelf map</Link> · {washerOnly ? "Only received orders can be started. Only orders being washed can be marked ready." : "Move each order forward as the clothes are washed. When you mark one ready, the customer is asked to pay the delivery fare."}</p></div>
       {col("received", "Received, not started", "Checked in at the hub.", { step: "wash", label: "Start washing" })}
-      {col("in_house", "Being washed", "Mark ready once folded and packed.", { step: "ready", label: "Mark ready" })}
+      {col("in_house", "Being washed", "Mark ready once folded and packed, and say which shelf they are on.", { step: "ready", label: "Mark ready" })}
       {!washerOnly&&col("ready", "Ready, waiting for the customer", "The customer has been asked to pay for delivery. Call them if it stays here for long.")}
     </div>
   );

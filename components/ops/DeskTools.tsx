@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ShelfPicker } from "./ShelfPicker";
 import { cancelPaidOrder, assignAgent, assignDelivery, checkLine, correctLine, hubStep, receiveOrder, redispatch } from "@/app/staff/(app)/ops-actions";
 import { naira } from "@/lib/format";
 
@@ -92,10 +93,27 @@ export function CheckLines({ orderId, lines, options, dueKobo, subscription = fa
   );
 }
 
-export function HubButton({ orderId, step, label }: { orderId: string; step: "wash" | "ready"; label: string }) {
+export function HubButton({ orderId, step, label, shelfUse }: { orderId: string; step: "wash" | "ready"; label: string; shelfUse?: Record<string, number> }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const [shelves, setShelves] = useState<string[]>([]);
+  if (step === "ready") return (
+    <div className="text-right">
+      {!picking ? <button className="btn-primary !px-4 !py-2" onClick={() => setPicking(true)}>{label}</button> : (
+        <div className="mt-2 inline-block space-y-2 rounded-lg border border-line bg-white p-3 text-left">
+          <p className="text-sm font-semibold">Which shelf are the clothes on?</p>
+          <ShelfPicker value={shelves} onChange={setShelves} busy={shelfUse} />
+          <div className="flex gap-2">
+            <button className="btn-primary !px-4 !py-2" disabled={busy || shelves.length === 0} onClick={async () => { setBusy(true); setErr(null); const r = await hubStep(orderId, "ready", shelves); setBusy(false); if (r.ok) { setPicking(false); setShelves([]); router.refresh(); } else setErr(r.message); }}>{busy ? "Saving" : shelves.length ? `Ready on ${shelves.join(", ")}` : "Choose a shelf"}</button>
+            <button className="btn-secondary !px-4 !py-2" disabled={busy} onClick={() => { setPicking(false); setShelves([]); setErr(null); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {err && <p role="alert" className="mt-1 text-xs text-red-700">{err}</p>}
+    </div>
+  );
   return (
     <div className="text-right">
       <button className="btn-primary !px-4 !py-2" disabled={busy} onClick={async () => { setBusy(true); setErr(null); const r = await hubStep(orderId, step); setBusy(false); if (r.ok) router.refresh(); else setErr(r.message); }}>{busy ? "Saving" : label}</button>
