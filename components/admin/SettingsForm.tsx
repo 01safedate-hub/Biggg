@@ -16,6 +16,26 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [lat, setLat] = useState(v.hubLat);
+  const [lng, setLng] = useState(v.hubLng);
+  const [locating, setLocating] = useState(false);
+  const [locMsg, setLocMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function locate() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return setLocMsg({ ok: false, text: "This browser cannot detect location. Type the two numbers instead." });
+    setLocating(true); setLocMsg(null);
+    navigator.geolocation.getCurrentPosition((p) => {
+      setLocating(false);
+      setLat(p.coords.latitude.toFixed(6)); setLng(p.coords.longitude.toFixed(6));
+      const acc = Math.round(p.coords.accuracy);
+      setLocMsg(acc > 50
+        ? { ok: false, text: `Found, but only accurate to about ${acc} m. Step outside the shop and try again for a closer reading, then save.` }
+        : { ok: true, text: `Found, accurate to about ${acc} m. Press Save settings to keep it.` });
+    }, (err) => {
+      setLocating(false);
+      setLocMsg({ ok: false, text: err.code === err.PERMISSION_DENIED ? "Location permission was denied. Allow location for this site in your browser settings, then try again." : "Could not get your location. Turn on location (GPS) and try again." });
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -66,10 +86,15 @@ export function SettingsForm({ v }: { v: SettingsValues }) {
         <h2 className="text-lg font-semibold">Store location</h2>
         <div><label htmlFor="address" className={labelCls}>Address</label><input id="address" name="address" defaultValue={v.hubAddress} maxLength={200} className={inputCls} /></div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div><label htmlFor="lat" className={labelCls}>Latitude</label><input id="lat" name="lat" inputMode="decimal" defaultValue={v.hubLat} className={inputCls} /></div>
-          <div><label htmlFor="lng" className={labelCls}>Longitude</label><input id="lng" name="lng" inputMode="decimal" defaultValue={v.hubLng} className={inputCls} /></div>
+          <div><label htmlFor="lat" className={labelCls}>Latitude</label><input id="lat" name="lat" inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} className={inputCls} /></div>
+          <div><label htmlFor="lng" className={labelCls}>Longitude</label><input id="lng" name="lng" inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} className={inputCls} /></div>
         </div>
-        <p className="text-xs text-ink-mute">In Google Maps, press and hold on the store, then copy the two numbers shown. The &ldquo;Open in Google Maps&rdquo; link is built from them. Staff check-in distance is measured from this point.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" className="btn-secondary" onClick={locate} disabled={locating}>{locating ? "Finding your location…" : "Use my current location"}</button>
+          {lat && lng && !Number.isNaN(Number(lat)) && !Number.isNaN(Number(lng)) && <a className="text-sm underline" href={`https://www.google.com/maps?q=${encodeURIComponent(lat)},${encodeURIComponent(lng)}`} target="_blank" rel="noreferrer">Check on Google Maps</a>}
+        </div>
+        {locMsg && <p role={locMsg.ok ? "status" : "alert"} className={`rounded-md border p-3 text-sm ${locMsg.ok ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>{locMsg.text}</p>}
+        <p className="text-xs text-ink-mute">Stand inside or right outside the shop, then press &ldquo;Use my current location&rdquo; and save. You can also type the numbers from Google Maps. Fares and staff check-in distance are measured from this point.</p>
       </section>
 
       <section className="card space-y-4 p-5">

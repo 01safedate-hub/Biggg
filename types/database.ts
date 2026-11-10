@@ -1376,6 +1376,33 @@ export type Database = {
           },
         ]
       }
+      order_shelves: {
+        Row: {
+          id: string
+          order_id: string
+          placed_at: string
+          placed_by: string | null
+          released_at: string | null
+          shelf: string
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          placed_at?: string
+          placed_by?: string | null
+          released_at?: string | null
+          shelf: string
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          placed_at?: string
+          placed_by?: string | null
+          released_at?: string | null
+          shelf?: string
+        }
+        Relationships: []
+      }
       order_ratings: {
         Row: {
           comment: string | null
@@ -3394,7 +3421,10 @@ export type Database = {
         Returns: undefined
       }
       mark_payout_paid: { Args: { _id: string }; Returns: undefined }
-      mark_ready: { Args: { _order: string }; Returns: undefined }
+      mark_ready: {
+        Args: { _order: string; _shelves: string[] }
+        Returns: undefined
+      }
       mark_received: { Args: { _order: string }; Returns: undefined }
       mark_refund_paid: {
         Args: { _id: string; _note: string }
@@ -3416,6 +3446,11 @@ export type Database = {
         Returns: undefined
       }
       ratings_summary: { Args: never; Returns: Json }
+      set_order_shelves: {
+        Args: { _order: string; _shelves: string[] }
+        Returns: undefined
+      }
+      shelf_board: { Args: never; Returns: Json }
       record_cash_count: {
         Args: {
           _basis: string

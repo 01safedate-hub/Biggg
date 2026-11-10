@@ -1,0 +1,4 @@
+-- Temporary bridge applied live on 2026-11-10: the old website called mark_ready(_order) until the shelf screens deployed.
+-- It is the pre-shelf mark_ready body unchanged (see 20261110010000_order_shelves.sql for the shelf version).
+-- Drop it once the new site is live:  drop function public.mark_ready(uuid);
+-- (Body intentionally not repeated here; it was identical to mark_ready(uuid, text[]) minus the put_on_shelves step.)

@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/roles";
 import { friendlyError } from "@/lib/rpc-errors";
 import { parseLocation } from "@/lib/maps";
 import type { Service } from "@/lib/services";
+import { SHELF_RE } from "@/lib/shelves";
 
 type R = { ok: boolean; message: string };
 const DESK = ["secretary", "admin", "super_admin"] as const;
@@ -76,12 +77,34 @@ export async function redispatch(orderId: string): Promise<R> {
   return { ok: true, message: "Back in the delivery queue." };
 }
 
-export async function hubStep(orderId: string, step: "wash" | "ready"): Promise<R> {
+const cleanShelves = (shelves: string[]) => Array.from(new Set(shelves.map((s) => s.replace(/\s+/g, "").toUpperCase()).filter(Boolean)));
+
+export async function hubStep(orderId: string, step: "wash" | "ready", shelves: string[] = []): Promise<R> {
   const { supabase } = await requireRole(["washer", ...DESK]);
-  const { error } = await supabase.rpc(step === "wash" ? "start_washing" : "mark_ready", { _order: orderId });
+  let error;
+  if (step === "wash") ({ error } = await supabase.rpc("start_washing", { _order: orderId }));
+  else {
+    const list = cleanShelves(shelves);
+    if (list.length === 0) return { ok: false, message: "Choose the shelf where the clothes are kept." };
+    if (list.some((s) => !SHELF_RE.test(s))) return { ok: false, message: "Shelves run from A1 to G9." };
+    ({ error } = await supabase.rpc("mark_ready", { _order: orderId, _shelves: list }));
+  }
   if (error) return { ok: false, message: friendlyError(error.message) };
   revalidatePath("/staff/hub");
+  revalidatePath("/staff/shelves");
   return { ok: true, message: step === "wash" ? "Washing started." : "Marked ready. The customer can pay for delivery." };
+}
+
+export async function moveShelves(orderId: string, shelves: string[]): Promise<R> {
+  const { supabase } = await requireRole(["washer", "cashier", ...DESK]);
+  const list = cleanShelves(shelves);
+  if (list.length === 0) return { ok: false, message: "Choose at least one shelf." };
+  if (list.some((s) => !SHELF_RE.test(s))) return { ok: false, message: "Shelves run from A1 to G9." };
+  const { error } = await supabase.rpc("set_order_shelves", { _order: orderId, _shelves: list });
+  if (error) return { ok: false, message: friendlyError(error.message) };
+  revalidatePath("/staff/shelves");
+  revalidatePath(`/staff/orders/${orderId}`);
+  return { ok: true, message: `Moved to ${list.join(", ")}.` };
 }
 
 export async function failedDelivery(orderId: string, outcome: string, note: string): Promise<R> {
