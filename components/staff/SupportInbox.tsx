@@ -3,16 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { loadSupport, loadSupportHistory, supportReply, supportResolve, supportReturnAI, supportTakeover } from "@/app/staff/(app)/support/actions";
 import type { SupportConversation } from "@/app/staff/(app)/support/page";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 type Message = {id:string;direction:string;body:string;created_at:string;delivery_status?:string};
 const fmt=(v:string|null)=>v?new Intl.DateTimeFormat("en-NG",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"";
 export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  const messagesEndRef=useRef<HTMLDivElement|null>(null);
- const [rows,setRows]=useState(initial),[tab,setTab]=useState<"ai"|"human"|"resolved">("human"),[phone,setPhone]=useState<string|null>(null),[messages,setMessages]=useState<Message[]>([]),[draft,setDraft]=useState(""),[sound,setSound]=useState(true),[error,setError]=useState(""),[busy,start]=useTransition(),[notificationPermission,setNotificationPermission]=useState<NotificationPermission>("default"),[notice,setNotice]=useState<{title:string;body:string}|null>(null);
+ const [rows,setRows]=useState(initial),[tab,setTab]=useState<"ai"|"human"|"resolved">("human"),[phone,setPhone]=useState<string|null>(null),[messages,setMessages]=useState<Message[]>([]),[draft,setDraft]=useState(""),[sound,setSound]=useState(true),[error,setError]=useState(""),[busy,start]=useTransition() ;
  const lastInboundIds=useRef<Set<string>>(new Set());
  const refresh=useCallback(async()=>{try{const d=await loadSupport("all");setRows(Array.isArray(d)?d as SupportConversation[]:[]);}catch(e){setError(e instanceof Error?e.message:"Refresh failed");}},[]);
- useEffect(()=>{if("Notification" in window)setNotificationPermission(Notification.permission);},[]);
- async function enableNotifications(){if(!("Notification" in window)||!("serviceWorker" in navigator)){setError("This browser does not support system notifications. Use the latest Chrome browser.");return;}try{await navigator.serviceWorker.register("/sw.js");const registration=await navigator.serviceWorker.ready;const permission=await Notification.requestPermission();setNotificationPermission(permission);if(permission!=="granted"){setError("Notifications are blocked. Allow notifications for this site in Android Chrome site settings.");return;}await registration.showNotification("LaundryPoint notifications enabled",{body:"You'll be notified when a customer sends a WhatsApp message.",icon:"/brand/icon/192.png",tag:"laundrypoint-notifications-enabled"});setError("");}catch(e){setError(e instanceof Error?e.message:"Unable to enable system notifications.");}}
+ 
  useEffect(()=>{
   const supabase=createClient();
   let refreshTimer: ReturnType<typeof setTimeout>|undefined;
@@ -26,10 +26,7 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
        lastInboundIds.current.add(incoming.id);
        const title=rows.find(r=>r.phone===incoming.phone)?.customer_name||incoming.phone||"New WhatsApp message";
        const body=String(incoming.body||"New message").slice(0,140);
-       setNotice({title,body});
-       if("Notification" in window&&Notification.permission==="granted"&&"serviceWorker" in navigator){
-         void navigator.serviceWorker.ready.then(registration=>registration.showNotification(title,{body,icon:"/brand/icon/192.png",badge:"/brand/icon/192.png",tag:"laundrypoint-"+incoming.id,renotify:true,data:{url:"/staff/support"}})).catch(()=>{});
-       }
+       toast(title,{description:body,duration:7000,action:{label:"Open chat",onClick:()=>{if(incoming.phone){setPhone(incoming.phone);void loadSupportHistory(incoming.phone).then(d=>setMessages(Array.isArray(d)?d as Message[]:d?[d as Message]:[])).catch(()=>{});}}}});
      }
      const changedPhone=String((payload.new as {phone?:string}|null)?.phone??(payload.old as {phone?:string}|null)?.phone??"");
      if(phone&&changedPhone===phone){
@@ -48,7 +45,7 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
  async function act(fn:()=>Promise<unknown>){setError("");start(()=>{void fn().then(refresh).catch(e=>setError(e instanceof Error?e.message:"Action failed"));});}
  async function send(){if(!phone||!draft.trim())return;const body=draft.trim();setDraft("");act(async()=>{await supportReply(phone,body);const d=await loadSupportHistory(phone);setMessages(Array.isArray(d)?d as Message[]:d ? [d as Message] : []);});}
  return <div className="w-full min-w-0 max-w-full space-y-5 overflow-x-hidden">
-  <header className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Customer support</h1><p className="mt-1 text-sm text-ink-soft">WhatsApp conversations · human handover expires after one hour without a staff reply.</p></div><div className="flex flex-wrap gap-2"><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>setSound(v=>!v)}>{sound?"🔔 Sound on":"🔕 Sound off"}</button><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>void enableNotifications()}>{notificationPermission==="granted"?"🔔 Notifications on":"Enable notifications"}</button></div></header>
+  <header className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">Customer support</h1><p className="mt-1 text-sm text-ink-soft">WhatsApp conversations · human handover expires after one hour without a staff reply.</p></div><div className="flex flex-wrap gap-2"><button className="rounded-lg border px-3 py-2 text-sm" onClick={()=>setSound(v=>!v)}>{sound?"🔔 Sound on":"🔕 Sound off"}</button></div></header>
   {error&&<p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
   <nav className="grid w-full min-w-0 grid-cols-3 gap-2">{(["ai","human","resolved"] as const).map(t=><button key={t} onClick={()=>setTab(t)} className={`rounded-xl border p-3 text-sm font-semibold capitalize ${tab===t?"border-brand bg-brand/10 text-brand-dark":"bg-white"}`}>{t}<span className="ml-2 rounded-full bg-black/5 px-2 py-0.5">{rows.filter(r=>r.mode===t).length}</span></button>)}</nav>
   <div className="grid w-full min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
