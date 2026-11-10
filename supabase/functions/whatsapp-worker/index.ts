@@ -150,6 +150,8 @@ Deno.serve(async (req) => {
         if (!provider.ok) throw new Error(safeError((result as { error?: { message?: string } }).error?.message ?? "meta_http_" + provider.status));
         const msgId = (result as { messages?: Array<{ id?: string }> }).messages?.[0]?.id;
         await db.from("whatsapp_outbox").update({ status: "sent", attempts: row.attempts + 1, sent_at: new Date().toISOString(), provider_message_id: msgId ?? null, last_error: null, updated_at: new Date().toISOString() }).eq("id", row.id).eq("status", "processing");
+        // Keep the support inbox message status in sync with Meta's accepted send.
+        await db.from("whatsapp_conversation_messages").update({ delivery_status: "sent" }).eq("phone", row.to_phone).eq("direction", "outbound").eq("body", String(row.variables.text_body)).eq("delivery_status", "queued");
         sent++;
       } catch (err) {
         const message = safeError(err);
