@@ -40,10 +40,19 @@ async function recordConversationMessage(
   db: ReturnType<typeof createClient>,
   entry: { phone: string; direction: "inbound" | "outbound"; body: string; inboundMessageId?: string; providerMessageId?: string; deliveryStatus?: string },
 ) {
-  const { data: conversationId, error: conversationError } = await db.rpc("whatsapp_active_support_conversation", { _phone: entry.phone });
-  if (conversationError || !conversationId) {
-    console.error("whatsapp_support_conversation_resolve_failed", { code: conversationError?.code });
-    return;
+  let conversationId: string | null = null;
+  if (entry.inboundMessageId) {
+    const { data: existingMessage } = await db.from("whatsapp_conversation_messages")
+      .select("conversation_id").eq("inbound_message_id", entry.inboundMessageId).maybeSingle();
+    conversationId = existingMessage?.conversation_id ?? null;
+  }
+  if (!conversationId) {
+    const { data, error: conversationError } = await db.rpc("whatsapp_active_support_conversation", { _phone: entry.phone });
+    if (conversationError || !data) {
+      console.error("whatsapp_support_conversation_resolve_failed", { code: conversationError?.code });
+      return;
+    }
+    conversationId = data;
   }
   const row: Record<string, unknown> = {
     phone: entry.phone,
