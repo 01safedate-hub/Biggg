@@ -3031,6 +3031,15 @@ export type Database = {
       }
     }
     Functions: {
+      staff_support_allowed: { Args: Record<PropertyKey, never>; Returns: boolean }
+      staff_support_grant: { Args: { _user: string; _grant: boolean }; Returns: undefined }
+      staff_support_permissions_list: { Args: Record<PropertyKey, never>; Returns: { user_id: string }[] }
+      staff_support_list: { Args: { _mode?: string }; Returns: Json }
+      staff_support_history: { Args: { _phone: string }; Returns: Json }
+      staff_support_takeover: { Args: { _phone: string }; Returns: undefined }
+      staff_support_return_ai: { Args: { _phone: string }; Returns: undefined }
+      staff_support_resolve: { Args: { _phone: string }; Returns: undefined }
+      staff_support_reply: { Args: { _phone: string; _body: string }; Returns: string }
       admin_revenue_chart: {
         Args: { _bucket: string }
         Returns: Json
