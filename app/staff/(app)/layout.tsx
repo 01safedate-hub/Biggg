@@ -1,6 +1,7 @@
 import { Shell, type NavGroup } from "@/components/admin/Shell";
 import { requireRole } from "@/lib/roles";
 import { enforceStaffGate } from "@/lib/staff-gate";
+import { SupportNotifications } from "@/components/staff/SupportNotifications";
 export default async function StaffLayout({children}:{children:React.ReactNode}){
  const {supabase,name,roles}=await requireRole(["super_admin","admin","secretary","cashier","delivery_agent","commission_agent","washer"]);
  const washerOnly=roles.includes("washer")&&!roles.some(r=>["super_admin","admin","secretary","cashier","delivery_agent","commission_agent"].includes(r));
@@ -20,5 +21,5 @@ export default async function StaffLayout({children}:{children:React.ReactNode})
  const {data:supportAllowed}=await supabase.rpc("staff_support_allowed");
  if(supportAllowed===true)work.push({href:"/staff/support",label:"Customer support",icon:"support"});
  const groups:NavGroup[]=[{label:"My work",items:work},{label:"Me",items:[{href:"/staff/onboarding",label:"My details",icon:"customers"},{href:"/staff/savings",label:"My savings",icon:"money"}]}]; if(roles.includes("super_admin"))groups.push({label:"Manage",items:[{href:"/admin",label:"Super admin",icon:"admin"}]});
- return <Shell title="Staff" name={name} groups={groups}>{children}</Shell>;
+ return <Shell title="Staff" name={name} groups={groups}>{supportAllowed===true&&<SupportNotifications />}{children}</Shell>;
 }
