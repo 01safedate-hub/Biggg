@@ -147,5 +147,3 @@ export function SupportNotifications() {
 
   return null;
 }
-
-}
