@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { loadSupport, loadSupportHistory, supportReply, supportResolve, supportReturnAI, supportTakeover } from "@/app/staff/(app)/support/actions";
 import type { SupportConversation } from "@/app/staff/(app)/support/page";
 import { createClient } from "@/lib/supabase/client";
-import { toast } from "sonner";
 
 type Message = {id:string;direction:string;body:string;created_at:string;delivery_status?:string};
 const fmt=(v:string|null)=>v?new Intl.DateTimeFormat("en-NG",{dateStyle:"medium",timeStyle:"short"}).format(new Date(v)):"";
@@ -24,9 +23,6 @@ export function SupportInbox({initial}:{initial:SupportConversation[]}) {
      const incoming=payload.new as Message & {phone?:string};
      if(incoming?.direction==="inbound"&&incoming.id&&!lastInboundIds.current.has(incoming.id)){
        lastInboundIds.current.add(incoming.id);
-       const title=rows.find(r=>r.phone===incoming.phone)?.customer_name||incoming.phone||"New WhatsApp message";
-       const body=String(incoming.body||"New message").slice(0,140);
-       toast(title,{description:body,duration:7000,action:{label:"Open chat",onClick:()=>{if(incoming.phone){setPhone(incoming.phone);void loadSupportHistory(incoming.phone).then(d=>setMessages(Array.isArray(d)?d as Message[]:d?[d as Message]:[])).catch(()=>{});}}}});
      }
      const changedPhone=String((payload.new as {phone?:string}|null)?.phone??(payload.old as {phone?:string}|null)?.phone??"");
      if(phone&&changedPhone===phone){
