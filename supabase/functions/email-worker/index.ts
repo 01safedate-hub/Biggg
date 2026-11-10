@@ -283,12 +283,23 @@ function weeklyTargetHit(p: Record<string, unknown>) {
     text: `Hello ${first}, the team hit this week's target (${p.units} clothes). Your share: ${money(p.share_net_kobo)} (${money(p.share_gross_kobo)} less ${fee}% for running costs). It will be paid to the bank account in your staff details.` };
 }
 
+function customNotice(p: Record<string, unknown>) {
+  const heading = String(p.heading ?? "LaundryPoint update").slice(0, 140);
+  const raw = Array.isArray(p.lines) ? (p.lines as unknown[]).map((x) => String(x ?? "")).filter(Boolean).slice(0, 8) : [];
+  const url = typeof p.cta_url === "string" && /^https:\/\//.test(p.cta_url) ? p.cta_url : "";
+  const lines = raw.map((x) => esc(x));
+  if (url) lines.push(button(url, String(p.cta_label ?? "Open")));
+  return { subject: heading, html: layout(esc(heading), lines), text: [...raw, url].filter(Boolean).join("\n\n") };
+}
+
 function render(r: Row): { subject: string; html: string; text: string; unsub?: string } {
   const p = r.payload ?? {};
   const order = p.order_no ? `#${esc(p.order_no)}` : "your order";
   switch (r.template) {
     case "campaign":
       return campaign(p);
+    case "custom_notice":
+      return customNotice(p);
     case "waitlist_confirmation": {
       const subject = "You are on the LaundryPoint waitlist";
       const lines = [

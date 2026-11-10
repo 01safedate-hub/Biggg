@@ -492,5 +492,192 @@ begin
   perform pg_temp.check(_n = 6, format('shelves: full history kept (6 entries, got %s)', _n));
 end $t$;
 
+-- ---------- 8. Customs: prepaid business / lodge accounts, end to end ----------
+do $t$
+declare
+  _desk uuid := pg_temp.new_user('Custom test desk');
+  _mgr uuid := pg_temp.new_user('Custom test manager');
+  _m1u uuid := pg_temp.new_user('Custom test member one');
+  _out uuid := pg_temp.new_user('Custom test outsider');
+  _station uuid; _cash uuid; _tops uuid; _bottoms uuid; _dresses uuid;
+  _c uuid; _p uuid; _m1 uuid; _m2 uuid; _pm uuid; _b1 uuid; _b2 uuid; _b3 uuid; _pb1 uuid; _pb2 uuid;
+  _r jsonb; _v jsonb; _phone text; _before record; _after record; _code text; _token text;
+begin
+  select id into _station from public.zones where kind = 'area' and is_live and centre_lat is not null order by name limit 1;
+  select id into _cash from public.money_points where active and kind = 'cash' order by name limit 1;
+  select id into _tops from public.item_categories where name = 'Tops';
+  select id into _bottoms from public.item_categories where name = 'Bottoms';
+  select id into _dresses from public.item_categories where name = 'Dresses';
+  perform pg_temp.check(_station is not null and _cash is not null and _tops is not null and _bottoms is not null and _dresses is not null, 'customs: fixtures exist');
+  insert into public.user_roles (user_id, role) values (_desk, 'cashier');
+  insert into public.staff_profiles (user_id, station_zone_id) values (_desk, _station);
+  select phone into _phone from public.profiles where id = _m1u;
+
+  -- Only desk staff can create customs.
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.expect_error(format('select public.create_custom(%L,%L,%L,%L,%L,null,null,null,null,0,null)', 'Divine Lodge', 'lodge', 'one_time', _mgr, 'collect'), 'not_allowed', 'customs: customers cannot create customs');
+
+  -- One-time lodge, created by a cashier.
+  perform pg_temp.act_as(_desk);
+  _c := public.create_custom('Divine Lodge', 'lodge', 'one_time', _mgr, 'collect', null, null, null, null, 0, 'Test lodge');
+  select code, share_token into _code, _token from public.customs where id = _c;
+  perform pg_temp.check(_code ~ '^DIV[0-9]{0,2}$', 'customs: code made from the name (' || _code || ')');
+  perform pg_temp.check(exists (select 1 from public.email_outbox where template = 'custom_notice' and idempotency_key like 'custom-created-' || _c || '-%'), 'customs: admin emailed when a custom is created');
+  perform pg_temp.check(exists (select 1 from public.user_notifications where user_id = _mgr and kind = 'custom'), 'customs: manager told they manage it');
+  perform pg_temp.expect_error(format('select public.create_custom_batch(%L, null)', _c), 'custom_not_ready', 'customs: no batch before rates and members');
+
+  perform public.set_custom_rates(_c, jsonb_build_array(
+    jsonb_build_object('category_id', _tops, 'unit', 'piece', 'price_kobo', 50000),
+    jsonb_build_object('category_id', _bottoms, 'unit', 'piece', 'price_kobo', 70000)));
+  perform pg_temp.expect_error(format('select public.set_custom_rates(%L, %L)', _c, jsonb_build_array(jsonb_build_object('category_id', _tops, 'unit', 'litre', 'price_kobo', 1))), 'invalid_rate', 'customs: unit must be piece, kg, bag or set');
+  perform pg_temp.check((select count(*) from public.custom_rates where custom_id = _c) = 2, 'customs: a refused rate card leaves the old one');
+
+  _m1 := public.add_custom_member(_c, 'Member One', _phone, null);
+  _m2 := public.add_custom_member(_c, 'Member Two (no account)', '08000000002', null);
+  perform pg_temp.check((select user_id from public.custom_members where id = _m1) = _m1u, 'customs: member with an account is linked by phone');
+  perform pg_temp.check((select tag from public.custom_members where id = _m2) = _code || '-02', 'customs: members get clothes tags');
+  perform pg_temp.expect_error(format('select public.add_custom_member(%L, %L, %L, null)', _c, 'Again', _phone), 'member_exists', 'customs: same phone cannot be added twice');
+  perform public.add_custom_watcher(_c, 'Bursar@Example.com');
+  perform pg_temp.check(exists (select 1 from public.email_outbox where to_email = 'bursar@example.com' and payload->>'cta_url' like '%/customs/view/' || _token), 'customs: third party emailed a view link');
+
+  -- Batch 1: three tops for member one, two bottoms for member two = 3 x 500 + 2 x 700 = 2,900 naira.
+  _b1 := public.create_custom_batch(_c, 'first drop');
+  perform public.set_custom_line(_b1, _m1, _tops, 3);
+  perform public.set_custom_line(_b1, _m2, _bottoms, 1);
+  perform public.set_custom_line(_b1, _m2, _bottoms, 2);
+  perform pg_temp.expect_error(format('select public.set_custom_line(%L, %L, %L, 1)', _b1, _m1, _dresses), 'rate_missing', 'customs: only categories on the rate card');
+  perform pg_temp.check((select count(*) from public.order_items where order_id = _b1 and removed_at is null) = 2, 'customs: editing a line changes it, does not add one');
+  perform pg_temp.check((select items_total_kobo from public.orders where id = _b1) = 0, 'customs: the order itself carries no bill');
+  _r := public.submit_custom_count(_b1);
+  perform pg_temp.check((_r->>'charge_kobo')::bigint = 290000 and (_r->>'pieces')::int = 5, 'customs: batch charge 2,900 naira for 5 pieces');
+  perform pg_temp.check((select status from public.orders where id = _b1) = 'counted', 'customs: batch waits for confirmation');
+  perform pg_temp.check(exists (select 1 from public.email_outbox where idempotency_key like 'custom-batch-' || _b1 || '-%'), 'customs: admin emailed when a batch is entered');
+  perform pg_temp.check(exists (select 1 from public.user_notifications where user_id = _m1u and order_id = _b1), 'customs: member told to confirm');
+
+  -- Member one confirms their items; member two has no account, so the manager must confirm.
+  perform pg_temp.act_as(_m1u);
+  _r := public.confirm_custom_batch(_b1);
+  perform pg_temp.check(_r->>'status' = 'waiting_members', 'customs: one member confirming is not enough');
+  _v := public.custom_view(_c);
+  perform pg_temp.check(_v->>'role' = 'member' and _v->'balance_kobo' = 'null'::jsonb, 'customs: member does not see the balance');
+  perform pg_temp.check(jsonb_array_length(_v->'batches'->0->'lines') = 1 and (_v->'batches'->0->'lines'->0->>'member_id')::uuid = _m1, 'customs: member sees only their own items');
+  perform pg_temp.check((public.my_customs()->0->>'role') = 'member', 'customs: member sees the custom under My customs');
+  perform pg_temp.act_as(_out);
+  perform pg_temp.expect_error(format('select public.custom_view(%L)', _c), 'not_allowed', 'customs: outsiders cannot view');
+  perform pg_temp.expect_error(format('select public.confirm_custom_batch(%L)', _b1), 'not_allowed', 'customs: outsiders cannot confirm');
+
+  -- Prepaid: nothing moves until the balance covers the batch.
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.expect_error(format('select public.confirm_custom_batch(%L)', _b1), 'balance_low', 'customs: cannot confirm with no balance');
+  perform pg_temp.act_as(_desk);
+  select * into _before from pg_temp.sales('cash');
+  perform public.record_custom_deposit(_c, 200000, 'cash', _cash, null);
+  select * into _after from pg_temp.sales('cash');
+  perform pg_temp.check(_after.gross - _before.gross = 200000, 'customs: cash deposit counted in today''s cash sales');
+  perform pg_temp.expect_error(format('select public.record_custom_deposit(%L, 100000, %L, %L, %L)', _c, 'transfer', _cash, ''), 'note_required', 'customs: transfer needs a note');
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.expect_error(format('select public.confirm_custom_batch(%L)', _b1), 'balance_low', 'customs: 2,000 naira does not cover 2,900');
+  perform pg_temp.act_as(_desk);
+  perform public.record_custom_deposit(_c, 100000, 'transfer', _cash, 'GTB transfer ref 123');
+  perform pg_temp.check(private.custom_balance(_c) = 300000, 'customs: balance 3,000 naira after two deposits');
+  perform pg_temp.check((select status from public.orders where id = _b1) = 'counted', 'customs: a deposit alone does not confirm for the manager');
+  perform pg_temp.act_as(_mgr);
+  _r := public.confirm_custom_batch(_b1);
+  perform pg_temp.check(_r->>'status' = 'confirmed' and (select status from public.orders where id = _b1) = 'received', 'customs: manager confirms, batch goes to the wash queue');
+  perform pg_temp.check(private.custom_balance(_c) = 10000, 'customs: 2,900 naira taken, 100 naira left');
+  perform pg_temp.check((select count(*) from public.payments where order_id = _b1) = 0, 'customs: no payment is recorded on the batch order');
+  perform pg_temp.check(not exists (select 1 from public.email_outbox where template = 'payment_receipt' and payload->>'order_id' = _b1::text), 'customs: no zero-naira receipt email');
+  perform pg_temp.expect_error(format('select public.confirm_custom_batch(%L)', _b1), 'wrong_state', 'customs: cannot be charged twice');
+
+  -- Wash, shelve, collect.
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.expect_error(format('select public.custom_handover(%L)', _b1), 'not_allowed', 'customs: managers cannot mark their own batch handed over');
+  insert into public.user_roles (user_id, role) values (_desk, 'secretary');
+  perform pg_temp.act_as(_desk);
+  perform public.start_washing(_b1);
+  perform public.mark_ready(_b1, array['E3', 'E4']);
+  perform pg_temp.check((select status = 'ready' and fulfillment_choice = 'collect' and delivery_fare_kobo = 0 from public.orders where id = _b1), 'customs: ready for collection, no fare');
+  perform public.custom_handover(_b1);
+  perform pg_temp.check((select status from public.orders where id = _b1) = 'delivered' and not exists (select 1 from public.order_shelves where order_id = _b1 and released_at is null), 'customs: collected, shelves E3 and E4 freed');
+  perform pg_temp.check(not exists (select 1 from public.commissions where order_id = _b1), 'customs: no agent commission on a custom batch');
+
+  -- Repeat: a new batch. Count, reopen, recount.
+  _b2 := public.create_custom_batch(_c, 'repeat');
+  perform public.set_custom_line(_b2, _m2, _tops, 1);
+  perform public.submit_custom_count(_b2);
+  perform public.reopen_custom_count(_b2);
+  perform pg_temp.check((select status from public.orders where id = _b2) = 'agent_arrived', 'customs: count can be reopened before confirmation');
+  perform public.set_custom_line(_b2, _m2, _tops, 2);
+  perform public.submit_custom_count(_b2);
+
+  -- Batch 3: only member one; they confirm with too little money, then a deposit pushes it through.
+  _b3 := public.create_custom_batch(_c, 'third');
+  perform public.set_custom_line(_b3, _m1, _bottoms, 1);
+  perform public.submit_custom_count(_b3);
+  perform pg_temp.act_as(_m1u);
+  _r := public.confirm_custom_batch(_b3);
+  perform pg_temp.check(_r->>'status' = 'waiting_balance' and (select status from public.orders where id = _b3) = 'counted', 'customs: every member confirmed, waits for money');
+  perform pg_temp.act_as(_desk);
+  perform public.record_custom_deposit(_c, 60000, 'cash', _cash, null);
+  perform pg_temp.check((select status from public.orders where id = _b3) = 'received', 'customs: deposit releases the batch the members already confirmed');
+  perform pg_temp.check((select status from public.orders where id = _b2) = 'counted', 'customs: a batch nobody confirmed stays waiting');
+  perform pg_temp.check(private.custom_balance(_c) = 0, 'customs: 100 + 600 - 700 = 0 naira left');
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.expect_error(format('select public.confirm_custom_batch(%L)', _b2), 'balance_low', 'customs: repeat batch needs money too');
+
+  -- Third-party link: no names, no lines.
+  perform pg_temp.act_as(null);
+  _v := public.custom_public(_token);
+  perform pg_temp.check(_v->>'name' = 'Divine Lodge' and (_v->>'balance_kobo')::bigint = 0 and jsonb_array_length(_v->'batches') = 3 and _v::text not like '%Member One%', 'customs: public link shows totals without member names');
+  perform pg_temp.expect_error(format('select public.custom_public(%L)', repeat('0', 32)), 'custom_not_found', 'customs: wrong link shows nothing');
+
+  -- Plan: weekly, 10,000 naira, 5 tops a week included, extra tops 200 naira; delivered.
+  perform pg_temp.act_as(_desk);
+  perform pg_temp.expect_error(format('select public.create_custom(%L,%L,%L,%L,%L,null,null,null,%L,0,null)', 'Acme Hotel', 'business', 'plan', _mgr, 'collect', 'weekly'), 'period_fee_required', 'customs: a plan needs a fee');
+  _p := public.create_custom('Acme Hotel', 'business', 'plan', _mgr, 'deliver', '12 Zik Avenue, Awka', 6.21, 7.07, 'weekly', 1000000, null);
+  perform public.set_custom_rates(_p, jsonb_build_array(jsonb_build_object('category_id', _tops, 'unit', 'piece', 'price_kobo', 20000, 'allowance', 5)));
+  perform pg_temp.expect_error(format('select public.set_custom_rates(%L, %L)', _p, jsonb_build_array(jsonb_build_object('category_id', _tops, 'unit', 'piece', 'price_kobo', 1))), 'allowance_required', 'customs: plan rates need an allowance');
+  _pm := public.add_custom_member(_p, 'Front desk linen', null, null);
+  perform pg_temp.expect_error(format('select public.create_custom_batch(%L, null)', _p), 'period_not_active', 'customs: no plan batch before the period starts');
+  perform pg_temp.expect_error(format('select public.start_custom_period(%L)', _p), 'balance_low', 'customs: period fee must be prepaid');
+  perform public.record_custom_deposit(_p, 1500000, 'cash', _cash, null);
+  _r := public.start_custom_period(_p);
+  perform pg_temp.check((_r->>'balance_kobo')::bigint = 500000 and (_r->>'period_end')::date = private.today_lagos() + 6, 'customs: weekly period started, 10,000 naira taken');
+  perform pg_temp.expect_error(format('select public.start_custom_period(%L)', _p), 'period_active', 'customs: cannot start the same period twice');
+
+  _pb1 := public.create_custom_batch(_p, null);
+  perform public.set_custom_line(_pb1, _pm, _tops, 4);
+  _r := public.submit_custom_count(_pb1);
+  perform pg_temp.check((_r->>'charge_kobo')::bigint = 0, 'customs: 4 of 5 included tops cost nothing');
+  perform pg_temp.act_as(_mgr);
+  perform public.confirm_custom_batch(_pb1);
+  perform pg_temp.check(private.custom_balance(_p) = 500000 and not exists (select 1 from public.custom_ledger where order_id = _pb1), 'customs: covered batch takes no money');
+  perform pg_temp.act_as(_desk);
+  _pb2 := public.create_custom_batch(_p, null);
+  perform public.set_custom_line(_pb2, _pm, _tops, 3);
+  _r := public.submit_custom_count(_pb2);
+  perform pg_temp.check((_r->>'charge_kobo')::bigint = 40000, 'customs: 1 included + 2 extra tops = 400 naira');
+  perform pg_temp.act_as(_mgr);
+  perform public.confirm_custom_batch(_pb2);
+  perform pg_temp.check(private.custom_balance(_p) = 460000, 'customs: 400 naira taken for the extras');
+  _v := public.custom_view(_p);
+  perform pg_temp.check(_v->>'role' = 'manager' and (_v->'usage'->0->>'used')::int = 7 and (_v->'usage'->0->>'allowance')::int = 5, 'customs: plan usage shows 7 of 5 tops');
+
+  -- Delivered plan batch: out for delivery straight after Mark ready, no fare.
+  perform pg_temp.act_as(_desk);
+  perform public.start_washing(_pb1);
+  perform public.mark_ready(_pb1, array['F1']);
+  perform pg_temp.check((select status = 'out_for_delivery' and delivery_fare_kobo = 0 and return_delivery_address = '12 Zik Avenue, Awka' from public.orders where id = _pb1), 'customs: delivered custom goes out with no fare');
+
+  -- Lists and permissions.
+  perform pg_temp.check(jsonb_array_length(public.customs_list()) >= 2, 'customs: staff list shows customs');
+  perform pg_temp.act_as(_mgr);
+  perform pg_temp.check(jsonb_array_length(public.my_customs()) = 2, 'customs: manager sees both customs');
+  perform pg_temp.expect_error('select public.customs_list()', 'not_allowed', 'customs: customers cannot list all customs');
+  perform pg_temp.expect_error(format('select public.record_custom_deposit(%L, 100000, %L, %L, null)', _p, 'cash', _cash), 'not_allowed', 'customs: managers cannot record deposits');
+  perform pg_temp.act_as(_desk);
+  perform pg_temp.expect_error(format('select public.custom_adjust(%L, -100, %L)', _p, 'refund test'), 'not_allowed', 'customs: only the super admin adjusts balances');
+end $t$;
+
 do $$ begin raise notice 'ALL MONEY TESTS PASSED'; end $$;
 rollback;

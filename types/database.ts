@@ -1225,6 +1225,8 @@ export type Database = {
           checked_by: string | null
           created_at: string
           created_by: string | null
+          custom_member_id: string | null
+          custom_category_id: string | null
           id: string
           item_id: string | null
           line_total_kobo: number | null
@@ -1246,6 +1248,8 @@ export type Database = {
           checked_by?: string | null
           created_at?: string
           created_by?: string | null
+          custom_member_id?: string | null
+          custom_category_id?: string | null
           id?: string
           item_id?: string | null
           line_total_kobo?: number | null
@@ -1267,6 +1271,8 @@ export type Database = {
           checked_by?: string | null
           created_at?: string
           created_by?: string | null
+          custom_member_id?: string | null
+          custom_category_id?: string | null
           id?: string
           item_id?: string | null
           line_total_kobo?: number | null
@@ -1376,6 +1382,14 @@ export type Database = {
           },
         ]
       }
+      custom_rates: {
+        Row: { allowance: number | null; category_id: string; custom_id: string; price_kobo: number; unit: string }
+        Insert: { allowance?: number | null; category_id: string; custom_id: string; price_kobo: number; unit: string }
+        Update: { allowance?: number | null; category_id?: string; custom_id?: string; price_kobo?: number; unit?: string }
+        Relationships: [
+          { foreignKeyName: "custom_rates_category_id_fkey"; columns: ["category_id"]; isOneToOne: false; referencedRelation: "item_categories"; referencedColumns: ["id"] },
+        ]
+      }
       order_shelves: {
         Row: {
           id: string
@@ -1452,6 +1466,7 @@ export type Database = {
           count_disputed_at: string | null
           created_at: string
           created_by: string | null
+          custom_id: string | null
           customer_id: string
           delivered_at: string | null
           delivery_agent_id: string | null
@@ -1502,6 +1517,7 @@ export type Database = {
           count_disputed_at?: string | null
           created_at?: string
           created_by?: string | null
+          custom_id?: string | null
           customer_id: string
           delivered_at?: string | null
           delivery_agent_id?: string | null
@@ -1552,6 +1568,7 @@ export type Database = {
           count_disputed_at?: string | null
           created_at?: string
           created_by?: string | null
+          custom_id?: string | null
           customer_id?: string
           delivered_at?: string | null
           delivery_agent_id?: string | null
@@ -3451,6 +3468,30 @@ export type Database = {
         Returns: undefined
       }
       shelf_board: { Args: never; Returns: Json }
+      add_custom_member: { Args: { _custom: string; _email: string; _name: string; _phone: string }; Returns: string }
+      add_custom_watcher: { Args: { _custom: string; _email: string }; Returns: undefined }
+      confirm_custom_batch: { Args: { _order: string }; Returns: Json }
+      create_custom: {
+        Args: { _address: string; _delivery: string; _kind: string; _lat: number; _lng: number; _manager: string; _mode: string; _name: string; _notes: string; _period: string; _period_fee_kobo: number }
+        Returns: string
+      }
+      create_custom_batch: { Args: { _custom: string; _notes: string }; Returns: string }
+      custom_adjust: { Args: { _amount_kobo: number; _custom: string; _note: string }; Returns: undefined }
+      custom_handover: { Args: { _order: string }; Returns: undefined }
+      custom_public: { Args: { _token: string }; Returns: Json }
+      custom_view: { Args: { _custom: string }; Returns: Json }
+      customs_list: { Args: never; Returns: Json }
+      my_customs: { Args: never; Returns: Json }
+      record_custom_deposit: { Args: { _amount_kobo: number; _custom: string; _mode: string; _money_point: string; _note: string }; Returns: string }
+      remove_custom_member: { Args: { _member: string }; Returns: undefined }
+      remove_custom_watcher: { Args: { _watcher: string }; Returns: undefined }
+      reopen_custom_count: { Args: { _order: string }; Returns: undefined }
+      set_custom_line: { Args: { _category: string; _member: string; _order: string; _qty: number }; Returns: undefined }
+      set_custom_rates: { Args: { _custom: string; _rates: Json }; Returns: undefined }
+      start_custom_period: { Args: { _custom: string }; Returns: Json }
+      submit_custom_count: { Args: { _order: string }; Returns: Json }
+      update_custom: { Args: { _custom: string; _patch: Json }; Returns: undefined }
+
       record_cash_count: {
         Args: {
           _basis: string
