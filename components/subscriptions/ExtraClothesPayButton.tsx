@@ -18,7 +18,14 @@ export function ExtraClothesPayButton({ pickupId }: { pickupId: string }) {
     try {
       const supabase = createClient();
       const { data, error } = await supabase.functions.invoke("pay-init", { body: { purpose: "extra_clothes", pickup_id: pickupId, provider: activeProvider } });
-      if (error) throw new Error(error.message || "Could not start payment.");
+      if (error) {
+        let code = error.message;
+        const ctx = (error as { context?: Response }).context;
+        if (ctx && typeof ctx.json === "function") { try { code = (await ctx.json())?.error ?? code; } catch { /* keep */ } }
+        if (code === "provider_not_enabled") throw new Error("That payment method is switched off. Choose an available method.");
+        if (code === "payment_availability_unavailable") throw new Error("We could not check payment availability. Please try again.");
+        throw new Error("Could not start payment. Please try again.");
+      }
       const result = data as { url?: string; error?: string } | null;
       if (!result?.url) throw new Error(result?.error || "Could not start payment.");
       window.location.assign(result.url);
