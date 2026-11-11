@@ -28,7 +28,9 @@ export function ResetForm({ mode = "reset" }: { mode?: "reset" | "welcome" }) {
     const { error: err } = await supabase.auth.updateUser({ password });
     if (err) {
       setBusy(false);
-      return setError(err.message.toLowerCase().includes("different") ? "Choose a password you have not used before." : err.message);
+      // Do not infer password reuse from arbitrary error wording. Show the actual
+      // Supabase Auth message so customers are not told another user has used it.
+      return setError(err.message || "We couldn't save your password. Please try again.");
     }
     await supabase.auth.signOut({ scope: "others" }); // anyone else signed in with the old password is signed out
     let next = "/account?notice=password_changed";
