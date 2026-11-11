@@ -4,7 +4,11 @@ import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 import { SubscriptionPaymentReturn } from "@/components/subscriptions/SubscriptionPaymentReturn";
 import { SubscriptionPlanCards } from "@/components/subscriptions/SubscriptionPlanCards";
 
-export const metadata = { title: "Subscription plans" };
+export const metadata = {
+  title: "Monthly Laundry Plans in Awka",
+  description: "Monthly laundry subscriptions in Awka with a piece allowance and free pickups. Student plans available for Unizik and nearby lodges.",
+  alternates: { canonical: "/subscriptions" },
+};
 export const dynamic = "force-dynamic";
 
 export default async function SubscriptionsPage({ searchParams }: { searchParams: Promise<{ reference?: string; tx_ref?: string; status?: string; billing?: string }> }) {

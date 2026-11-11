@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaRegister } from "@/components/brand/PwaRegister";
 import { Toaster } from "sonner";
+import { GOOGLE_VERIFICATION } from "@/lib/seo";
 
 const DEFAULT_SITE = "https://laundrypoint.app";
 
@@ -18,10 +19,18 @@ function siteUrl(): URL {
 
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
-  title: { default: "LaundryPoint | Laundry pickup and delivery", template: "%s | LaundryPoint" },
+  title: { default: "Laundry Pickup and Delivery in Awka | LaundryPoint", template: "%s | LaundryPoint" },
   description:
-    "Request a laundry pickup, pay the transport fare, and have your clothes counted, cleaned and returned with a secure three-code handover. Monthly plans available.",
-  openGraph: { title: "LaundryPoint", description: "Laundry pickup and delivery with a secure handover.", type: "website", images: [{ url: "/brand/icon/512.png", width: 512, height: 512 }] },
+    "Laundry, dry cleaning and ironing in Awka with pickup and delivery. Our Ifite hub serves Awka, Ifite, Amawbia, Okpuno, Nibo, Nise and towns up to 15 km away. Fast turnaround with our own dryers. Open 9am to 6pm.",
+  applicationName: "LaundryPoint",
+  keywords: ["laundry Awka", "laundry service Awka", "dry cleaning Awka", "laundry pickup and delivery Awka", "laundry near Unizik", "laundry Ifite", "laundry Amawbia", "wash and fold Awka", "ironing Awka", "LaundryPoint"],
+  openGraph: {
+    type: "website", locale: "en_NG", siteName: "LaundryPoint",
+    title: "LaundryPoint: laundry pickup and delivery in Awka",
+    description: "Get your clothes fast. Washing, drying, ironing and dry cleaning with pickup and delivery across Awka.",
+  },
+  twitter: { card: "summary_large_image", title: "LaundryPoint: laundry pickup and delivery in Awka", description: "Get your clothes fast. Laundry pickup and delivery across Awka." },
+  ...(GOOGLE_VERIFICATION ? { verification: { google: GOOGLE_VERIFICATION } } : {}),
   manifest: "/manifest/customer",
   icons: { icon: [{ url: "/brand/icon/32.png", sizes: "32x32", type: "image/png" }, { url: "/brand/icon/192.png", sizes: "192x192", type: "image/png" }], apple: [{ url: "/brand/icon/180.png", sizes: "180x180" }] },
   appleWebApp: { capable: true, title: "LaundryPoint", statusBarStyle: "default" },
