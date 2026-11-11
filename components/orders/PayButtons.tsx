@@ -15,7 +15,6 @@ export function PayButtons({ orderId, purpose, label }: {
   orderId: string;
   purpose: "pickup_fare" | "items" | "delivery_fare" | "demurrage";
   label: string;
-  enabledProviders?: Provider[];
 }) {
   const { providers: enabledProviders, loading: providersLoading } = useEnabledPaymentProviders();
   const [busy, setBusy] = useState<Provider | null>(null);
