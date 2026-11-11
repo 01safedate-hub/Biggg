@@ -836,6 +836,9 @@ Deno.serve(async (req) => {
             await sendFixedReply("Your subscription pickup has been booked successfully. Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".");
           } else {
             const exhausted=(booking as any)?.source==="one_time_allowance_exhausted";
+            const {data:onlinePoints,error:onlinePointsError}=await db.from("money_points").select("name").eq("kind","online").eq("active",true);
+            const paystackEnabled=!onlinePointsError&&(onlinePoints??[]).some((point:any)=>/paystack/i.test(String(point.name??"")));
+            if(!paystackEnabled){await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint.");continue;}
             const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
             if(!paystackKey){
               await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period. This request is a one-time pickup. ":"You do not have an active subscription, so this request is a one-time pickup. ")+"Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".\nPaystack checkout is temporarily unavailable. Our team will follow up; please do not pay an agent in cash.");
