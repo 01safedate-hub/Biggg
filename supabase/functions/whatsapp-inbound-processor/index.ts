@@ -10,6 +10,11 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
 }
 function normPhone(value: string) { return value.replace(/\D/g, ""); }
+async function isOnlineProviderEnabled(db: ReturnType<typeof createClient>, provider: string) {
+  const { data, error } = await db.from("money_points").select("name").eq("kind", "online").eq("active", true);
+  return !error && (data ?? []).some((point: { name?: string | null }) => String(point.name ?? "").toLowerCase().includes(provider));
+}
+
 function needsHuman(text: string) {
   return /\b(human|agent|secretary|staff|complain|complaint|refund|dispute|manager|speak to someone|talk to someone|wrong charge|overcharged|damaged|missing clothes|lost clothes)\b/i.test(text);
 }
@@ -641,6 +646,7 @@ Deno.serve(async (req) => {
           }
           if(fulfilment.stage==="confirm_payment") {
             if(wantsYes) {
+              if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
               const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
               if(!paystackKey) { await sendFixedReply("Secure online payment is temporarily unavailable. Your delivery choice is saved, but no payment has been collected. Please contact our team or choose free hub collection."); continue; }
               const {data:intent,error:intentError}=await db.rpc("whatsapp_create_return_delivery_payment_intent",{
@@ -836,10 +842,8 @@ Deno.serve(async (req) => {
             await sendFixedReply("Your subscription pickup has been booked successfully. Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".");
           } else {
             const exhausted=(booking as any)?.source==="one_time_allowance_exhausted";
-            const {data:onlinePoints,error:onlinePointsError}=await db.from("money_points").select("name").eq("kind","online").eq("active",true);
-            const paystackEnabled=!onlinePointsError&&(onlinePoints??[]).some((point:any)=>/paystack/i.test(String(point.name??"")));
-            if(!paystackEnabled){await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint.");continue;}
-            const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
+            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
+              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
             if(!paystackKey){
               await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period. This request is a one-time pickup. ":"You do not have an active subscription, so this request is a one-time pickup. ")+"Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".\nPaystack checkout is temporarily unavailable. Our team will follow up; please do not pay an agent in cash.");
               continue;
@@ -1195,7 +1199,8 @@ Deno.serve(async (req) => {
               await sendFixedReply("I can't see a payable renewal invoice yet. Your current "+String(plan?.name||"")+" subscription ends on "+dateLabel(sub.current_period_end)+". LaundryPoint will make the renewal invoice available when it enters the renewal window. No payment has been requested.");
               continue;
             }
-            const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
+            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
+              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
             if(!paystackKey){await sendFixedReply("Secure renewal checkout is temporarily unavailable. No payment has been collected. Please try again later.");continue;}
             const {data:intent,error:intentError}=await db.rpc("whatsapp_create_subscription_renewal_payment_intent",{_customer:activeSession.customer_id,_invoice_id:dueInvoice.id,_provider:"paystack"});
             if(intentError||!intent?.reference||!intent?.amount_kobo||!intent?.email){
@@ -1385,7 +1390,8 @@ Deno.serve(async (req) => {
             continue;
           }
           if (/^(pay|yes|y|confirm|proceed|continue)$/i.test(body.trim())) {
-            const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
+            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
+              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
             if(!paystackKey){await sendFixedReply("Secure subscription checkout is temporarily unavailable. No payment has been collected. Please try again later.");continue;}
             const {data:intent,error:intentError}=await db.rpc("whatsapp_create_subscription_payment_intent_for_customer",{
               _customer:activeSession.customer_id,_plan_slug:subscriptionPending.plan_slug,_provider:"paystack",_billing_period:subscriptionPending.billing_period||"monthly"
