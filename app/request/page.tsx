@@ -4,7 +4,11 @@ import { BookingForm } from "@/components/orders/BookingForm";
 import { NoCashNotice } from "@/components/orders/NoCashNotice";
 import { CustomerSidebar } from "@/components/customer/CustomerSidebar";
 
-export const metadata = { title: "Request a pickup" };
+export const metadata = {
+  title: "Book a Laundry Pickup in Awka",
+  description: "Book a laundry pickup anywhere within 15 km of our Ifite, Awka hub. See your transport fare before you pay.",
+  alternates: { canonical: "/request" },
+};
 export const dynamic = "force-dynamic";
 
 export default async function RequestPage() {

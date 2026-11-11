@@ -5,8 +5,9 @@ import { FloatingContact } from "@/components/landing/FloatingContact";
 import { getSiteData } from "@/lib/site-data";
 
 export const metadata = {
-  title: "Laundry services",
-  description: "Explore LaundryPoint laundry care, scheduled pickup, delivery, and monthly subscription plans.",
+  title: "Laundry, Dry Cleaning and Ironing Services in Awka",
+  description: "Wash and fold, washing and ironing, dry cleaning, duvets, curtains, suits and native wear. Pickup and delivery across Awka, Ifite, Amawbia and nearby towns.",
+  alternates: { canonical: "/services" },
 };
 
 export const revalidate = 300;

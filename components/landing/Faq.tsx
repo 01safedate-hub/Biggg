@@ -1,4 +1,4 @@
-const faqs = [
+export const faqs = [
   { q: "What do I pay, and when?", a: "You pay the transport fare first to confirm a pickup. After the agent counts your clothes you pay for the cleaning. Delivery has its own fare, paid before the agent leaves with your order. Subscription orders are covered by your plan." },
   { q: "How is the transport fare calculated?", a: "From the real round-trip distance between our hub and your address, multiplied by a per-kilometre rate, with a minimum fare. You see the amount before you pay." },
   { q: "What if I book after closing time?", a: "Booking still works. We will tell you we are closed and pickup happens first thing the next morning." },

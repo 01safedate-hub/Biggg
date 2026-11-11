@@ -27,6 +27,8 @@ export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsU
               <MessageCircle className="h-4 w-4" aria-hidden />Chat on WhatsApp
             </a>
           )}
+          <Link href="/areas" className="hover:text-white hover:underline">Areas we cover</Link>
+          <Link href="/services" className="hover:text-white hover:underline">Services</Link>
           <Link href="/privacy" className="hover:text-white hover:underline">Privacy Policy</Link>
         </div>
       </div>
