@@ -10,9 +10,47 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
 }
 function normPhone(value: string) { return value.replace(/\D/g, ""); }
-async function isOnlineProviderEnabled(db: ReturnType<typeof createClient>, provider: string) {
-  const { data, error } = await db.from("money_points").select("name").eq("kind", "online").eq("active", true);
-  return !error && (data ?? []).some((point: { name?: string | null }) => String(point.name ?? "").toLowerCase().includes(provider));
+async function getWhatsAppPaymentProvider(db: ReturnType<typeof createClient>): Promise<"paystack" | "flutterwave" | null> {
+  const { data, error } = await db.rpc("active_payment_providers");
+  if (error || !Array.isArray(data)) {
+    console.error("whatsapp_payment_provider_lookup_failed", { code: error?.code ?? null });
+    return null;
+  }
+  const enabled = data.filter((value): value is "paystack" | "flutterwave" => value === "paystack" || value === "flutterwave");
+  return enabled.includes("paystack") ? "paystack" : enabled.includes("flutterwave") ? "flutterwave" : null;
+}
+
+async function createWhatsAppCheckout(
+  provider: "paystack" | "flutterwave",
+  intent: any,
+  options: { callbackUrl: string; metadata: Record<string, unknown>; description: string },
+): Promise<string> {
+  const secret = Deno.env.get(provider === "paystack" ? "PAYSTACK_SECRET_KEY" : "FLUTTERWAVE_SECRET_KEY");
+  if (!secret) throw new Error(provider + "_not_configured");
+  if (provider === "paystack") {
+    const response = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + secret, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: intent.email, amount: intent.amount_kobo, currency: "NGN", reference: intent.reference, callback_url: options.callbackUrl, metadata: options.metadata }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok && payload?.status === true && payload.data?.authorization_url) return String(payload.data.authorization_url);
+    console.error("whatsapp_paystack_checkout_failed", { status: response.status, reference: intent.reference });
+    throw new Error("paystack_checkout_failed");
+  }
+  const response = await fetch("https://api.flutterwave.com/v3/payments", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + secret, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tx_ref: intent.reference, amount: Number(intent.amount_kobo) / 100, currency: "NGN", redirect_url: options.callbackUrl,
+      customer: { email: intent.email, name: intent.name ?? "LaundryPoint customer", phonenumber: intent.phone ?? undefined },
+      customizations: { title: "LaundryPoint", description: options.description }, meta: options.metadata,
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (response.ok && payload?.status === "success" && payload.data?.link) return String(payload.data.link);
+  console.error("whatsapp_flutterwave_checkout_failed", { status: response.status, reference: intent.reference });
+  throw new Error("flutterwave_checkout_failed");
 }
 
 function needsHuman(text: string) {
@@ -646,11 +684,10 @@ Deno.serve(async (req) => {
           }
           if(fulfilment.stage==="confirm_payment") {
             if(wantsYes) {
-              if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
-              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
-              if(!paystackKey) { await sendFixedReply("Secure online payment is temporarily unavailable. Your delivery choice is saved, but no payment has been collected. Please contact our team or choose free hub collection."); continue; }
+              const provider = await getWhatsAppPaymentProvider(db);
+              if (!provider) { await sendFixedReply("Online payments are currently unavailable. Your delivery choice is saved, but no payment has been collected. Please contact our team or choose free hub collection."); continue; }
               const {data:intent,error:intentError}=await db.rpc("whatsapp_create_return_delivery_payment_intent",{
-                _customer:activeSession.customer_id,_order:fulfilment.order_id,_provider:"paystack"
+                _customer:activeSession.customer_id,_order:fulfilment.order_id,_provider:provider
               });
               if(intentError||!intent?.reference||!intent?.amount_kobo||!intent?.email) {
                 console.error("whatsapp_return_delivery_payment_intent_failed",{order:fulfilment.order_no,error:intentError?.message});
@@ -659,14 +696,15 @@ Deno.serve(async (req) => {
               }
               let checkoutUrl="";
               try {
-                const response=await fetch("https://api.paystack.co/transaction/initialize",{method:"POST",headers:{Authorization:"Bearer "+paystackKey,"Content-Type":"application/json"},body:JSON.stringify({email:intent.email,amount:intent.amount_kobo,currency:"NGN",reference:intent.reference,callback_url:"https://laundrypoint.app/orders/"+String(fulfilment.order_id)+"?returning=1",metadata:{order_id:fulfilment.order_id,purpose:"delivery_fare",source:"whatsapp"}})});
-                const payload=await response.json().catch(()=>({}));
-                if(response.ok&&payload?.status===true) checkoutUrl=String(payload.data?.authorization_url||"");
-                else console.error("whatsapp_return_delivery_checkout_failed",{status:response.status,reference:intent.reference});
-              } catch(error) { console.error("whatsapp_return_delivery_checkout_error",String(error).slice(0,250)); }
-              if(!checkoutUrl) { await sendFixedReply("I couldn't generate the payment link. No payment has been collected. Please try again shortly or contact our team."); continue; }
+                checkoutUrl = await createWhatsAppCheckout(provider, intent, {
+                  callbackUrl: "https://laundrypoint.app/orders/" + String(fulfilment.order_id) + "?returning=1",
+                  metadata: { order_id: fulfilment.order_id, purpose: "delivery_fare", source: "whatsapp" },
+                  description: "Delivery fee for order #" + String(fulfilment.order_no),
+                });
+              } catch(error) { console.error("whatsapp_return_delivery_checkout_error", String(error).slice(0,250)); }
+              if(!checkoutUrl) { await sendFixedReply("I couldn't generate the secure payment link. No payment has been collected. Please try again shortly or contact our team."); continue; }
               await closeState();
-              await sendFixedReply("Here is your secure payment link for Order #"+fulfilment.order_no+":\n"+checkoutUrl+"\n\nDelivery will be arranged after Paystack confirms your payment. Please do not pay cash to an agent.");
+              await sendFixedReply("Here is your secure " + (provider === "flutterwave" ? "Flutterwave" : "Paystack") + " payment link for Order #"+fulfilment.order_no+":\n"+checkoutUrl+"\n\nDelivery will be arranged after " + (provider === "flutterwave" ? "Flutterwave" : "Paystack") + " confirms your payment. Please do not pay cash to an agent.");
               continue;
             }
             if(wantsNo) {
@@ -842,13 +880,12 @@ Deno.serve(async (req) => {
             await sendFixedReply("Your subscription pickup has been booked successfully. Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".");
           } else {
             const exhausted=(booking as any)?.source==="one_time_allowance_exhausted";
-            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
-              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
-            if(!paystackKey){
-              await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period. This request is a one-time pickup. ":"You do not have an active subscription, so this request is a one-time pickup. ")+"Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".\nPaystack checkout is temporarily unavailable. Our team will follow up; please do not pay an agent in cash.");
+            const provider = await getWhatsAppPaymentProvider(db);
+            if (!provider) {
+              await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period. This request is a one-time pickup. ":"You do not have an active subscription, so this request is a one-time pickup. ")+"Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".\nOnline checkout is unavailable. Our team will follow up; please do not pay an agent in cash.");
               continue;
             }
-            const {data:intent,error:intentError}=await db.rpc("whatsapp_create_payment_intent_for_customer",{_customer:activeSession.customer_id,_order:(booking as any)?.order_id,_purpose:"pickup_fare",_provider:"paystack"});
+            const {data:intent,error:intentError}=await db.rpc("whatsapp_create_payment_intent_for_customer",{_customer:activeSession.customer_id,_order:(booking as any)?.order_id,_purpose:"pickup_fare",_provider:provider});
             if(intentError||!intent?.reference||!intent?.amount_kobo||!intent?.email){
               console.error("whatsapp_payment_intent_failed",{order:ref,error:intentError?.message});
               await sendFixedReply("Your one-time pickup request "+ref+" was created, but secure checkout could not be initialized. Our team will assist. No payment has been collected.");
@@ -857,17 +894,19 @@ Deno.serve(async (req) => {
             const callback="https://laundrypoint.app/orders/"+String((booking as any)?.order_id)+"?returning=1";
             let checkoutUrl="";
             try {
-              const response=await fetch("https://api.paystack.co/transaction/initialize",{method:"POST",headers:{Authorization:"Bearer "+paystackKey,"Content-Type":"application/json"},body:JSON.stringify({email:intent.email,amount:intent.amount_kobo,currency:"NGN",reference:intent.reference,callback_url:callback,metadata:{order_id:(booking as any)?.order_id,purpose:"pickup_fare",source:"whatsapp"}})});
-              const payload=await response.json().catch(()=>({}));
-              if(response.ok&&payload?.status===true) checkoutUrl=String(payload.data?.authorization_url||"");
-              else console.error("whatsapp_paystack_checkout_failed",{status:response.status,reference:intent.reference});
-            } catch(error) { console.error("whatsapp_paystack_request_failed",String(error).slice(0,300)); }
+              checkoutUrl = await createWhatsAppCheckout(provider, intent, {
+                callbackUrl: callback,
+                metadata: { order_id: (booking as any)?.order_id, purpose: "pickup_fare", source: "whatsapp" },
+                description: "One-time pickup and delivery fare for order #" + ref,
+              });
+            } catch(error) { console.error("whatsapp_pickup_checkout_error", String(error).slice(0,300)); }
             if(!checkoutUrl){
-              await sendFixedReply("Your one-time pickup request "+ref+" was created, but Paystack did not return a checkout link. Our team will assist. No payment has been confirmed.");
+              await sendFixedReply("Your one-time pickup request "+ref+" was created, but the secure checkout link could not be generated. Our team will assist. No payment has been confirmed.");
               continue;
             }
             const amountNaira=(Number(intent.amount_kobo)/100).toLocaleString("en-NG",{minimumFractionDigits:2,maximumFractionDigits:2});
-            await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period, so this is now a one-time pickup. ":"You do not have an active subscription, so this is a one-time pickup. ")+"\nOrder reference: "+ref+"\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+"\nAmount due: ₦"+amountNaira+"\nPayment for: one-time pickup and delivery fare.\nPayment method: Paystack.\nPay securely here: "+checkoutUrl+"\nAfter payment, wait for LaundryPoint to confirm payment and assign your pickup agent.");
+            const providerName = provider === "flutterwave" ? "Flutterwave" : "Paystack";
+            await sendFixedReply((exhausted?"You have used the two pickup requests included in your current subscription period, so this is now a one-time pickup. ":"You do not have an active subscription, so this is a one-time pickup. ")+"\nOrder reference: "+ref+"\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+"\nAmount due: ₦"+amountNaira+"\nPayment for: one-time pickup and delivery fare.\nPayment method: "+providerName+".\nPay securely here: "+checkoutUrl+"\nAfter payment, wait for LaundryPoint to confirm payment and assign your pickup agent.");
           }
           continue;
         }
@@ -1199,10 +1238,9 @@ Deno.serve(async (req) => {
               await sendFixedReply("I can't see a payable renewal invoice yet. Your current "+String(plan?.name||"")+" subscription ends on "+dateLabel(sub.current_period_end)+". LaundryPoint will make the renewal invoice available when it enters the renewal window. No payment has been requested.");
               continue;
             }
-            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
-              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
-            if(!paystackKey){await sendFixedReply("Secure renewal checkout is temporarily unavailable. No payment has been collected. Please try again later.");continue;}
-            const {data:intent,error:intentError}=await db.rpc("whatsapp_create_subscription_renewal_payment_intent",{_customer:activeSession.customer_id,_invoice_id:dueInvoice.id,_provider:"paystack"});
+            const provider = await getWhatsAppPaymentProvider(db);
+            if(!provider){await sendFixedReply("Online subscription renewal payments are currently unavailable. No payment has been collected. Please try again later.");continue;}
+            const {data:intent,error:intentError}=await db.rpc("whatsapp_create_subscription_renewal_payment_intent",{_customer:activeSession.customer_id,_invoice_id:dueInvoice.id,_provider:provider});
             if(intentError||!intent?.reference||!intent?.amount_kobo||!intent?.email){
               console.error("whatsapp_subscription_renewal_intent_failed",{code:intentError?.code});
               await sendFixedReply("I couldn't prepare your renewal checkout. No payment has been collected and your current subscription has not been changed. Please contact our team if this continues.");
@@ -1210,16 +1248,18 @@ Deno.serve(async (req) => {
             }
             let checkoutUrl="";
             try{
-              const response=await fetch("https://api.paystack.co/transaction/initialize",{method:"POST",headers:{Authorization:"Bearer "+paystackKey,"Content-Type":"application/json"},body:JSON.stringify({email:intent.email,amount:intent.amount_kobo,currency:"NGN",reference:intent.reference,callback_url:"https://laundrypoint.app",metadata:{purpose:"subscription",subscription_id:intent.subscription_id,invoice_id:intent.invoice_id,source:"whatsapp_renewal"}})});
-              const payload=await response.json().catch(()=>({}));
-              if(response.ok&&payload?.status===true)checkoutUrl=String(payload.data?.authorization_url||"");
+              checkoutUrl = await createWhatsAppCheckout(provider, intent, {
+                callbackUrl: "https://laundrypoint.app",
+                metadata: { purpose: "subscription", subscription_id: intent.subscription_id, invoice_id: intent.invoice_id, source: "whatsapp_renewal" },
+                description: "LaundryPoint subscription renewal",
+              });
             }catch(e){console.error("whatsapp_subscription_renewal_checkout_error",String(e).slice(0,200));}
             if(!checkoutUrl){
-              await db.from("payments").update({status:"failed",note:"Paystack checkout initialization failed"}).eq("reference",intent.reference).eq("status","pending");
+              await db.from("payments").update({status:"failed",note:provider + " checkout initialization failed"}).eq("reference",intent.reference).eq("status","pending");
               await sendFixedReply("I couldn't generate the renewal payment link. No payment has been collected. Please reply RENEW to try again later.");
               continue;
             }
-            await sendFixedReply("Your "+String(plan?.name||"")+" subscription renewal is ready. Amount due: "+moneyNaira(Number(intent.amount_kobo))+". This payment covers "+dateLabel(dueInvoice.period_start)+" to "+dateLabel(dueInvoice.period_end)+". Pay securely here: "+checkoutUrl+". Your renewal will be applied only after Paystack confirms payment.");
+            await sendFixedReply("Your "+String(plan?.name||"")+" subscription renewal is ready. Amount due: "+moneyNaira(Number(intent.amount_kobo))+". This payment covers "+dateLabel(dueInvoice.period_start)+" to "+dateLabel(dueInvoice.period_end)+". Pay securely with "+(provider === "flutterwave" ? "Flutterwave" : "Paystack")+" here: "+checkoutUrl+". Your renewal will be applied only after the payment provider confirms payment.");
             continue;
           }
           if(wantsHistory){
@@ -1390,11 +1430,10 @@ Deno.serve(async (req) => {
             continue;
           }
           if (/^(pay|yes|y|confirm|proceed|continue)$/i.test(body.trim())) {
-            if (!(await isOnlineProviderEnabled(db, "paystack"))) { await sendFixedReply("Paystack checkout is currently switched off. Please choose another available payment method or contact LaundryPoint."); continue; }
-              const paystackKey=Deno.env.get("PAYSTACK_SECRET_KEY");
-            if(!paystackKey){await sendFixedReply("Secure subscription checkout is temporarily unavailable. No payment has been collected. Please try again later.");continue;}
+            const provider = await getWhatsAppPaymentProvider(db);
+            if(!provider){await sendFixedReply("Online subscription payments are currently unavailable. No payment has been collected. Please try again later.");continue;}
             const {data:intent,error:intentError}=await db.rpc("whatsapp_create_subscription_payment_intent_for_customer",{
-              _customer:activeSession.customer_id,_plan_slug:subscriptionPending.plan_slug,_provider:"paystack",_billing_period:subscriptionPending.billing_period||"monthly"
+              _customer:activeSession.customer_id,_plan_slug:subscriptionPending.plan_slug,_provider:provider,_billing_period:subscriptionPending.billing_period||"monthly"
             });
             if(intentError||!intent?.reference||!intent?.amount_kobo||!intent?.email){
               const reason=String(intentError?.message??"");
@@ -1409,21 +1448,18 @@ Deno.serve(async (req) => {
             }
             let checkoutUrl="";
             try {
-              const response=await fetch("https://api.paystack.co/transaction/initialize",{
-                method:"POST",headers:{Authorization:"Bearer "+paystackKey,"Content-Type":"application/json"},
-                body:JSON.stringify({email:intent.email,amount:intent.amount_kobo,currency:"NGN",reference:intent.reference,
-                  callback_url:"https://laundrypoint.app",metadata:{purpose:"subscription",subscription_id:intent.subscription_id,plan_name:intent.plan_name,billing_period:subscriptionPending.billing_period||"monthly",source:"whatsapp"}})
+              checkoutUrl = await createWhatsAppCheckout(provider, intent, {
+                callbackUrl: "https://laundrypoint.app",
+                metadata: { purpose: "subscription", subscription_id: intent.subscription_id, plan_name: intent.plan_name, billing_period: subscriptionPending.billing_period||"monthly", source: "whatsapp" },
+                description: "LaundryPoint " + String(intent.plan_name) + " subscription",
               });
-              const payload=await response.json().catch(()=>({}));
-              if(response.ok&&payload?.status===true) checkoutUrl=String(payload.data?.authorization_url||"");
-              else console.error("whatsapp_subscription_checkout_failed",{status:response.status,reference:intent.reference});
             } catch(error) { console.error("whatsapp_subscription_checkout_error",String(error).slice(0,250)); }
             if(!checkoutUrl){
               await sendFixedReply("I couldn't generate the payment link. No payment has been collected. Please reply PAY to retry or contact our team.");
               continue;
             }
             await closeSubscriptionState(subscriptionPending);
-            await sendFixedReply("Your "+String(intent.plan_name)+" "+String(subscriptionPending.billing_period||"monthly").replace(/_/g," ")+" subscription checkout is ready. Total: "+moneyNaira(Number(intent.amount_kobo))+"."+nl+"Pay securely here: "+checkoutUrl+nl+nl+"Your subscription will become active only after Paystack confirms payment. Please do not pay cash to an agent.");
+            await sendFixedReply("Your "+String(intent.plan_name)+" "+String(subscriptionPending.billing_period||"monthly").replace(/_/g," ")+" subscription checkout is ready. Total: "+moneyNaira(Number(intent.amount_kobo))+"."+nl+"Pay securely with "+(provider === "flutterwave" ? "Flutterwave" : "Paystack")+" here: "+checkoutUrl+nl+nl+"Your subscription will become active only after the payment provider confirms payment. Please do not pay cash to an agent.");
             continue;
           }
           await sendFixedReply("Your selected plan is "+String(subscriptionPending.plan_name)+". Reply PAY to create the secure monthly payment link, or CANCEL to stop.");
