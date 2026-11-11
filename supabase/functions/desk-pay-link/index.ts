@@ -22,6 +22,9 @@ Deno.serve(async (req) => {
   if (provider === "flutterwave" && !FLW) return json(503, { error: "provider_not_configured" });
 
   const db = createClient(URL_, ANON, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
+  const { data: enabledProviders, error: availabilityError } = await db.rpc("active_payment_providers");
+  if (availabilityError) return json(503, { error: "payment_availability_unavailable" });
+  if (!(enabledProviders ?? []).includes(provider)) return json(409, { error: "provider_not_enabled" });
   const { data, error } = await db.rpc("desk_delivery_intent", { _order: order, _provider: provider });
   if (error) return json(400, { error: error.message });
   const i = data as { reference: string; amount_kobo: number; email: string | null; name: string; phone: string | null; order_no: number };
