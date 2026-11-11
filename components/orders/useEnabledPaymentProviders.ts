@@ -16,19 +16,16 @@ export function useEnabledPaymentProviders() {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const { data, error } = await createClient()
-        .from("money_points")
-        .select("name")
-        .eq("kind", "online")
-        .eq("active", true);
+      // Use the SECURITY DEFINER RPC: customers must not have direct read
+      // access to money_points because it also contains private finance details.
+      // Cast only the RPC surface because this function is not yet in generated DB types.
+      const client = createClient() as unknown as {
+        rpc: (name: string) => Promise<{ data: unknown; error: { message: string } | null }>;
+      };
+      const { data, error } = await client.rpc("active_payment_providers");
       if (!alive) return;
-      const valid: OnlinePaymentProvider[] = !error
-        ? (data ?? []).flatMap((point) => {
-            const name = String(point.name ?? "").toLowerCase();
-            if (name.includes("paystack")) return ["paystack" as const];
-            if (name.includes("flutterwave")) return ["flutterwave" as const];
-            return [];
-          })
+      const valid: OnlinePaymentProvider[] = !error && Array.isArray(data)
+        ? data.filter((value): value is OnlinePaymentProvider => value === "paystack" || value === "flutterwave")
         : [];
       setProviders([...new Set(valid)]);
       setLoading(false);
