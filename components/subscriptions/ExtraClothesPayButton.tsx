@@ -2,18 +2,22 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useEnabledPaymentProviders } from "@/components/orders/useEnabledPaymentProviders";
 
 export function ExtraClothesPayButton({ pickupId }: { pickupId: string }) {
+  const { providers, loading: providersLoading } = useEnabledPaymentProviders();
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
+  const activeProvider = providers.includes(provider) ? provider : providers[0] ?? "paystack";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   async function pay() {
     if (busy) return;
+    if (!providers.includes(activeProvider)) { setMessage("Online payments are currently unavailable. Please contact LaundryPoint."); return; }
     setBusy(true);
     setMessage("");
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.functions.invoke("pay-init", { body: { purpose: "extra_clothes", pickup_id: pickupId, provider } });
+      const { data, error } = await supabase.functions.invoke("pay-init", { body: { purpose: "extra_clothes", pickup_id: pickupId, provider: activeProvider } });
       if (error) throw new Error(error.message || "Could not start payment.");
       const result = data as { url?: string; error?: string } | null;
       if (!result?.url) throw new Error(result?.error || "Could not start payment.");
@@ -23,5 +27,5 @@ export function ExtraClothesPayButton({ pickupId }: { pickupId: string }) {
       setBusy(false);
     }
   }
-  return <div className="space-y-3"><div className="flex flex-wrap gap-4 text-sm"><label className="flex items-center gap-2"><input type="radio" name={`provider-${pickupId}`} checked={provider === "paystack"} onChange={() => setProvider("paystack")} /> Paystack</label><label className="flex items-center gap-2"><input type="radio" name={`provider-${pickupId}`} checked={provider === "flutterwave"} onChange={() => setProvider("flutterwave")} /> Flutterwave</label></div><button type="button" className="btn-primary" onClick={pay} disabled={busy}>{busy ? "Opening secure checkout…" : "Pay extra-clothes bill"}</button>{message ? <p role="alert" className="text-sm text-red-700">{message}</p> : null}</div>;
+  return <div className="space-y-3">{providersLoading ? <p className="text-sm text-ink-soft">Checking available payment methods…</p> : providers.length === 0 ? <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Online payments are currently unavailable. Please contact LaundryPoint.</p> : <div className="flex flex-wrap gap-4 text-sm">{providers.map((p) => <label key={p} className="flex items-center gap-2"><input type="radio" name={`provider-${pickupId}`} checked={activeProvider === p} onChange={() => setProvider(p)} /> {p === "paystack" ? "Paystack" : "Flutterwave"}</label>)}</div>}<button type="button" className="btn-primary" onClick={pay} disabled={busy || providersLoading || providers.length === 0}>{busy ? "Opening secure checkout…" : "Pay extra-clothes bill"}</button>{message ? <p role="alert" className="text-sm text-red-700">{message}</p> : null}</div>;
 }
