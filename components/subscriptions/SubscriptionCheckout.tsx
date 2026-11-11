@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useEnabledPaymentProviders } from "@/components/orders/useEnabledPaymentProviders";
 
 type Plan = { slug: string; name: string; priceKobo: number; pieces: number | null; monthlyDiscountPct?: number; threeMonthDiscountPct?: number; sixMonthDiscountPct?: number; yearlyDiscountPct?: number; pickups?: number; student?: boolean };
 /** The customer's live plan, when this purchase is for the next term. */
@@ -27,6 +28,7 @@ function FlutterwaveMark() {
 }
 
 export function SubscriptionCheckout({ plans, initialPlanSlug, initialBillingPeriod = "monthly", yearlyDiscountPct = 10, current = null, userId, studentStatus = "none" }: { plans: Plan[]; initialPlanSlug?: string; initialBillingPeriod?: BillingPeriod; yearlyDiscountPct?: number; current?: Current; userId: string; studentStatus?: StudentStatus }) {
+  const { providers, loading: providersLoading } = useEnabledPaymentProviders();
   const [student, setStudent] = useState<StudentStatus>(studentStatus);
   const [school, setSchool] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -42,6 +44,7 @@ export function SubscriptionCheckout({ plans, initialPlanSlug, initialBillingPer
 
   async function pay(provider: "paystack" | "flutterwave") {
     if (!planSlug || busyProvider) return;
+    if (!providers.includes(provider)) { setMessage("That payment method is currently switched off. Choose an available method."); return; }
     setBusyProvider(provider);
     setMessage("");
     try {
@@ -102,8 +105,9 @@ export function SubscriptionCheckout({ plans, initialPlanSlug, initialBillingPer
           </form>
       ) : null}
       <div className="space-y-3"><p className="text-sm font-medium">Choose how you want to pay</p>
-        <button type="button" disabled={!!busyProvider || !planSlug || needsId || !!current?.nextPaid} onClick={() => pay("paystack")} className="flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-line bg-white px-3 py-4 text-left shadow-sm transition hover:border-[#00C3F7] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:gap-4 sm:px-4"><PaystackMark /><span className="min-w-0 flex-1"><span className="block whitespace-nowrap text-sm font-semibold text-ink sm:text-base">{busyProvider === "paystack" ? "Opening Paystack…" : "Pay with Paystack"}</span><span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span></span></button>
-        <button type="button" disabled={!!busyProvider || !planSlug || needsId || !!current?.nextPaid} onClick={() => pay("flutterwave")} className="flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-line bg-white px-3 py-4 text-left shadow-sm transition hover:border-[#F5A623] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:gap-4 sm:px-4"><FlutterwaveMark /><span className="min-w-0 flex-1"><span className="block whitespace-nowrap text-sm font-semibold text-ink sm:text-base">{busyProvider === "flutterwave" ? "Opening Flutterwave…" : "Pay with Flutterwave"}</span><span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span></span></button>
+        {providersLoading ? <p className="text-sm text-ink-soft">Checking available payment methods…</p> : providers.length === 0 ? <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Online payments are currently unavailable. Please contact LaundryPoint.</p> : null}
+        {providers.includes("paystack") && <button type="button" disabled={providersLoading || !!busyProvider || !planSlug || needsId || !!current?.nextPaid} onClick={() => pay("paystack")} className="flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-line bg-white px-3 py-4 text-left shadow-sm transition hover:border-[#00C3F7] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:gap-4 sm:px-4"><PaystackMark /><span className="min-w-0 flex-1"><span className="block whitespace-nowrap text-sm font-semibold text-ink sm:text-base">{busyProvider === "paystack" ? "Opening Paystack…" : "Pay with Paystack"}</span><span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span></span></button>}
+        {providers.includes("flutterwave") && <button type="button" disabled={providersLoading || !!busyProvider || !planSlug || needsId || !!current?.nextPaid} onClick={() => pay("flutterwave")} className="flex min-h-20 w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border border-line bg-white px-3 py-4 text-left shadow-sm transition hover:border-[#F5A623] hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 sm:gap-4 sm:px-4"><FlutterwaveMark /><span className="min-w-0 flex-1"><span className="block whitespace-nowrap text-sm font-semibold text-ink sm:text-base">{busyProvider === "flutterwave" ? "Opening Flutterwave…" : "Pay with Flutterwave"}</span><span className="mt-1 block text-xs text-ink-soft">Secure online checkout</span></span></button>}
       </div>
       {message ? <p role="alert" className="text-sm text-red-700">{message}</p> : null}
     </section>
