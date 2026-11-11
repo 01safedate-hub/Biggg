@@ -14,6 +14,8 @@ const ERRORS: Record<string, string> = {
   subscription_under_review: "Your student plan is waiting for the ID check. You can buy a plan once it is approved.",
   next_term_already_paid: "Your next term is already paid. Contact us if you need to change it.",
   plan_not_found: "That plan is not available.",
+  provider_not_enabled: "That payment method is switched off. Choose an available method.",
+  payment_availability_unavailable: "We could not check payment availability. Please try again.",
 };
 type BillingPeriod = "monthly" | "three_month" | "six_month" | "yearly";
 const naira = (kobo: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
