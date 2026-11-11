@@ -1006,9 +1006,9 @@ Deno.serve(async (req) => {
           .order("created_at", { ascending: false }).limit(12);
         if (priorInboundError) throw new Error("verified_session_resume_lookup_failed");
         const previousRequest = (priorInbound ?? []).map((row: any) => String(row.body ?? "").trim())
-          .find((text: string) => text && !/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i.test(text) &&
+          .find((text: string) => text && !/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) &&
             !/^[A-Z0-9]{6}$/.test(text.toUpperCase()) &&
-            !/^(hi|hello|hey|good morning|good afternoon|good evening)[!.,\\s]*$/i.test(text));
+            !/^(hi|hello|hey|good morning|good afternoon|good evening)[!.,\s]*$/i.test(text));
         if (previousRequest) body = previousRequest;
       } else if (emailMatch && !sessionIsValid) {
         // Preserve the customer's original account request while email verification is in progress.
