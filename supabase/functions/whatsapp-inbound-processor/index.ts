@@ -998,7 +998,19 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (emailMatch) {
+      if (emailMatch && sessionIsValid && emailMatch[0].toLowerCase() === body.trim().toLowerCase()) {
+        // The customer is already verified. A repeated email must not restart OTP.
+        // Resume the latest non-email request in this conversation instead.
+        const { data: priorInbound, error: priorInboundError } = await db.from("whatsapp_conversation_messages")
+          .select("body").eq("conversation_id", conversationId).eq("direction", "inbound")
+          .order("created_at", { ascending: false }).limit(12);
+        if (priorInboundError) throw new Error("verified_session_resume_lookup_failed");
+        const previousRequest = (priorInbound ?? []).map((row: any) => String(row.body ?? "").trim())
+          .find((text: string) => text && !/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i.test(text) &&
+            !/^[A-Z0-9]{6}$/.test(text.toUpperCase()) &&
+            !/^(hi|hello|hey|good morning|good afternoon|good evening)[!.,\\s]*$/i.test(text));
+        if (previousRequest) body = previousRequest;
+      } else if (emailMatch && !sessionIsValid) {
         // Preserve the customer's original account request while email verification is in progress.
         const { data: recentInbound, error: recentInboundError } = await db.from("whatsapp_conversation_messages")
           .select("body").eq("conversation_id", conversationId).eq("direction", "inbound")
@@ -1597,6 +1609,7 @@ Deno.serve(async (req) => {
             "Do not create orders, payments, payment links, subscriptions, or change account data.",
             "Pickup and delivery requests are account-specific actions. Never create, schedule, cancel, or modify a pickup or delivery from an AI-generated answer alone. Use only an approved authenticated backend workflow that confirms the action succeeded; if no such workflow is available, explain the next step without claiming the request was placed.",
             "Before discussing or revealing private customer details, subscriptions attached to a person, addresses, orders, pickup schedules, payment details, or account status, require identity verification through the approved email verification flow. A WhatsApp phone number alone is not sufficient proof of identity.",
+            "The backend verification state is authoritative. If the current two-hour WhatsApp session is valid, the customer is already verified: never ask for their email again or trigger another OTP. Continue the current request using the existing conversation context. Never guess, autocomplete, reconstruct, or combine an email address from fragments across separate messages. Only a complete email address explicitly sent in one message can start verification, and only when the backend session is not valid.",
             "If a customer asks to request a pickup, check an order, change an address, or access account-specific information and they are not verified, ask for the email address associated with their LaundryPoint account. Do not ask them to send passwords, payment card details, or identity document numbers in WhatsApp.",
             "The verification flow must be implemented by secure backend code, not by the language model: check whether the email belongs to an existing account; for existing accounts generate a cryptographically secure, random six-character alphanumeric one-time code, store only a hash, expire it quickly, rate-limit sends and attempts, and send it to the registered email using the configured transactional email provider. Never invent or disclose a verification code in chat.",
             "If the supplied email does not match an existing customer account, direct the customer to create an account at https://laundrypoint.app/signup. Do not reveal whether another person's email or phone number is registered; use a privacy-preserving response where needed.",
