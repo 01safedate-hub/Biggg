@@ -6,6 +6,7 @@ import { Security } from "@/components/landing/Security";
 import { Pricing } from "@/components/landing/Pricing";
 import { Coverage } from "@/components/landing/Coverage";
 import { HubPhotos } from "@/components/landing/HubPhotos";
+import { LocalLinks } from "@/components/landing/LocalLinks";
 import { Faq } from "@/components/landing/Faq";
 import { VisitBar } from "@/components/landing/VisitBar";
 import { FloatingContact } from "@/components/landing/FloatingContact";
@@ -37,6 +38,7 @@ export default async function Home() {
         <HubPhotos mapsUrl={visitUrl} />
         <Coverage areas={zones} />
         <Faq />
+        <LocalLinks />
       </main>
       <Footer name={b.name} mapsUrl={visitUrl} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />
       <ScrollBubbles />

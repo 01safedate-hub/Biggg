@@ -8,6 +8,7 @@ import { Header } from "@/components/landing/Header";
 import { Footer } from "@/components/landing/Footer";
 import { AREA_PAGES, JsonLd, SERVICES, SITE_URL, businessJsonLd, clock } from "@/lib/seo";
 import { naira } from "@/lib/format";
+import { GUIDES } from "@/lib/guides";
 
 export const revalidate = 3600;
 export const dynamicParams = false;
@@ -45,7 +46,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
   const b = settings.business;
   const hours = `${clock(b.opening_time)} to ${clock(b.closing_time)}`;
   const mapsUrl = settings.hub.maps_url;
-  const near = AREA_PAGES.filter((x) => x.slug !== a.slug).slice(0, 6);
+  const near = AREA_PAGES.filter((x) => x.slug !== a.slug).sort((x, y) => Math.hypot(x.lat - a.lat, x.lng - a.lng) - Math.hypot(y.lat - a.lat, y.lng - a.lng)).slice(0, 6);
   const faqs = [
     { q: `Do you pick up laundry in ${a.name}?`, a: `Yes. ${a.name} is inside our service area${q.distance_km ? `, about ${q.distance_km.toFixed(1)} km from our Ifite hub` : ""}. Book on the website or on WhatsApp and an agent comes to you.` },
     { q: `How much is pickup in ${a.name}?`, a: q.fare_kobo ? `Pickup from central ${a.name} is about ${naira(q.fare_kobo)}, and delivery back is about ${naira(q.delivery_fare_kobo ?? q.fare_kobo)}. The exact fare depends on your address and is shown before you pay.` : "The transport fare depends on the distance from our hub to your address. You see it before you pay." },
@@ -69,6 +70,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
             <p className="eyebrow">{a.lga}, Anambra</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Laundry pickup and delivery in {a.name}</h1>
             <p className="mt-4 text-lg leading-8 text-ink-soft">{a.note} We collect your clothes, count them with you, wash, dry and iron them at our hub, and bring them back. <strong className="text-ink">Get your clothes fast.</strong></p>
+            {a.detail && <p className="mt-3 leading-7 text-ink-soft">{a.detail}</p>}
             <div className="mt-6 flex flex-wrap gap-3"><Link href="/request" className="btn-primary">Book a pickup</Link><Link href="/services" className="btn-secondary">See services and prices</Link></div>
           </header>
 
@@ -102,6 +104,11 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
           </section>
 
           <div className="card p-5"><HubPhotos compact mapsUrl={mapsUrl} /></div>
+
+          <section>
+            <h2 className="text-lg font-semibold">Helpful guides</h2>
+            <ul className="mt-2 space-y-2 text-sm">{GUIDES.filter((x) => x.areas.includes(a.slug)).concat(GUIDES).filter((x, i, all) => all.indexOf(x) === i).slice(0, 4).map((x) => <li key={x.slug}><Link href={`/guides/${x.slug}`} className="underline">{x.h1}</Link></li>)}</ul>
+          </section>
 
           <section>
             <h2 className="text-lg font-semibold">We also serve</h2>

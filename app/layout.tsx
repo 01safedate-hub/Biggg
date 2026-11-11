@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   description:
     "Laundry, dry cleaning and ironing in Awka with pickup and delivery. Our Ifite hub serves Awka, Ifite, Amawbia, Okpuno, Nibo, Nise and towns up to 15 km away. Fast turnaround with our own dryers. Open 9am to 6pm.",
   applicationName: "LaundryPoint",
-  keywords: ["laundry Awka", "laundry service Awka", "dry cleaning Awka", "laundry pickup and delivery Awka", "laundry near Unizik", "laundry Ifite", "laundry Amawbia", "wash and fold Awka", "ironing Awka", "LaundryPoint"],
+  keywords: ["laundry Awka", "laundry service Awka", "dry cleaning Awka", "laundry pickup and delivery Awka", "laundry near Unizik", "laundry Ifite", "laundry Amawbia", "wash and fold Awka", "ironing Awka", "cheap laundry in Awka", "best laundry in Awka", "laundry pickup and drop off Awka", "laundry Temp Site Awka", "laundry Aroma Awka", "hotel laundry Awka", "LaundryPoint"],
   openGraph: {
     type: "website", locale: "en_NG", siteName: "LaundryPoint",
     title: "LaundryPoint: laundry pickup and delivery in Awka",

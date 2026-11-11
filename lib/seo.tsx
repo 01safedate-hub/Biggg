@@ -10,11 +10,26 @@ export const SITE_URL = (() => {
 /** Google Search Console HTML-tag code (the content="..." part). Set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION or paste it here. */
 export const GOOGLE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 
-/** Towns with their own landing page. Coordinates match the delivery zones; fares are quoted live from them. */
-export const AREA_PAGES = [
-  { slug: "awka", name: "Awka", lga: "Awka South", lat: 6.2107, lng: 7.0742, note: "Anambra's capital, including Zik Avenue, Eke Awka market, Aroma, Umuokpu and Agu-Awka." },
-  { slug: "ifite", name: "Ifite", lga: "Awka South", lat: 6.251056, lng: 7.100335, note: "Our hub is here in Ifite, beside Nnamdi Azikiwe University (Unizik), so students and lodges nearby get the quickest pickups." },
-  { slug: "amawbia", name: "Amawbia", lga: "Awka South", lat: 6.215, lng: 7.048, note: "On the Enugu–Onitsha expressway, just south-west of Awka town." },
+/**
+ * Towns and neighbourhoods with their own landing page. Coordinates are a central point in each place
+ * (checked against public maps); fares on the page are quoted live from them, so a point outside every
+ * live zone would show "Shown at booking" rather than a wrong price. `detail` is extra local text.
+ */
+export const AREA_PAGES: readonly { slug: string; name: string; lga: string; lat: number; lng: number; note: string; detail?: string }[] = [
+  { slug: "awka", name: "Awka", lga: "Awka South", lat: 6.2107, lng: 7.0742, note: "Anambra's capital, including Zik Avenue, Eke Awka market, Aroma, Umuokpu and Agu-Awka.",
+    detail: "From Zik Avenue and Eke Awka to Kwata, Regina Caeli and Club Road, we cover the whole of Awka town. Busy workers and families use us so they spend the weekend resting, not washing." },
+  { slug: "ifite", name: "Ifite", lga: "Awka South", lat: 6.251056, lng: 7.100335, note: "Our hub is here in Ifite, beside Nnamdi Azikiwe University (Unizik), so students and lodges nearby get the quickest pickups.",
+    detail: "You can also walk in: drop your clothes at our front desk in Ifite and collect them free when they are ready." },
+  { slug: "unizik", name: "Unizik", lga: "Awka South", lat: 6.242889, lng: 7.118289, note: "Laundry for Nnamdi Azikiwe University students and staff, on campus, at the hostels and in off-campus lodges around Ifite and Temp Site.",
+    detail: "Our hub is a short ride from the Unizik gate. Students can pick a monthly student plan (a student ID is needed), and lodge owners can arrange one prepaid bill for the whole building." },
+  { slug: "temp-site", name: "Temp Site", lga: "Awka South", lat: 6.2224, lng: 7.0555, note: "Unizik Temp Site and the streets around Unizik junction, Oby Okoli Avenue, Abakaliki Street and towards Okpuno.",
+    detail: "Temp Site is full of student lodges, young workers and small businesses. We collect from your lodge gate or office and bring everything back folded and counted." },
+  { slug: "aroma", name: "Aroma", lga: "Awka South", lat: 6.229, lng: 7.08, note: "Around Aroma junction and the flyover on the Enugu–Onitsha expressway, including Secretariat Road, Maduka Street and the streets behind the junction.",
+    detail: "Aroma is one of Awka's busiest junctions, so we schedule pickups around the traffic and confirm the time with you before the agent sets out." },
+  { slug: "amikwo", name: "Amikwo (Works Road)", lga: "Awka South", lat: 6.206719, lng: 7.064044, note: "Works Road, Dike Street, Ken Okoli Street and the streets of Amikwo between Eke Awka and Zik Avenue.",
+    detail: "Amikwo homes are close to Eke Awka market. Families here like our monthly household plans, which include bedding and curtains." },
+  { slug: "amawbia", name: "Amawbia", lga: "Awka South", lat: 6.215, lng: 7.048, note: "On the Enugu–Onitsha expressway, just south-west of Awka town.",
+    detail: "We cover the whole of Amawbia, from the roundabout and the Awka South council area to the homes off the expressway. Government staff and families book pickups from home or the office." },
   { slug: "okpuno", name: "Okpuno", lga: "Awka South", lat: 6.19, lng: 7.056, note: "South of Awka, next to Amawbia." },
   { slug: "nibo", name: "Nibo", lga: "Awka South", lat: 6.162, lng: 7.098, note: "South of Awka town." },
   { slug: "nise", name: "Nise", lga: "Awka South", lat: 6.18, lng: 7.118, note: "South-east of Awka town." },
@@ -22,7 +37,7 @@ export const AREA_PAGES = [
   { slug: "isiagu", name: "Isiagu", lga: "Awka South", lat: 6.268, lng: 7.087, note: "A few minutes north of our Ifite hub." },
   { slug: "amansea", name: "Amansea", lga: "Awka North", lat: 6.29, lng: 7.115, note: "North of Ifite on the Enugu road." },
   { slug: "achalla", name: "Achalla", lga: "Awka North", lat: 6.318, lng: 7.096, note: "In Awka North, north of our hub." },
-] as const;
+];
 
 export type AreaPage = (typeof AREA_PAGES)[number];
 

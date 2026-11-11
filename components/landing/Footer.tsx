@@ -29,6 +29,7 @@ export function Footer({ name, mapsUrl, whatsapp, phone }: { name: string; mapsU
           )}
           <Link href="/areas" className="hover:text-white hover:underline">Areas we cover</Link>
           <Link href="/services" className="hover:text-white hover:underline">Services</Link>
+          <Link href="/guides" className="hover:text-white hover:underline">Guides</Link>
           <Link href="/privacy" className="hover:text-white hover:underline">Privacy Policy</Link>
         </div>
       </div>
