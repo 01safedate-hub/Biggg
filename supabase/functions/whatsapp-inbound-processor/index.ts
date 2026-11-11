@@ -1332,7 +1332,25 @@ Deno.serve(async (req) => {
         return text.includes("i want to subscribe") || text.includes("want to subscribe") ||
           text.includes("subscribe me") || text.includes("sign me up") || text.includes("sign up for the plan");
       });
-      const subscriptionConversation = Boolean(subscriptionPending || subscribeIntent || (planMention && recentSubscribeContext));
+      // The AI may answer a request for plans before the deterministic checkout handler
+      // has stored pending state. Treat a customer's plan-name reply as a selection when
+      // the recent assistant turn visibly listed the live plans.
+      const recentAssistantPlanList = latestSubscriptionState?.completed!==true && (recentTurnsForSubscription.data ?? []).some((turn:any) => {
+        if (turn.direction !== "outbound") return false;
+        const assistantText = normalizePlanText(String(turn.body ?? ""));
+        const mentionedPlans = (activePlans ?? []).filter((plan:any) =>
+          assistantText.includes(normalizePlanText(String(plan.name))) ||
+          assistantText.includes(normalizePlanText(String(plan.slug).replace(/_/g," ")))
+        );
+        return mentionedPlans.length >= 2 ||
+          assistantText.includes(" subscription plans ") ||
+          assistantText.includes(" available plans ") ||
+          assistantText.includes(" choose a plan ");
+      });
+      const subscriptionConversation = Boolean(
+        subscriptionPending || subscribeIntent ||
+        (planMention && (recentSubscribeContext || recentAssistantPlanList))
+      );
       const nl=String.fromCharCode(10);
       // Stop duplicate subscription attempts early. A verified customer with an active plan
       // should be told about that plan before any plan selection or checkout is offered.
