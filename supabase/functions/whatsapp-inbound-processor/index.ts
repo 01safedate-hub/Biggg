@@ -1323,8 +1323,13 @@ Deno.serve(async (req) => {
         normalizedBody.includes(normalizePlanText(String(plan.name))) ||
         normalizedBody.includes(normalizePlanText(String(plan.slug).replace(/_/g," ")))
       );
-      const subscribeIntent = ["i want to subscribe","want to subscribe","subscribe me","sign me up","sign up for the plan","start my subscription","i want a subscription"]
-        .some((phrase)=>lowerBody.includes(phrase));
+      // Accept natural variations such as "I want subscribe to Starter",
+      // "I want to subscribe to Starter", and "sign me up for Starter".
+      const subscribeIntent =
+        /\b(?:i\s+)?want(?:\s+to)?\s+subscribe\b/i.test(body) ||
+        /\bsubscribe\s+(?:me|to\s+(?:the\s+)?(?:starter|pro|small\s+family|big\s+family|heavy\s+duty|business))\b/i.test(body) ||
+        /\b(?:sign\s+me\s+up|start\s+my\s+subscription|i\s+want\s+a\s+subscription)\b/i.test(body) ||
+        /\b(?:join|choose|select)\s+(?:the\s+)?[a-z0-9 -]+\s+plan\b/i.test(body);
       const recentTurnsForSubscription = await db.from("whatsapp_conversation_messages")
         .select("direction,body").eq("conversation_id",conversationId).order("created_at",{ascending:false}).limit(12);
       const recentSubscribeContext = latestSubscriptionState?.completed!==true && (recentTurnsForSubscription.data ?? []).some((turn:any) => {
