@@ -1,0 +1,7 @@
+-- Applied live on 2026-11-11 at the owner's request: cleared test sales data for a clean start.
+-- Cleared: orders (and items, codes, events, photos, shelves, ratings, issues, custody, delivery attempts),
+-- payments, daily_sales_summary, subscriptions (invoices, pickups, follow-ups, events), customs, and
+-- queued WhatsApp messages (cancelled). Order numbers restart at 1.
+-- Kept: profiles and staff, expenses, capital entries, settings, zones, plans, items.
+-- Every cleared row was copied first to schema reset_backup_20261111 (not exposed to the API).
+-- This file is a record only; do not re-run it.
