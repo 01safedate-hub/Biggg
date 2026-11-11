@@ -1,3 +1,4 @@
+import { HubPhotos } from "@/components/landing/HubPhotos";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { getSiteData } from "@/lib/site-data";
@@ -38,6 +39,7 @@ export default async function AreasPage() {
             <p className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">{names.map((n) => pages.has(n.toLowerCase()) ? <Link key={n} href={`/laundry/${pages.get(n.toLowerCase())}`} className="underline">{n}</Link> : <span key={n}>{n}</span>)}</p>
             <p className="mt-4 text-sm text-ink-soft">Not listed? If your address is within about 15 km of Ifite, the booking page checks it for you. <Link href="/request" className="font-medium underline">Check my address</Link></p>
           </section>
+          <div className="card p-5"><HubPhotos compact mapsUrl={settings.hub.maps_url} /></div>
         </div>
       </main>
       <Footer name={b.name} mapsUrl={settings.hub.maps_url} whatsapp={settings.whatsapp.number} phone={settings.contact.phone} />

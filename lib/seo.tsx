@@ -35,6 +35,16 @@ export const clock = (t: string) => {
   return `${hh}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
 };
 
+/** Street address as it appears on the building sign; keep in sync with the Google Business Profile. */
+export const HUB_STREET = "D-Pikin's Luxury Apartment, Flat B2, opposite Wennys Plaza, Book Foundation, Ifite";
+export const HUB_ADDRESS = `${HUB_STREET}, Awka, Anambra`;
+
+export const HUB_PHOTOS = [
+  { src: "/hub/front-desk", alt: "LaundryPoint front desk with the lit LaundryPoint sign at the Ifite hub", caption: "Front desk" },
+  { src: "/hub/machines", alt: "Staff member loading a Hisense washer-dryer at the LaundryPoint hub", caption: "Washer-dryers" },
+  { src: "/hub/building", alt: "D-Pikin's Luxury Apartment building in Ifite, Awka, home of the LaundryPoint hub", caption: "Our building in Ifite" },
+] as const;
+
 /** schema.org business data for Google (DryCleaningOrLaundry is a LocalBusiness). */
 export function businessJsonLd(s: PublicSettings, areas: string[]) {
   const phone = s.contact.phone ? `+234${s.contact.phone.replace(/\D/g, "").replace(/^0/, "")}` : undefined;
@@ -44,13 +54,13 @@ export function businessJsonLd(s: PublicSettings, areas: string[]) {
     "@id": `${SITE_URL}/#business`,
     name: s.business.name,
     url: SITE_URL,
-    image: `${SITE_URL}/opengraph-image`,
+    image: [...HUB_PHOTOS.map((p) => `${SITE_URL}${p.src}.jpg`), `${SITE_URL}/opengraph-image`],
     logo: `${SITE_URL}/brand/icon/512.png`,
     telephone: phone,
     priceRange: "₦₦",
     address: {
       "@type": "PostalAddress",
-      streetAddress: "D'Pikins Apartment, Flat B2, opposite Wennys Plaza, Book Foundation, Ifite",
+      streetAddress: HUB_STREET,
       addressLocality: "Awka",
       addressRegion: "Anambra",
       postalCode: "420112",

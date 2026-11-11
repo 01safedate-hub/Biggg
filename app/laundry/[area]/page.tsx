@@ -1,3 +1,4 @@
+import { HubPhotos } from "@/components/landing/HubPhotos";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -100,11 +101,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
             </div>
           </section>
 
-          <section className="card p-5">
-            <h2 className="text-lg font-semibold">Our hub</h2>
-            <p className="mt-1 text-sm text-ink-soft">{settings.hub.address ?? "Ifite, Awka"}</p>
-            {mapsUrl && <a href={mapsUrl} className="mt-2 inline-block text-sm font-medium underline" target="_blank" rel="noreferrer">Open in Google Maps</a>}
-          </section>
+          <div className="card p-5"><HubPhotos compact mapsUrl={mapsUrl} /></div>
 
           <section>
             <h2 className="text-lg font-semibold">We also serve</h2>
