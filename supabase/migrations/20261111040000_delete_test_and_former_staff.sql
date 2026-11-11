@@ -1,0 +1,6 @@
+-- Applied live on 2026-11-11 at the owner's request (record only; do not re-run):
+-- Deleted 11 staff logins (Lucy, Cashier test, Test Washer, Enyeribe Peace, Precious, Grandswiss Hoteltt, Pickup,
+-- Test Agent, Anyaorah Precious Chisom, Mbigbo Michael, Test Agent referral) with their profiles, roles, staff
+-- details, shifts and attendance (by cascade), plus Lucy's test expense (N5,000 "Fuel", vendor "Thhh") and its
+-- receipt record. The expense/evidence no-delete triggers were disabled only for that one delete and re-enabled.
+-- Backups: reset_backup_20261111.deleted_* tables.
