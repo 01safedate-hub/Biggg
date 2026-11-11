@@ -11,7 +11,7 @@ type Bank = { bank_name: string | null; account_number: string | null; account_n
 type Member = Bank & { staff_id: string; name: string; job_title: string | null };
 type Payout = Bank & { id: string; staff_id: string; name: string; gross_kobo: number; fee_kobo: number; net_kobo: number; status: string; paid_at: string | null };
 type Board = {
-  week_start: string; week_end: string; this_week: string; is_owner: boolean; fee_pct: number; units: number; pct: number | null;
+  week_start: string; counts_from?: string; week_end: string; this_week: string; is_owner: boolean; fee_pct: number; units: number; pct: number | null;
   target: { units: number; pool_kobo: number; status: "open" | "hit"; hit_at: string | null; hit_units: number | null; set_at: string; updated_at: string } | null;
   share: { members: number; gross_kobo: number; fee_kobo: number; net_kobo: number };
   members: Member[]; payouts: Payout[];
@@ -38,13 +38,13 @@ export default async function WeeklyPage({ searchParams }: { searchParams: Promi
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Weekly team target</h1>
         <p className="mt-1 text-sm text-ink-soft">
-          One target for the whole team. Every item that enters the wash queue counts automatically. When the team reaches it, the pool is shared
+          One target for the whole team. Weeks run Monday to Saturday (Sundays never count); a target set mid-week counts from the day it is set. Every item that enters the wash queue counts automatically. When the team reaches it, the pool is shared
           equally by everyone on the weekly target, with {b.fee_pct}% of each share kept for running costs.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{longDate(b.week_start)} to {longDate(b.week_end)}{b.week_start === b.this_week ? " · this week" : isNext ? " · next week" : ""}</h2>
+        <h2 className="text-lg font-semibold">{longDate(b.counts_from ?? b.week_start)} to {longDate(b.week_end)}{b.week_start === b.this_week ? " · this week" : isNext ? " · next week" : ""}</h2>
         <div className="flex gap-2 text-sm">
           <Link className="btn-secondary !px-3 !py-1.5" href={`/admin/weekly?week=${shift(b.week_start, -7)}`}>Previous</Link>
           {b.week_start !== b.this_week && <Link className="btn-secondary !px-3 !py-1.5" href="/admin/weekly">This week</Link>}

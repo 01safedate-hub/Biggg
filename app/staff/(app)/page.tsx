@@ -10,7 +10,7 @@ type Pay = {
   has_pay: boolean; job_title: string | null; base_salary_kobo: number | null; target_salary_kobo: number | null;
   unlocked: boolean; startup_pct: number; month_pct: number | null; weekly_enabled: boolean; weekly_pct: number | null; weekly_payout_kobo: number;
   payouts: { week_start: string; amount_kobo: number; status: string }[];
-  team: { week_start: string; week_end: string; target_units: number; units: number; pool_kobo: number; members: number; status: "open" | "hit";
+  team: { week_start: string; counts_from?: string; week_end: string; target_units: number; units: number; pool_kobo: number; members: number; status: "open" | "hit";
     share_gross_kobo: number; share_fee_kobo: number; share_net_kobo: number; member: boolean } | null;
 };
 
@@ -61,7 +61,7 @@ export default async function StaffHome() {
       {p?.team && p.team.member && (
         <section className="card p-5" aria-label="Team target">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-lg font-semibold">Team target: {longDate(p.team.week_start)} to {longDate(p.team.week_end)}</h2>
+            <h2 className="text-lg font-semibold">Team target: {longDate(p.team.counts_from ?? p.team.week_start)} to {longDate(p.team.week_end)}</h2>
             {p.team.status === "hit" && <span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">Target hit</span>}
           </div>
           <p className="mt-2 text-2xl font-bold tabular-nums">{p.team.units.toLocaleString("en-NG")} <span className="text-base font-medium text-ink-mute">of {p.team.target_units.toLocaleString("en-NG")} clothes</span></p>
