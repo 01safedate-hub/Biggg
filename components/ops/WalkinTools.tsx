@@ -6,6 +6,7 @@ import { addWalkinCustomer, deskCancelDelivery, deskCancelWalkin, deskHandover, 
 import { inputCls, labelCls } from "@/components/admin/ui";
 import { naira } from "@/lib/format";
 import { instantRateText } from "@/lib/services";
+import { useEnabledPaymentProviders } from "@/components/orders/useEnabledPaymentProviders";
 
 type Found = { id: string; name: string; phone: string | null; is_walk_in: boolean; orders: number; plan?: string | null };
 
@@ -159,6 +160,7 @@ export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, 
   orderId: string; customerId: string; status: "ready" | "awaiting_delivery_fare"; address: string | null; fareKobo: number; hasAccount: boolean; pickupLat?: number | null; pickupLng?: number | null; points: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const { providers, loading: providersLoading } = useEnabledPaymentProviders();
   const [addr, setAddr] = useState(address ?? "");
   const hasSavedLocation = pickupLat != null && pickupLng != null && Number.isFinite(Number(pickupLat)) && Number.isFinite(Number(pickupLng));
   const [where, setWhere] = useState(hasSavedLocation ? `${pickupLat}, ${pickupLng}` : "");
@@ -207,10 +209,10 @@ export function DeliveryPanel({ orderId, customerId, status, address, fareKobo, 
       <div><p className="text-sm font-semibold">Delivery fee: {due}</p><p className="text-sm text-ink-soft">To: {address}. A rider can be assigned only after this is paid.</p></div>
       <div className="space-y-2">
         <p className="text-sm font-medium">Customer pays online</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run("ps", async () => { const r = await deskPayLink(orderId, "paystack"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "ps" ? "Making link" : "Get Paystack link"}</button>
-          <button type="button" className="btn-secondary" disabled={!!busy} onClick={() => run("fw", async () => { const r = await deskPayLink(orderId, "flutterwave"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "fw" ? "Making link" : "Flutterwave link"}</button>
-        </div>
+        {providersLoading ? <p className="text-sm text-ink-soft">Checking available payment methods…</p> : providers.length === 0 ? <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Online payment links are currently unavailable.</p> : <div className="flex flex-wrap gap-2">
+          {providers.includes("paystack") && <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run("ps", async () => { const r = await deskPayLink(orderId, "paystack"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "ps" ? "Making link" : "Get Paystack link"}</button>}
+          {providers.includes("flutterwave") && <button type="button" className="btn-secondary" disabled={!!busy} onClick={() => run("fw", async () => { const r = await deskPayLink(orderId, "flutterwave"); if (r.url) setLink(r.url); return r; }, () => undefined)}>{busy === "fw" ? "Making link" : "Flutterwave link"}</button>}
+        </div>}
         <p className="text-xs text-ink-soft">The customer can also pay from their own order page. This screen updates by itself when the payment arrives.</p>
         {link && (
           <div className="space-y-2 rounded-md border border-line bg-white p-3 text-sm">
