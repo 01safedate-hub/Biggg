@@ -6,6 +6,7 @@ import { bookPickup, bookOneTimePickup, bookPaidSubscriptionPickup } from "@/app
 import { createClient } from "@/lib/supabase/client";
 import { SlotPicker } from "@/components/orders/SlotPicker";
 import { inputCls, labelCls } from "@/components/admin/ui";
+import { useEnabledPaymentProviders } from "@/components/orders/useEnabledPaymentProviders";
 
 const PAYMENT_LOGOS: Record<PaymentProvider, { src: string; alt: string }> = {
   // Match the existing monthly subscription checkout assets exactly.
@@ -21,8 +22,9 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
   const paid = mode !== "subscription";
   const router = useRouter();
   const [pos, setPos] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const providers: PaymentProvider[] = ["paystack", "flutterwave"];
+  const { providers, loading: providersLoading } = useEnabledPaymentProviders();
   const [provider, setProvider] = useState<PaymentProvider>("paystack");
+  const activeProvider: PaymentProvider = providers.includes(provider) ? provider : providers[0] ?? "paystack";
   const [coverage, setCoverage] = useState<Coverage | null>(null);
   const [locBusy, setLocBusy] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -64,6 +66,10 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!pos || !coverage?.served) return;
+    if (paid && (providersLoading || providers.length === 0)) {
+      setErr(providersLoading ? "Checking available payment methods. Please wait." : "Online payments are currently unavailable. Please contact LaundryPoint before requesting pickup.");
+      return;
+    }
     if (when === "later" && !slot) { setErr("Choose a day and a time, or pick As soon as possible."); return; }
     const f = new FormData(e.currentTarget);
     setBusy(true);
@@ -78,7 +84,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
       }
       if (paid) {
         const { startPayment } = await import("@/app/orders/actions");
-        const providerResult = await startPayment(r.id, "pickup_fare", provider);
+        const providerResult = await startPayment(r.id, "pickup_fare", activeProvider);
         if (providerResult.ok && providerResult.url) { window.location.assign(providerResult.url); return; }
         setBusy(false);
         setErr(providerResult.message || "Your pickup is saved as awaiting payment. Open My Orders to retry payment.");
@@ -115,7 +121,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
             <div className="card space-y-3 p-5">
               <h2 className="text-lg font-semibold">3. Payment method</h2>
               <p className="text-sm text-ink-soft">Choose how you want to pay. Your selected provider will open after you request pickup.</p>
-              <div className="space-y-3">
+              {providersLoading ? <p className="text-sm text-ink-soft">Checking available payment methods…</p> : providers.length === 0 ? <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Online payments are currently unavailable. Please contact LaundryPoint before requesting pickup.</p> : <div className="space-y-3">
                 {providers.map((p) => (
                   <button key={p} type="button" aria-pressed={provider === p} onClick={() => setProvider(p)} className={`grid min-h-[88px] w-full min-w-0 grid-cols-[minmax(0,112px)_minmax(0,1fr)_20px] items-center gap-3 rounded-xl border bg-white px-3 py-4 text-left shadow-sm transition sm:grid-cols-[136px_minmax(0,1fr)_20px] sm:gap-4 sm:px-4 ${provider === p ? "border-brand ring-2 ring-brand/20" : "border-line hover:border-brand"}`}>
                     <span className="flex h-10 min-w-0 items-center justify-start overflow-hidden">
@@ -128,7 +134,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
                     <span aria-hidden="true" className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${provider === p ? "border-brand bg-brand text-white" : "border-line"}`}>{provider === p ? "✓" : ""}</span>
                   </button>
                 ))}
-              </div>
+              </div>}
             </div>
           )}
           <div className="card space-y-4 p-5">
@@ -139,7 +145,7 @@ export function BookingForm({ mode = "subscription" }: { mode?: "subscription" |
             </div>
             {when === "later" && <SlotPicker value={slot} onChange={setSlot} />}
           </div>
-          <button className="btn-primary w-full sm:w-auto" disabled={busy || !pos || (when === "later" && !slot)}>{busy ? "Sending request…" : "Request pickup"}</button>
+          <button className="btn-primary w-full sm:w-auto" disabled={busy || !pos || (when === "later" && !slot) || (paid && (providersLoading || providers.length === 0))}>{busy ? "Sending request…" : "Request pickup"}</button>
           <p className="text-sm text-ink-soft">{paid ? "After you request pickup, we will open your chosen payment provider. The pickup is not confirmed until payment is verified." : "Your request will be created as awaiting agent assignment. No payment is taken at booking."}</p>
         </>
       )}
