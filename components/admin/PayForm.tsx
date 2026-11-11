@@ -36,7 +36,7 @@ export function PayForm({ userId, pay }: { userId: string; pay: { job_title: str
         <div><label htmlFor="base" className={labelCls}>Basic salary (₦ / month)</label><input id="base" name="base" inputMode="decimal" required defaultValue={toNaira(pay?.base_salary_kobo)} className={inputCls} /></div>
         <div><label htmlFor="boosted" className={labelCls}>Target-met salary (₦ / month)</label><input id="boosted" name="boosted" inputMode="decimal" required defaultValue={toNaira(pay?.boosted_salary_kobo)} className={inputCls} /></div>
       </div>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="weekly" defaultChecked={pay?.earns_weekly_bonus ?? false} /> On the weekly units plan (weekly payout when the units target is met)</label>
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="weekly" defaultChecked={pay?.earns_weekly_bonus ?? true} /> On the weekly team target (emailed when a target is set, shares the pool when it is hit)</label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" defaultChecked={pay?.active ?? true} /> On payroll</label>
       <button className="btn-primary" disabled={busy}>{busy ? "Saving" : "Save pay terms"}</button>
     </form>
