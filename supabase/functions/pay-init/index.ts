@@ -78,6 +78,10 @@ Deno.serve(async (req) => {
     global: { headers: { Authorization: auth } },
     auth: { persistSession: false },
   });
+  const { data: enabledProviders, error: availabilityError } = await db.rpc("active_payment_providers");
+  if (availabilityError) return json(503, { error: "payment_availability_unavailable" }, origin);
+  if (!(enabledProviders ?? []).includes(provider)) return json(409, { error: "provider_not_enabled" }, origin);
+
   const rpcName = purpose === "subscription"
     ? "create_subscription_payment_intent"
     : purpose === "extra_clothes"
