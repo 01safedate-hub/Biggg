@@ -50,6 +50,9 @@ const GROUPS: NavGroup[] = [
   { label: "System", items: [
     { href: "/admin/setup", label: "Go-live check", icon: "reports" },
     { href: "/admin/pricing", label: "Fares and hours", icon: "prices" },
+    { href: "/staff/transport", label: "Free transport", icon: "dispatch" },
+    { href: "/staff/cleaning", label: "Cleaning", icon: "record" },
+    { href: "/staff/cleaning/report", label: "Cleaning report", icon: "reports" },
     { href: "/admin/zones", label: "Coverage zones", icon: "points" },
     { href: "/admin/payments", label: "Online payments", icon: "money" },
     { href: "/admin/emails", label: "Email delivery", icon: "waitlist" },

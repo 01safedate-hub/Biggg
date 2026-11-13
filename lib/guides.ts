@@ -7,7 +7,8 @@ export type GuideSection = {
   h2: string;
   p?: string[];
   list?: string[];
-  /** "prices:Item A|Item B" shows a live price table for those items; "plans" shows the live monthly plans. */
+  /** "prices:Item A|Item B" shows a live price table for those items; "plans" shows the live monthly plans;
+   *  "cleaning" shows live cleaning guide prices; "cleaning-plans" shows the cleaning plans. */
   live?: string;
 };
 
@@ -22,6 +23,7 @@ export type Guide = {
   sections: GuideSection[];
   faqs: { q: string; a: string }[];
   areas: string[]; // AREA_PAGES slugs to link
+  topic?: "laundry" | "cleaning"; // defaults to laundry
 };
 
 const EVERYDAY = "prices:T-shirt|Shirt|Polo|Trousers|Jeans|Skirt|Gown|Underwear|Socks, pair|Towel|Bedsheet";
@@ -223,6 +225,132 @@ export const GUIDES: Guide[] = [
       { q: "Can lace go in a washing machine?", a: "Only on a gentle cycle in a mesh bag. Hand washing is safer, and beaded lace is best cleaned professionally." },
     ],
     areas: ["awka", "amawbia", "ifite"],
+  },
+
+  // ---------- Cleaning guides ----------
+  {
+    slug: "house-cleaning-cost-in-awka",
+    topic: "cleaning",
+    title: "How Much Does House Cleaning Cost in Awka?",
+    h1: "How much does house cleaning cost in Awka?",
+    description: "Real house cleaning prices in Awka for self-contains, flats and duplexes: standard and deep cleaning, what changes the price, and how monthly plans save money.",
+    keywords: ["house cleaning cost Awka", "cleaning prices Awka", "how much is deep cleaning in Awka", "cleaning service price Anambra"],
+    published: "2026-11-13",
+    intro: "Cleaning prices in Awka vary a lot, and many cleaners only give a figure at the door. Here is how we price, what a typical home costs, and how to pay less.",
+    sections: [
+      { h2: "Guide prices", p: ["These are our current starting prices for homes in normal condition. Your quote lists every room."], live: "cleaning" },
+      { h2: "What changes the price", list: ["The number of rooms, kitchens and toilets", "Standard or deep clean (a deep clean takes about 70% longer)", "The condition: light, normal or heavy", "Add-ons such as inside the fridge or oven, sofa seats and mattresses", "Crew transport from our Ifite hub, by distance"] },
+      { h2: "How to pay less", p: ["A monthly plan is the cheapest way to keep a home clean. Every plan starts with a deep clean, then each regular visit is quicker and discounted."], live: "cleaning-plans" },
+      { h2: "Do you need an inspection?", p: ["Small homes can be quoted from photos or a short WhatsApp video call, free. Large, dirty or unusual jobs need a visit first. The inspection fee depends on distance and is taken off your clean when you book."] },
+    ],
+    faqs: [
+      { q: "Do I pay before the clean?", a: "Yes. You accept the quote, pick a day and pay online or at our hub. Big jobs can be booked with a deposit." },
+      { q: "Is transport extra?", a: "Yes. Crew transport is shown as its own line on your quote, worked out by distance from our Ifite hub." },
+    ],
+    areas: ["awka", "ifite", "amawbia"],
+  },
+  {
+    slug: "deep-cleaning-checklist",
+    topic: "cleaning",
+    title: "Deep Cleaning Checklist for Nigerian Homes",
+    h1: "A deep cleaning checklist for homes in Nigeria",
+    description: "A room-by-room deep cleaning checklist for Nigerian homes: kitchen grease, toilet stains, louvres, fans, tiles and the corners people forget.",
+    keywords: ["deep cleaning checklist", "house deep cleaning Nigeria", "how to deep clean a house", "deep cleaning Awka"],
+    published: "2026-11-13",
+    intro: "Dust, harmattan haze and cooking oil build up fast. Use this checklist to deep clean yourself, or to know what a professional deep clean should include.",
+    sections: [
+      { h2: "Kitchen", list: ["Degrease the cooker top, the wall behind it and the extractor", "Wipe cabinet fronts and handles", "Scrub the sink and taps, clear the drain", "Clean inside the fridge (throw out old food first)", "Mop under and behind movable items"] },
+      { h2: "Toilets and bathrooms", list: ["Descale the toilet bowl and under the rim", "Scrub tiles and grout", "Clean the shower head, taps and mirror", "Disinfect handles, switches and the flush"] },
+      { h2: "Bedrooms and living room", list: ["Dust ceiling fans and the tops of wardrobes", "Wipe louvres, frames and burglary proof", "Vacuum or beat rugs, wipe skirting", "Move furniture and clean behind it", "Wipe switches, sockets and door handles"] },
+      { h2: "Let us do it", p: ["Our deep clean follows this list room by room, with our own supplies."], live: "cleaning" },
+    ],
+    faqs: [
+      { q: "How often should I deep clean?", a: "Every three months is a good rhythm. Our Care 4+ plan includes one every third month." },
+      { q: "What should I do before the cleaners arrive?", a: "Put away valuables and loose items, and make sure there is water. We bring everything else." },
+    ],
+    areas: ["awka", "ifite", "aroma"],
+  },
+  {
+    slug: "cleaning-after-building-or-painting",
+    topic: "cleaning",
+    title: "Cleaning a New House After Building or Painting",
+    h1: "Cleaning a new house after building or painting",
+    description: "How to clean a new or renovated house in Awka: cement on tiles, paint on glass, dust in every corner, and when to call a post-construction cleaning crew.",
+    keywords: ["post construction cleaning", "cleaning after painting", "new house cleaning Awka", "remove cement from tiles"],
+    published: "2026-11-13",
+    intro: "A new building is never clean when the builders leave. Fine dust settles for days, and cement and paint spots set hard. Here is how to tackle it.",
+    sections: [
+      { h2: "Before you start", list: ["Ask the builder to remove blocks, rubble and leftover materials", "Make sure water is connected", "Open all windows to let dust out"] },
+      { h2: "Work from top to bottom", list: ["Dust ceilings, fans and light fittings first", "Then walls, frames and burglary proof", "Then counters and fittings", "Floors last, swept then mopped twice"] },
+      { h2: "Cement, paint and stickers", p: ["Soften cement spots with water before scraping, so you do not scratch tiles. Lift paint from glass with a flat blade held low. Peel stickers off fittings and clean the glue with a little oil."] },
+      { h2: "When to call a crew", p: ["Whole buildings and several flats are faster with a trained crew. We inspect, quote and clean so the place is ready for tenants."], live: "cleaning" },
+    ],
+    faqs: [
+      { q: "How long after painting should I clean?", a: "Wait at least two days for paint to dry fully before washing walls or frames." },
+      { q: "Do you clean whole buildings?", a: "Yes. Landlords and developers can book several flats on one quote." },
+    ],
+    areas: ["amawbia", "awka", "temp-site"],
+  },
+  {
+    slug: "move-out-cleaning-caution-fee",
+    topic: "cleaning",
+    title: "Move-Out Cleaning: How to Get Your Caution Fee Back",
+    h1: "Move-out cleaning: how to get your caution fee back",
+    description: "Moving out of a flat or lodge in Awka? This move-out cleaning checklist helps you hand the place back clean and get your caution fee.",
+    keywords: ["move out cleaning Awka", "caution fee refund", "end of tenancy cleaning", "lodge cleaning Unizik"],
+    published: "2026-11-13",
+    intro: "Landlords and agents in Awka often keep part of the caution fee for cleaning. A proper move-out clean, with photos, makes that much harder.",
+    sections: [
+      { h2: "What landlords check", list: ["Kitchen grease and the cooker area", "Toilet and bathroom stains", "Marks on walls and doors", "Inside wardrobes and cabinets", "Windows, nets and louvres"] },
+      { h2: "Take your own photos", p: ["When the clean is done, take clear photos of every room before you hand over the keys. Send them to the landlord or agent the same day."] },
+      { h2: "Book a move-out clean", p: ["We clean empty homes top to bottom, inside every cabinet and wardrobe."], live: "cleaning" },
+    ],
+    faqs: [
+      { q: "Can my landlord pay for the clean?", a: "Yes. Anyone can pay the quote online or at our Ifite hub." },
+      { q: "Do you clean student lodges?", a: "Yes, around Unizik, Ifite and Temp Site. Lodge owners can also book the whole building." },
+    ],
+    areas: ["unizik", "temp-site", "ifite"],
+  },
+  {
+    slug: "weekly-cleaning-plan-or-house-help",
+    topic: "cleaning",
+    title: "Weekly Cleaning Plan or a House Help: Which Is Better?",
+    h1: "A weekly cleaning plan or a house help: which is better?",
+    description: "Comparing a live-in or daily house help with a weekly professional cleaning plan in Awka: cost, reliability, trust and what each is good for.",
+    keywords: ["house help Awka", "weekly cleaner Awka", "cleaning plan vs house help", "regular house cleaning Awka"],
+    published: "2026-11-13",
+    intro: "Many families in Awka rely on a house help. Others want a clean home without someone living in. Here is an honest comparison.",
+    sections: [
+      { h2: "A house help", list: ["Daily help with cleaning, cooking and children", "Feeding, accommodation and monthly pay", "You train and supervise them", "Cover is hard when they travel or leave"] },
+      { h2: "A weekly cleaning plan", list: ["A trained crew on the same day each week", "One fixed monthly price, no feeding or accommodation", "Checklist, arrival and completion codes", "If we cancel a visit, you get a free credit visit", "Pause when you travel"] },
+      { h2: "Our plans", p: ["Plans start with a deep clean and then visit weekly or every two weeks."], live: "cleaning-plans" },
+    ],
+    faqs: [
+      { q: "Can I have both?", a: "Yes. Many homes book a weekly clean so the house help can focus on children and cooking." },
+      { q: "Do you do laundry too?", a: "Yes. Home Complete adds laundry with free pickup and delivery to your cleaning plan." },
+    ],
+    areas: ["awka", "ifite", "amawbia"],
+  },
+  {
+    slug: "office-cleaning-checklist",
+    topic: "cleaning",
+    title: "Office Cleaning Checklist for Businesses in Awka",
+    h1: "An office cleaning checklist for businesses in Awka",
+    description: "Daily, weekly and monthly office cleaning tasks for offices, shops and clinics in Awka, and how a monthly office cleaning plan works.",
+    keywords: ["office cleaning checklist", "office cleaning Awka", "commercial cleaning Awka", "shop cleaning Awka"],
+    published: "2026-11-13",
+    intro: "Customers notice a dusty reception and a dirty toilet straight away. Use this checklist to keep your office or shop presentable.",
+    sections: [
+      { h2: "Every day", list: ["Empty bins", "Wipe reception and desks", "Clean the toilet and wash-hand basin", "Sweep the entrance"] },
+      { h2: "Every week", list: ["Mop all floors", "Wipe doors, handles and switches", "Clean glass doors and windows", "Clean the kitchenette and fridge"] },
+      { h2: "Every month or quarter", list: ["Dust fans, AC vents and high shelves", "Scrub toilet tiles", "Clean chairs and sofas", "Deep clean the kitchenette"] },
+      { h2: "Hand it to us", p: ["Our office plans cover the weekly list on a fixed monthly price, early morning or weekends if you prefer."], live: "cleaning-plans" },
+    ],
+    faqs: [
+      { q: "Can you clean outside working hours?", a: "Yes. Tell us your opening time and we schedule the crew to finish before it." },
+      { q: "Do you supply toilet rolls and soap?", a: "We bring cleaning supplies. Consumables like toilet rolls and hand soap stay your own." },
+    ],
+    areas: ["aroma", "awka", "amawbia"],
   },
 ];
 

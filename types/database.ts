@@ -1492,6 +1492,9 @@ export type Database = {
           pickup_agent_id: string | null
           pickup_distance_km: number | null
           pickup_fare_kobo: number
+          pickup_fare_waived_kobo: number
+          delivery_fare_waived_kobo: number
+          transport_waiver_id: string | null
           pickup_lat: number | null
           pickup_lng: number | null
           promo_code_id: string | null
@@ -1543,6 +1546,9 @@ export type Database = {
           pickup_agent_id?: string | null
           pickup_distance_km?: number | null
           pickup_fare_kobo?: number
+          pickup_fare_waived_kobo?: number
+          delivery_fare_waived_kobo?: number
+          transport_waiver_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           promo_code_id?: string | null
@@ -1594,6 +1600,9 @@ export type Database = {
           pickup_agent_id?: string | null
           pickup_distance_km?: number | null
           pickup_fare_kobo?: number
+          pickup_fare_waived_kobo?: number
+          delivery_fare_waived_kobo?: number
+          transport_waiver_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           promo_code_id?: string | null

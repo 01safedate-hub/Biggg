@@ -45,6 +45,7 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
     ? [{ label: "Get started", items: [
         { href: "/services", label: "Services", icon: "hub", exact: true },
         { href: "/onboarding/location", label: "Check service area", icon: "home", exact: true },
+        { href: "/cleaning", label: "Home cleaning", icon: "home", exact: false },
         PLAN_ITEM,
       ] }]
     : [{ label: "My LaundryPoint", items: [
@@ -53,6 +54,7 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         hasActiveSubscription ? MANAGE_ITEM : PLAN_ITEM,
         ...(hasCustoms ? [{ href: "/my-customs", label: "My customs", icon: "customers", exact: false }] : []),
         { href: "/request", label: "Book a pickup", icon: "dispatch", exact: true },
+        { href: "/cleaning/my", label: "My cleaning", icon: "home", exact: false },
         { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
         { href: "/account", label: "Settings", icon: "settings", exact: true },
       ] }];

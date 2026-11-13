@@ -2,8 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
-const PROTECTED = ["/account", "/staff", "/admin", "/welcome", "/orders", "/notifications", "/dashboard", "/request", "/subscriptions", "/onboarding/location", "/my-customs"];
-const STAFF_ROLES = new Set(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"]);
+const PROTECTED = ["/account", "/staff", "/admin", "/welcome", "/orders", "/notifications", "/dashboard", "/request", "/subscriptions", "/onboarding/location", "/my-customs", "/cleaning/my", "/cleaning/request", "/cleaning/quote"];
+const STAFF_ROLES = new Set(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
 
 /** Refresh the verified Supabase session and keep staff/admin/customer route families isolated. */
 export async function updateSession(request: NextRequest) {

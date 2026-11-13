@@ -7,7 +7,7 @@ const URL_ = Deno.env.get("SUPABASE_URL")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SITE = Deno.env.get("SITE_URL") ?? "https://laundrypoint.app";
-const ROLES = ["delivery_agent", "commission_agent", "cashier", "secretary", "washer", "admin", "super_admin"];
+const ROLES = ["delivery_agent", "commission_agent", "cashier", "secretary", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler", "admin", "super_admin"];
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -23,7 +23,8 @@ function cleanPhone(v: string) {
 
 // Anyone who works from a hub (desk staff, washers, delivery agents) needs a station: walk-in orders, hub drop-offs,
 // the wash queue and check-in all use it. Super admins, admins and commission-only agents may have one but do not need it.
-const STATION_OPTIONAL = new Set(["super_admin", "admin", "commission_agent"]);
+// Cleaning staff work at customers' homes, so a hub station is optional for them too.
+const STATION_OPTIONAL = new Set(["super_admin", "admin", "commission_agent", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
 const stationNeeded = (roles: string[]) => roles.some((r) => !STATION_OPTIONAL.has(r));
 
 // Validate first, save later: nothing (roles, invitation email, account) is created until the station is known to be valid.

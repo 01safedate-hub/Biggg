@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
   const planSlug = String(b.plan_slug ?? "");
   const billingPeriod = String(b.billing_period ?? "monthly");
   const pickupId = String(b.pickup_id ?? "");
+  const invoiceId = String(b.invoice_id ?? "");
 
   if (provider !== "paystack" && provider !== "flutterwave") {
     return json(400, { error: "unsupported_provider" }, origin);
@@ -70,7 +71,10 @@ Deno.serve(async (req) => {
   if (purpose === "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(pickupId)) {
     return json(400, { error: "bad_request" }, origin);
   }
-  if (purpose !== "subscription" && purpose !== "extra_clothes" && !/^[0-9a-f-]{36}$/i.test(order)) {
+  if (purpose === "cleaning" && !/^[0-9a-f-]{36}$/i.test(invoiceId)) {
+    return json(400, { error: "bad_request" }, origin);
+  }
+  if (purpose !== "subscription" && purpose !== "extra_clothes" && purpose !== "cleaning" && !/^[0-9a-f-]{36}$/i.test(order)) {
     return json(400, { error: "bad_request" }, origin);
   }
 
@@ -86,12 +90,16 @@ Deno.serve(async (req) => {
     ? "create_subscription_payment_intent"
     : purpose === "extra_clothes"
       ? "create_extra_clothes_payment_intent"
-      : "create_payment_intent";
+      : purpose === "cleaning"
+        ? "create_cleaning_payment_intent"
+        : "create_payment_intent";
   const { data, error } = purpose === "subscription"
     ? await db.rpc("create_subscription_payment_intent", { _plan_slug: planSlug, _provider: provider, _billing_period: billingPeriod })
     : purpose === "extra_clothes"
       ? await db.rpc("create_extra_clothes_payment_intent", { _pickup: pickupId, _provider: provider })
-      : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
+      : purpose === "cleaning"
+        ? await db.rpc("create_cleaning_payment_intent", { _invoice: invoiceId, _provider: provider })
+        : await db.rpc("create_payment_intent", { _order: order, _purpose: purpose, _provider: provider });
   if (error) {
     // Capture the database rejection reason for diagnosis without logging customer details or secrets.
     console.error("Payment intent RPC rejected", {
@@ -114,18 +122,23 @@ Deno.serve(async (req) => {
     phone: string | null;
     order_no?: number;
     plan_name?: string;
+    description?: string;
   };
   const site = callbackSite(req);
   const back = purpose === "subscription"
     ? `${site}/subscriptions?returning=1`
     : purpose === "extra_clothes"
       ? `${site}/account/extra-clothes?returning=1`
-      : `${site}/orders/${order}?returning=1`;
+      : purpose === "cleaning"
+        ? `${site}/cleaning/my?returning=1&ref=${encodeURIComponent(i.reference)}`
+        : `${site}/orders/${order}?returning=1`;
   const description = purpose === "subscription"
     ? `Subscription plan (${billingPeriod}): ${i.plan_name ?? planSlug}`
     : purpose === "extra_clothes"
       ? "Extra-clothes bill"
-      : purpose === "pickup_fare"
+      : purpose === "cleaning"
+        ? (i.description ?? "LaundryPoint cleaning").slice(0, 100)
+        : purpose === "pickup_fare"
         ? `One-time pickup and delivery transport for order #${i.order_no ?? ""}`
         : `Order #${i.order_no ?? ""}`;
   const metadata = {
@@ -133,6 +146,7 @@ Deno.serve(async (req) => {
     purpose,
     plan_slug: purpose === "subscription" ? planSlug : null,
     pickup_id: purpose === "extra_clothes" ? pickupId : null,
+    invoice_id: purpose === "cleaning" ? invoiceId : null,
   };
 
   if (provider === "paystack") {

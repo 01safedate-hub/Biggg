@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/roles";
 import { friendlyError } from "@/lib/rpc-errors";
 
-const ANY = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"] as const;
+const ANY = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"] as const;
 
 export async function saveMyProfile(data: Record<string, string>) {
   const { supabase } = await requireRole([...ANY]);

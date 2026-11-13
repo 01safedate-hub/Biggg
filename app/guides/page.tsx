@@ -9,8 +9,8 @@ import { GUIDES } from "@/lib/guides";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Laundry Guides for Awka: Prices, Pickup, Dry Cleaning and Care",
-  description: "Helpful guides from LaundryPoint: cheap laundry prices in Awka, pickup and delivery, choosing the best laundry, student laundry near Unizik, dry cleaning and clothes care.",
+  title: "Laundry and Cleaning Guides for Awka: Prices, Pickup and Care",
+  description: "Helpful guides from LaundryPoint: laundry and house cleaning prices in Awka, pickup and delivery, deep cleaning checklists, student laundry near Unizik and clothes care.",
   alternates: { canonical: "/guides" },
 };
 
@@ -26,8 +26,8 @@ export default async function GuidesPage() {
         <div className="container-page max-w-3xl space-y-8">
           <header>
             <p className="eyebrow">Guides</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Laundry guides for Awka</h1>
-            <p className="mt-4 text-lg leading-8 text-ink-soft">Honest answers about laundry prices, pickup, dry cleaning and caring for your clothes, from the team at LaundryPoint in Ifite.</p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Laundry and cleaning guides for Awka</h1>
+            <p className="mt-4 text-lg leading-8 text-ink-soft">Honest answers about laundry and house cleaning prices, pickup, dry cleaning, deep cleaning and caring for your clothes, from the team at LaundryPoint in Ifite.</p>
           </header>
           <ul className="grid gap-4 sm:grid-cols-2">
             {GUIDES.map((g) => (

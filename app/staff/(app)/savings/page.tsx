@@ -15,7 +15,7 @@ type Savings = {
 const monthName = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
 
 export default async function MySavings() {
-  const { supabase } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"]);
+  const { supabase } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
   const { data, error } = await supabase.rpc("my_savings");
   const s = data as unknown as Savings | null;
   if (error || !s) return <p role="alert" className="text-sm text-red-700">Your savings could not be loaded. Please refresh.</p>;

@@ -19,7 +19,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function Onboarding() {
-  const { supabase, user, roles } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"]);
+  const { supabase, user, roles } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
   const s = await enforceStaffGate(supabase, { skipOnboarding: true });
   if (!s) redirect("/account");
   const photoPath = s.profile?.photo_path ?? null;

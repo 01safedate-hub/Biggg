@@ -7,6 +7,7 @@ import { Pricing } from "@/components/landing/Pricing";
 import { Coverage } from "@/components/landing/Coverage";
 import { HubPhotos } from "@/components/landing/HubPhotos";
 import { LocalLinks } from "@/components/landing/LocalLinks";
+import { CleaningTeaser } from "@/components/landing/CleaningTeaser";
 import { Faq } from "@/components/landing/Faq";
 import { VisitBar } from "@/components/landing/VisitBar";
 import { FloatingContact } from "@/components/landing/FloatingContact";
@@ -35,6 +36,7 @@ export default async function Home() {
         <HowItWorks eta={settings.agent.eta_minutes} />
         <Security />
         <Pricing plans={plans} pickupsPerMonth={2} yearlyDiscountPct={settings.subscription.yearly_discount_pct} />
+        <CleaningTeaser />
         <HubPhotos mapsUrl={visitUrl} />
         <Coverage areas={zones} />
         <Faq />

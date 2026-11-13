@@ -5,6 +5,7 @@ const links = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#security", label: "Security" },
   { href: "#pricing", label: "Plans" },
+  { href: "/cleaning", label: "Cleaning" },
   { href: "#coverage", label: "Coverage" },
   { href: "#faq", label: "FAQ" },
 ];

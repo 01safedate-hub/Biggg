@@ -876,7 +876,9 @@ Deno.serve(async (req) => {
           if(bookingError){await sendFixedReply(/slot_unavailable|slot_invalid/i.test(String(bookingError.message))?"That time has just become unavailable. Please choose another time.":"I could not complete the booking. No payment has been collected. Our team will assist.");continue;}
           await db.from("whatsapp_conversation_messages").insert({phone:from,direction:"outbound",body:"PICKUP_SLOT_PENDING:"+JSON.stringify({customer_id:activeSession.customer_id,completed:true}),delivery_status:"internal"});
           const ref=String((booking as any)?.order_no ?? (booking as any)?.order_id ?? "created");
-          if((booking as any)?.source==="subscription"){
+          if((booking as any)?.source!=="subscription"&&(booking as any)?.transport_free===true){
+            await sendFixedReply("Your pickup has been booked. Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".\nTransport is free for this booking, so there is nothing to pay now. Laundry charges are billed after your clothes are counted.");
+          } else if((booking as any)?.source==="subscription"){
             await sendFixedReply("Your subscription pickup has been booked successfully. Order reference: "+ref+".\nPickup date: "+pendingSlot.date+"\nTime: "+selected.label+".");
           } else {
             const exhausted=(booking as any)?.source==="one_time_allowance_exhausted";

@@ -8,7 +8,7 @@ const dateLabel = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: 
 const timeLabel = (iso: string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 
 export default async function MyShiftsPage() {
-  const { supabase, roles } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "washer"]);
+  const { supabase, roles } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
   const canCheckIn = roles.includes("delivery_agent");

@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: Promise<{ area: str
   };
 }
 
-type Quote = { served?: boolean; distance_km?: number; fare_kobo?: number; delivery_fare_kobo?: number };
+type Quote = { served?: boolean; distance_km?: number; total_fare_kobo?: number; full_total_fare_kobo?: number; waiver_message?: string | null };
 
 export default async function AreaPage({ params }: { params: Promise<{ area: string }> }) {
   const { area } = await params;
@@ -39,8 +39,8 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
   let q: Quote = {};
   try {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const { data } = await createPublicClient().rpc("quote_pickup", { _lat: a.lat, _lng: a.lng });
-      q = (data ?? {}) as Quote;
+      const { data } = await createPublicClient().rpc("quote_one_time_pickup" as never, { _lat: a.lat, _lng: a.lng } as never);
+      q = (data ?? {}) as unknown as Quote;
     }
   } catch { /* the page still renders without a live fare */ }
   const b = settings.business;
@@ -49,7 +49,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
   const near = AREA_PAGES.filter((x) => x.slug !== a.slug).sort((x, y) => Math.hypot(x.lat - a.lat, x.lng - a.lng) - Math.hypot(y.lat - a.lat, y.lng - a.lng)).slice(0, 6);
   const faqs = [
     { q: `Do you pick up laundry in ${a.name}?`, a: `Yes. ${a.name} is inside our service area${q.distance_km ? `, about ${q.distance_km.toFixed(1)} km from our Ifite hub` : ""}. Book on the website or on WhatsApp and an agent comes to you.` },
-    { q: `How much is pickup in ${a.name}?`, a: q.fare_kobo ? `Pickup from central ${a.name} is about ${naira(q.fare_kobo)}, and delivery back is about ${naira(q.delivery_fare_kobo ?? q.fare_kobo)}. The exact fare depends on your address and is shown before you pay.` : "The transport fare depends on the distance from our hub to your address. You see it before you pay." },
+    { q: `How much is pickup in ${a.name}?`, a: q.total_fare_kobo === 0 ? `Pickup and delivery are free in ${a.name} right now. You pay only for your laundry, after it is counted.` : q.total_fare_kobo ? `A one-time pickup and delivery from central ${a.name} costs about ${naira(q.total_fare_kobo)} in total, paid once when you book. Monthly plan subscribers get their pickups included. The exact fare for your address is shown before you pay.` : "The transport fare depends on the distance from our hub to your address. You see it before you pay." },
     { q: "How fast do I get my clothes back?", a: "Speed is our focus. We wash and dry with our own machines, so clothes do not wait for sunshine. Instant service is available for selected items." },
     { q: "When are you open?", a: `${hours}, every day. You can book after hours too: the pickup is scheduled for the next morning.` },
   ];
@@ -76,7 +76,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
 
           <section className="grid gap-4 sm:grid-cols-3" aria-label={`LaundryPoint in ${a.name}`}>
             <div className="card p-5"><p className="text-sm text-ink-soft">Distance from our hub</p><p className="mt-1 text-2xl font-bold">{q.distance_km ? `${q.distance_km.toFixed(1)} km` : "Within 15 km"}</p></div>
-            <div className="card p-5"><p className="text-sm text-ink-soft">Pickup fare from</p><p className="mt-1 text-2xl font-bold">{q.fare_kobo ? naira(q.fare_kobo) : "Shown at booking"}</p></div>
+            <div className="card p-5"><p className="text-sm text-ink-soft">One-time pickup and delivery</p><p className="mt-1 text-2xl font-bold">{q.total_fare_kobo === 0 ? "Free" : q.total_fare_kobo ? naira(q.total_fare_kobo) : "Shown at booking"}</p>{q.total_fare_kobo === 0 && q.waiver_message ? <p className="mt-1 text-xs text-ink-soft">{q.waiver_message}</p> : <p className="mt-1 text-xs text-ink-soft">Included in monthly plans</p>}</div>
             <div className="card p-5"><p className="text-sm text-ink-soft">Open</p><p className="mt-1 text-2xl font-bold">{hours}</p></div>
           </section>
 
@@ -107,7 +107,7 @@ export default async function AreaPage({ params }: { params: Promise<{ area: str
 
           <section>
             <h2 className="text-lg font-semibold">Helpful guides</h2>
-            <ul className="mt-2 space-y-2 text-sm">{GUIDES.filter((x) => x.areas.includes(a.slug)).concat(GUIDES).filter((x, i, all) => all.indexOf(x) === i).slice(0, 4).map((x) => <li key={x.slug}><Link href={`/guides/${x.slug}`} className="underline">{x.h1}</Link></li>)}</ul>
+            <ul className="mt-2 space-y-2 text-sm">{GUIDES.filter((x) => x.topic !== "cleaning" && x.areas.includes(a.slug)).concat(GUIDES.filter((x) => x.topic !== "cleaning")).filter((x, i, all) => all.indexOf(x) === i).slice(0, 4).map((x) => <li key={x.slug}><Link href={`/guides/${x.slug}`} className="underline">{x.h1}</Link></li>)}</ul>
           </section>
 
           <section>

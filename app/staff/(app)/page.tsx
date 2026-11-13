@@ -15,7 +15,7 @@ type Pay = {
 };
 
 export default async function StaffHome() {
-  const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"]);
+  const { supabase, roles, name } = await requireRole(["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
   const { data } = await supabase.rpc("my_pay_overview");
   const p = data as unknown as Pay | null;
   const { data: auth } = await supabase.auth.getUser();

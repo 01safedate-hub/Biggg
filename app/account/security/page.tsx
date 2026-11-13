@@ -15,7 +15,7 @@ const NOTICE: Record<string, string> = {
   email_pending: "One of the two confirmations is done. Open the link we sent to the other address to finish the change.",
 };
 
-const STAFF = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"];
+const STAFF = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"];
 
 export default async function SecurityPage({ searchParams }: { searchParams: Promise<{ notice?: string; forced?: string }> }) {
   const { notice, forced } = await searchParams;

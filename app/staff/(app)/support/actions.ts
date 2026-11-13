@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/roles";
 
 async function supportClient() {
-  const { supabase } = await requireRole(["super_admin","admin","secretary","cashier","delivery_agent","commission_agent","washer"]);
+  const { supabase } = await requireRole(["super_admin","admin","secretary","cashier","delivery_agent","commission_agent","washer", "inspector", "cleaning_lead", "cleaner", "scheduler"]);
   const { data, error } = await supabase.rpc("staff_support_allowed");
   if (error || data !== true) throw new Error("Support access denied");
   return supabase;

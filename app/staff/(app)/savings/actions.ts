@@ -6,7 +6,7 @@ import { friendlyError } from "@/lib/rpc-errors";
 import type { Role } from "@/lib/roles";
 
 type R = { ok: boolean; message: string };
-const STAFF: Role[] = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer"];
+const STAFF: Role[] = ["super_admin", "admin", "secretary", "cashier", "delivery_agent", "commission_agent", "washer", "inspector", "cleaning_lead", "cleaner", "scheduler"];
 
 export async function raiseSavingsRate(pct: number): Promise<R> {
   const { supabase } = await requireRole(STAFF);

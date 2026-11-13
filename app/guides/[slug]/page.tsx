@@ -9,6 +9,8 @@ import { HubPhotos } from "@/components/landing/HubPhotos";
 import { AREA_PAGES, JsonLd, SITE_URL, businessJsonLd } from "@/lib/seo";
 import { GUIDES, findGuide } from "@/lib/guides";
 import { naira } from "@/lib/format";
+import { getCleaningInfo } from "@/lib/cleaning-seo";
+import { CallButtons, PlanTable, PriceExamples } from "@/components/cleaning/Public";
 
 export const revalidate = 3600;
 export const dynamicParams = false;
@@ -42,10 +44,12 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   const g = findGuide((await params).slug);
   if (!g) notFound();
   const { settings, plans, zones } = await getSiteData();
+  const cleaning = g.topic === "cleaning";
+  const cleaningInfo = cleaning ? await getCleaningInfo() : null;
   const b = settings.business;
   const priceBlocks = await Promise.all(g.sections.map((s) => (s.live?.startsWith("prices:") ? livePrices(s.live.slice(7).split("|")) : Promise.resolve(null))));
   const areas = g.areas.map((s) => AREA_PAGES.find((a) => a.slug === s)).filter((a) => a != null);
-  const others = GUIDES.filter((x) => x.slug !== g.slug).slice(0, 4);
+  const others = GUIDES.filter((x) => x.slug !== g.slug && (x.topic === "cleaning") === cleaning).slice(0, 4);
   const url = `${SITE_URL}/guides/${g.slug}`;
 
   return (
@@ -66,7 +70,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             <p className="eyebrow">LaundryPoint guide</p>
             <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{g.h1}</h1>
             <p className="mt-4 text-lg leading-8 text-ink-soft">{g.intro}</p>
-            <div className="mt-6 flex flex-wrap gap-3"><Link href="/request" className="btn-primary">Book a pickup</Link><Link href="/areas" className="btn-secondary">Check your area</Link></div>
+            {cleaning ? <div className="mt-6"><CallButtons /></div> : <div className="mt-6 flex flex-wrap gap-3"><Link href="/request" className="btn-primary">Book a pickup</Link><Link href="/areas" className="btn-secondary">Check your area</Link></div>}
           </header>
 
           {g.sections.map((s, i) => {
@@ -92,6 +96,8 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
                   </table>
                 )}
                 {s.live === "plans" && <p className="mt-2 text-sm"><Link href="/subscriptions" className="font-medium underline">See what each plan includes</Link></p>}
+                {s.live === "cleaning" && <div className="mt-4"><PriceExamples info={cleaningInfo} /><p className="mt-2 text-sm"><Link href="/cleaning" className="font-medium underline">All cleaning services</Link></p></div>}
+                {s.live === "cleaning-plans" && <div className="mt-4"><PlanTable info={cleaningInfo} /><p className="mt-2 text-sm"><Link href="/cleaning/plans" className="font-medium underline">How cleaning plans work</Link></p></div>}
               </section>
             );
           })}
@@ -106,8 +112,10 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
           <div className="card p-5"><HubPhotos compact mapsUrl={settings.hub.maps_url} /></div>
 
           <section>
-            <h2 className="text-lg font-semibold">Laundry pickup near you</h2>
-            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm">{areas.map((a) => <Link key={a.slug} href={`/laundry/${a.slug}`} className="underline">Laundry in {a.name}</Link>)}<Link href="/areas" className="font-medium underline">All areas</Link></p>
+            <h2 className="text-lg font-semibold">{cleaning ? "Cleaning near you" : "Laundry pickup near you"}</h2>
+            <p className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-sm">{areas.map((a) => cleaning
+              ? <Link key={a.slug} href={`/house-cleaning/${a.slug}`} className="underline">House cleaning in {a.name}</Link>
+              : <Link key={a.slug} href={`/laundry/${a.slug}`} className="underline">Laundry in {a.name}</Link>)}{cleaning ? <Link href="/cleaning" className="font-medium underline">All cleaning services</Link> : <Link href="/areas" className="font-medium underline">All areas</Link>}</p>
           </section>
 
           <section>

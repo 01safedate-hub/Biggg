@@ -7,6 +7,7 @@ import { OrderTimeline } from "@/components/orders/Timeline";
 import { naira } from "@/lib/format";
 import { longDate } from "@/lib/money";
 import { MoveShelves } from "@/components/ops/MoveShelves";
+import { WaiveTransport } from "@/components/transport/WaiveTransport";
 
 export const metadata = { title: "Order details" };
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
   const { supabase, roles } = await requireRole(["secretary", "admin", "super_admin", "cashier", "delivery_agent"]);
   const desk = roles.some((r) => ["secretary", "admin", "super_admin", "cashier"].includes(r));
   const { data: o } = await supabase.from("orders")
-    .select("order_no,status,source,created_at,customer_id,pickup_address,return_delivery_address,fulfillment_choice,notes,items_total_kobo,discount_kobo,instant,instant_fee_kobo,pickup_fare_kobo,delivery_fare_kobo,demurrage_kobo,ready_at,delivered_at,pickup_agent_id,delivery_agent_id")
+    .select("order_no,status,source,created_at,customer_id,pickup_address,return_delivery_address,fulfillment_choice,notes,items_total_kobo,discount_kobo,instant,instant_fee_kobo,pickup_fare_kobo,delivery_fare_kobo,pickup_fare_waived_kobo,delivery_fare_waived_kobo,demurrage_kobo,ready_at,delivered_at,pickup_agent_id,delivery_agent_id")
     .eq("id", id).maybeSingle();
   const { data: tl } = await supabase.rpc("order_timeline", { _order: id });
   if (!o || !tl) notFound();
@@ -78,8 +79,12 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
             {desk && row("Paid for clothes", naira(paidItems))}
             {o.pickup_fare_kobo > 0 && row("Pickup fare", naira(o.pickup_fare_kobo))}
             {o.delivery_fare_kobo > 0 && row("Delivery fare", naira(o.delivery_fare_kobo))}
+            {o.pickup_fare_waived_kobo + o.delivery_fare_waived_kobo > 0 && row("Free transport (waived)", naira(o.pickup_fare_waived_kobo + o.delivery_fare_waived_kobo))}
             {o.demurrage_kobo > 0 && row("Storage charge", naira(o.demurrage_kobo))}
           </dl>
+          {roles.some((r) => ["admin", "super_admin", "cashier"].includes(r)) && (o.status === "awaiting_fare_payment" || o.status === "awaiting_delivery_fare") && o.pickup_fare_kobo + o.delivery_fare_kobo > 0 && (
+            <WaiveTransport orderId={id} amountKobo={o.status === "awaiting_fare_payment" ? o.pickup_fare_kobo + o.delivery_fare_kobo : o.delivery_fare_kobo} />
+          )}
         </section>
       </div>
 

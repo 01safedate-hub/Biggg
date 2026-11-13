@@ -89,6 +89,10 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
+      {Number(o.pickup_fare_waived_kobo ?? 0) + Number(o.delivery_fare_waived_kobo ?? 0) > 0 && (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Free transport on this order: you saved {naira(Number(o.pickup_fare_waived_kobo ?? 0) + Number(o.delivery_fare_waived_kobo ?? 0))}.</p>
+      )}
+
       {o.status === "awaiting_fare_payment" && o.source === "one_time" && (
         <section className="card space-y-3 p-5">
           <h2 className="text-lg font-semibold">Pay transport to confirm your pickup</h2>
