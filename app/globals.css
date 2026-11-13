@@ -54,3 +54,9 @@
   100% { transform: translate(calc(var(--sway, 0) * -.4), var(--rise, -240px)) scale(1.35); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .scroll-bubble { display: none; } }
+
+/* In-app guide: card entrance and the highlight on the menu item it explains. */
+@keyframes guide-in { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+.guide-in { animation: guide-in .22s ease-out both; }
+[data-guide-active] { position: relative; z-index: 1; border-radius: .375rem; box-shadow: 0 0 0 2px #ea580c, 0 0 0 6px rgba(234, 88, 12, .18); transition: box-shadow .2s ease; }
+@media (prefers-reduced-motion: reduce) { .guide-in { animation: none; } }

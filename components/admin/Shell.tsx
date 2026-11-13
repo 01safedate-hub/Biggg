@@ -1,11 +1,11 @@
-import { Sidebar, type NavGroup } from "./Sidebar";
+import { Sidebar, type NavCustomize, type NavGroup } from "./Sidebar";
 
 export type { NavGroup, NavItem } from "./Sidebar";
 
-export function Shell({ title, name, groups, children }: { title: string; name: string; groups: NavGroup[]; children: React.ReactNode }) {
+export function Shell({ title, name, groups, children, customize, extra }: { title: string; name: string; groups: NavGroup[]; children: React.ReactNode; customize?: NavCustomize; extra?: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-canvas">
-      <Sidebar title={title} name={name} groups={groups} />
+      <Sidebar title={title} name={name} groups={groups} customize={customize} extra={extra} />
       <div className="lg:pl-64">
         <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-8 pt-3 sm:px-6 lg:px-8">{children}</main>
       </div>

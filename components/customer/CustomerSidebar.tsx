@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sidebar, type NavGroup } from "@/components/admin/Sidebar";
 import { createClient } from "@/lib/supabase/client";
+import { GuideRunner } from "@/components/guide/GuideRunner";
 
 const PLAN_ITEM = { href: "/subscriptions", label: "Monthly plans", icon: "weekly", exact: true };
 const MANAGE_ITEM = { href: "/subscriptions/manage", label: "Manage subscription", icon: "weekly", exact: true };
@@ -57,6 +58,9 @@ export function CustomerSidebar({ onboarding = false, name = "Customer account" 
         { href: "/cleaning/my", label: "My cleaning", icon: "home", exact: false },
         { href: "/account/extra-clothes", label: "Extra-clothes bills", icon: "money", exact: true },
         { href: "/account", label: "Settings", icon: "settings", exact: true },
+        { href: "/guide", label: "Getting started", icon: "guide", exact: true },
       ] }];
+  const hrefs = groups.flatMap((g) => g.items.map((i) => i.href));
+  if (!onboarding) return <Sidebar title="Customer" name={name} groups={groups} showNotifications={false} extra={<GuideRunner kind="customer" hrefs={hrefs} />} />;
   return <Sidebar title="Customer" name={name} groups={groups} showNotifications={false} />;
 }

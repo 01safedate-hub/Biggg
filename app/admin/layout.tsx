@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Shell, type NavGroup } from "@/components/admin/Shell";
 import { requireRole } from "@/lib/roles";
 import { enforceStaffGate } from "@/lib/staff-gate";
+import { GuideRunner } from "@/components/guide/GuideRunner";
+import { buildStaffNav, navHrefs } from "@/lib/staff-nav";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { manifest: "/manifest/admin", appleWebApp: { capable: true, title: "LaundryPoint Admin", statusBarStyle: "default" } };
@@ -33,6 +35,7 @@ const GROUPS: NavGroup[] = [
     { href: "/admin/staff", label: "Staff and station assignments", icon: "staff" },
     { href: "/admin/weekly", label: "Weekly team target", icon: "weekly" },
     { href: "/admin/savings", label: "Staff savings", icon: "money" },
+    { href: "/staff/guide/progress", label: "Staff guide progress", icon: "guide" },
     { href: "/admin/customers", label: "Customers and growth", icon: "customers" },
     { href: "/admin/subscriptions", label: "Subscribers", icon: "customers" },
     { href: "/admin/subscription-plans", label: "Subscription plans", icon: "prices" },
@@ -61,7 +64,19 @@ const GROUPS: NavGroup[] = [
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { supabase, name } = await requireRole(["super_admin"]);
+  const { supabase, name, roles } = await requireRole(["super_admin"]);
   await enforceStaffGate(supabase, { skipOnboarding: true });
-  return <Shell title="Super admin" name={name} groups={[...GROUPS, { label: "Switch", items: [{ href: "/staff", label: "Staff view", icon: "home", exact: true }] }]}>{children}</Shell>;
+  const [{ data: supportAllowed }, { data: prefs }] = await Promise.all([
+    supabase.rpc("staff_support_allowed"),
+    supabase.rpc("my_ui_prefs" as never),
+  ]);
+  const p = (prefs ?? {}) as unknown as { nav?: Record<string, unknown>; tours?: Record<string, unknown> };
+  const staffHrefs = navHrefs(buildStaffNav(roles, supportAllowed === true));
+  const groups = [...GROUPS, { label: "Switch", items: [{ href: "/staff", label: "Staff view", icon: "home", exact: true }, { href: "/staff/guide", label: "Staff guide", icon: "guide" }] }];
+  return (
+    <Shell title="Super admin" name={name} groups={groups} customize={{ area: "admin", layout: p.nav?.admin ?? null }}
+      extra={<GuideRunner kind="staff" hrefs={staffHrefs} roles={roles} initial={(p.tours?.staff ?? {}) as Record<string, unknown>} />}>
+      {children}
+    </Shell>
+  );
 }

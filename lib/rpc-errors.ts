@@ -232,6 +232,7 @@ const MESSAGES: Record<string, string> = {
   amount_mismatch: "The amount paid does not match the bill. Please contact support.",
   auth_required: "Please sign in to continue.",
   forbidden: "You do not have permission to do this.",
+  too_many_pins: "You can pin up to 12 pages. Unpin one first.",
   // Generic keys last: they are substrings of more specific ones above.
   not_allowed: "You do not have permission to do this.",
   not_found: "That record could not be found.",
