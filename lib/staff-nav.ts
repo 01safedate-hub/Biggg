@@ -14,12 +14,12 @@ export function buildStaffNav(roles: string[], supportAllowed: boolean): NavGrou
     { href: "/staff/leave", label: "Leave and swaps", icon: "weekly" },
   ];
   if (washerOnly) work.push({ href: "/staff/hub", label: "Wash queue", icon: "hub" }, { href: "/staff/shelves", label: "Shelf map", icon: "hub" });
-  if (has(roles, ["cashier", "secretary", "admin", "super_admin"])) work.push({ href: "/staff/orders", label: "Orders", icon: "jobs" }, { href: "/staff/shelves", label: "Shelf map", icon: "hub" }, { href: "/staff/customs", label: "Customs", icon: "customers" });
+  if (has(roles, ["cashier", "secretary", "admin", "super_admin"])) work.push({ href: "/staff/orders", label: "Orders", icon: "jobs" }, { href: "/staff/unpaid", label: "Unpaid orders", icon: "money" }, { href: "/staff/shelves", label: "Shelf map", icon: "hub" }, { href: "/staff/customs", label: "Customs", icon: "customers" });
   if (has(roles, ["cashier", "secretary", "admin", "super_admin"])) work.push({ href: "/staff/subscription-pickup-calls", label: "Subscription pickup calls", icon: "weekly" });
   if (has(roles, ["secretary", "admin", "super_admin"])) work.push({ href: "/staff/student-ids", label: "Student IDs", icon: "weekly" });
   if (roles.includes("secretary") || roles.includes("super_admin")) work.push({ href: "/staff/expenses", label: "Record expense", icon: "record" });
   if (has(roles, ["secretary", "admin", "super_admin"])) work.push({ href: "/staff/agent-verification", label: "Verify agents", icon: "customers" });
-  if (has(roles, ["delivery_agent", "commission_agent"])) work.push({ href: "/staff/jobs", label: "My jobs", icon: "jobs" });
+  if (has(roles, ["delivery_agent", "commission_agent"])) work.push({ href: "/staff/jobs", label: "My jobs", icon: "jobs" }, { href: "/staff/quick-order", label: "Quick order", icon: "record" });
   if (has(roles, ["delivery_agent", "commission_agent", "admin", "super_admin"])) work.push({ href: "/staff/referrals", label: "Referrals", icon: "customers" });
   if (has(roles, ["delivery_agent", "commission_agent"])) work.push({ href: "/staff/commissions", label: "My commissions", icon: "money" });
   if (has(roles, ["secretary", "admin", "super_admin"])) {

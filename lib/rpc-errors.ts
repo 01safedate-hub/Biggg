@@ -1,4 +1,11 @@
 const MESSAGES: Record<string, string> = {
+  // Quick orders and pay later: listed first because they contain older generic keys (not_allowed, balance_due, limit).
+  quick_order_not_allowed: "Quick orders are for delivery agents and verified commission agents only.",
+  quick_order_unfinished: "Finish or cancel your open quick order first. You can only have one being counted at a time.",
+  customer_unpaid_limit: "This customer already owes on 3 orders. They must pay before we take more clothes.",
+  agent_unpaid_limit: "You already have 5 quick orders waiting for payment. Get those paid before taking new ones on credit.",
+  unpaid_balance: "This order is not paid yet. Clothes are never released or sent out until the bill is paid.",
+  not_own_client: "As a commission agent you can take quick orders only for clients you signed up.",
   // Specific cleaning codes first: they contain older generic keys.
   cleaning_invalid_service: "Choose a valid cleaning service.",
   cleaning_invalid_qty: "Check the number of rooms. Use whole numbers from 0 to 50.",

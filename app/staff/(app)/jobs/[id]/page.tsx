@@ -11,6 +11,7 @@ import { AutoRefresh } from "@/components/orders/AutoRefresh";
 import { AgentPickupMap } from "@/components/ops/AgentPickupMap";
 import { TimeLeft } from "@/components/ops/TimeLeft";
 import { lineKey } from "@/lib/services";
+import { AddEmail, QuickCancel, QuickPayPanel, type Bank } from "@/components/ops/QuickOrder";
 
 export const metadata = { title: "Pickup job" };
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
   const { data: o } = await supabase.from("orders").select("*").eq("id", id).or(`pickup_agent_id.eq.${user.id},delivery_agent_id.eq.${user.id}`).maybeSingle();
   if (!o) notFound();
   const [{ data: cust }, { data: lines }, { data: cats }, { data: items }] = await Promise.all([
-    supabase.from("profiles").select("full_name,phone").eq("id", o.customer_id).maybeSingle(),
+    supabase.from("profiles").select("full_name,phone,is_walk_in").eq("id", o.customer_id).maybeSingle(),
     supabase.from("order_items").select("id,item_id,name,qty,unit_price_kobo,line_total_kobo,service").eq("order_id", id).is("removed_at", null),
     supabase.from("item_categories").select("id,name,slug").eq("active", true).order("sort_order").order("name"),
     supabase.from("items").select("id,name,price_kobo,category_id").eq("active", true).order("sort_order").order("name"),
@@ -43,6 +44,10 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
     : { data: null };
   const categoryLimits = (planInfo?.category_limits ?? {}) as Record<string, number>;
   const total = Math.max(0, o.items_total_kobo - o.discount_kobo) + o.instant_fee_kobo;
+  const quick = o.quick_order === true;
+  const { data: bankRow } = quick && o.status === "counted" ? await supabase.rpc("pay_later_bank") : { data: null };
+  const bank = (bankRow ?? null) as Bank | null;
+  const noEmail = quick && cust?.is_walk_in === true && o.status !== "cancelled";
   const delivering = o.delivery_agent_id === user.id && ["out_for_delivery", "delivered", "failed_delivery"].includes(o.status);
   const canClaimReturn = o.pickup_agent_id === user.id && !o.delivery_agent_id && ["ready", "out_for_delivery"].includes(o.status) && (o.source === "subscription" || (o as any).fulfillment_choice === "deliver");
   if (delivering) {
@@ -54,7 +59,7 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
           <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
           <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p></div>
         <AgentPickupMap agentId={user.id} orderId={id} />
-        <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
+        <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Delivery is included in the customer’s monthly plan. Do not collect a delivery fare or any cash." : quick ? "This quick order is fully paid. Do not collect any cash." : "The delivery fare is already paid online. Do not collect any cash."}</p>
         <section className="card p-5"><h2 className="text-lg font-semibold">In the bag</h2>
           <ul className="mt-2 divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="py-2">{l.qty} × {l.name}</li>)}</ul></section>
         {o.status === "out_for_delivery" && <section className="card space-y-4 p-5"><h2 className="text-lg font-semibold">When you reach the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} step="delivery" label="I am at the door: show my code" /><FailedDeliveryForm orderId={id} /></section>}
@@ -71,9 +76,11 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       <div><h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
         <p className="mt-1 text-sm text-ink-soft">{cust?.full_name} · <PhoneActions phone={cust?.phone} /></p>
         <p className="mt-1 text-sm text-ink-soft">{o.pickup_address} </p>
+        {quick && <p className="mt-1 text-sm font-medium text-brand-dark">Quick order: you took these clothes in the field. We deliver them back to this address.</p>}
         {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}</div>
-      <AgentPickupMap agentId={user.id} orderId={id} />
-      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{o.source === "subscription" ? "Record every garment by category. Follow the category caps and total-piece allowance shown below; excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
+      {!quick && <AgentPickupMap agentId={user.id} orderId={id} />}
+      {noEmail && <AddEmail customerId={o.customer_id} orderId={id} why="Ask for their email. They need it to track the order and to confirm delivery with a code. Delivery waits until it is added." />}
+      <p role="note" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">{quick ? "Never take cash. The customer transfers to the LaundryPoint account shown after counting, and you check the success screen on their phone." : o.source === "subscription" ? "Record every garment by category. Follow the category caps and total-piece allowance shown below; excess pieces are billed online to the customer. Never collect cash." : "Do not take cash from the customer. They pay on their own phone, and you leave once you see it marked paid here."}</p>
       {canClaimReturn && <section className="card space-y-3 p-5">
         <h2 className="text-lg font-semibold">Return delivery for your customer</h2>
         <p className="text-sm text-ink-soft">The clothes are ready. You may take this return job because this customer was onboarded by you.</p>
@@ -81,8 +88,16 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       </section>}
 
       {o.status === "agent_assigned" && <section className="card space-y-3 p-5"><h2 className="text-lg font-semibold">1. Confirm you are at the door</h2><LocationSharer orderId={id} /><ArrivalCode orderId={id} orderNo={o.order_no} /><FailedPickupForm orderId={id} /></section>}
-      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} perPickupAllowance={Number(planInfo?.per_pickup_allowance ?? planInfo?.pieces_per_month ?? 0)} />{(lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
-      {o.status === "counted" && (
+      {o.status === "agent_arrived" && <section className="space-y-3"><h2 className="text-lg font-semibold">2. Count the clothes by category</h2><Itemiser orderId={id} cats={cats ?? []} items={(items ?? []).map((i) => ({ ...i, price_kobo: Number(i.price_kobo), iron_kobo: ironById.get(i.id) ?? null }))} initial={initial} subscription={o.source === "subscription"} categoryLimits={categoryLimits} categoryUsage={(planInfo?.category_pieces_used ?? {}) as Record<string, number>} piecesPerMonth={Number(planInfo?.pieces_per_month ?? 0)} periodPiecesUsed={Number(planInfo?.period_pieces_used ?? 0)} perPickupAllowance={Number(planInfo?.per_pickup_allowance ?? planInfo?.pieces_per_month ?? 0)} />{quick ? <QuickCancel orderId={id} /> : (lines ?? []).length === 0 && <FailedPickupForm orderId={id} />}</section>}
+      {o.status === "counted" && quick && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">3. Get paid on the spot</h2>
+          <ul className="card divide-y divide-line p-5 text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
+          <QuickPayPanel orderId={id} orderNo={o.order_no} itemsKobo={total} fareKobo={o.delivery_fare_kobo ?? 0} fareWaivedKobo={o.delivery_fare_waived_kobo ?? 0} bank={bank} firstName={(cust?.full_name ?? "").split(" ")[0] || "there"} />
+          <div className="flex flex-wrap gap-4"><ReopenButton orderId={id} /><QuickCancel orderId={id} /></div>
+        </section>
+      )}
+      {o.status === "counted" && !quick && (
         <section className="card space-y-4 p-5">
           <h2 className="text-lg font-semibold">{o.source === "subscription" ? "3. Garment count submitted" : "3. Waiting for the customer to pay"}</h2>
           <ul className="divide-y divide-line text-sm">{(lines ?? []).map((l) => <li key={l.id} className="flex justify-between py-2"><span>{l.qty} × {l.name}</span><span>{naira(l.line_total_kobo ?? 0)}</span></li>)}</ul>
@@ -93,12 +108,14 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       )}
       {o.status === "count_confirmed" && (
         <section className="space-y-3 rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950">
-          <h2 className="text-xl font-bold">{o.source === "subscription" ? "Garment count confirmed ✓" : `Paid ✓ ${naira(total)}`}</h2>
-          <p className="text-sm">{o.source === "subscription"
+          <h2 className="text-xl font-bold">{o.source === "subscription" ? "Garment count confirmed ✓" : quick ? (o.paid_confirmed_at ? "Paid ✓ Take the clothes to the hub" : o.payment_claim ? "Transfer recorded: the office is checking" : "Pay later: take the clothes to the hub") : `Paid ✓ ${naira(total)}`}</h2>
+          <p className="text-sm">{quick
+            ? o.paid_confirmed_at ? "The office confirmed the money arrived." : o.payment_claim ? "You will get a notification when the office confirms the money. If it does not arrive, call the customer." : "The customer has not paid yet. Remind them to transfer. The clothes stay at the hub until they pay."
+            : o.source === "subscription"
             ? Number(subscriptionPickup?.overage_pieces ?? 0) > 0
               ? "The customer has paid the excess-piece bill online. No transport payment is due. Take the clothes to the hub and hand them to the secretary."
               : "These garments are within the monthly plan allowance. No payment is due for this pickup. Take the clothes to the hub and hand them to the secretary."
-            : "The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary."}</p>
+            : "The customer has paid on their phone. You can leave. Take the clothes to the hub and hand them to the secretary."}{quick ? " Take the bag to the hub and hand it to the secretary." : ""}</p>
           {custody?.picked_up_at && !custody?.hub_in_at && <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
             <p className="font-semibold">Hub drop-off deadline: within three hours of collection.</p>
             <TimeLeft targetAt={custody.hub_dropoff_due_at || new Date(new Date(custody.picked_up_at).getTime() + 3 * 60 * 60 * 1000).toISOString()} label={false} />

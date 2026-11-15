@@ -8,6 +8,8 @@ import { naira } from "@/lib/format";
 import { longDate } from "@/lib/money";
 import { MoveShelves } from "@/components/ops/MoveShelves";
 import { WaiveTransport } from "@/components/transport/WaiveTransport";
+import { PayLaterPanel } from "@/components/ops/QuickOrder";
+import { payLaterFor } from "@/lib/pay-later";
 
 export const metadata = { title: "Order details" };
 export const dynamic = "force-dynamic";
@@ -21,7 +23,7 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
   const { supabase, roles } = await requireRole(["secretary", "admin", "super_admin", "cashier", "delivery_agent"]);
   const desk = roles.some((r) => ["secretary", "admin", "super_admin", "cashier"].includes(r));
   const { data: o } = await supabase.from("orders")
-    .select("order_no,status,source,created_at,customer_id,pickup_address,return_delivery_address,fulfillment_choice,notes,items_total_kobo,discount_kobo,instant,instant_fee_kobo,pickup_fare_kobo,delivery_fare_kobo,pickup_fare_waived_kobo,delivery_fare_waived_kobo,demurrage_kobo,ready_at,delivered_at,pickup_agent_id,delivery_agent_id")
+    .select("order_no,status,source,created_at,customer_id,pickup_address,return_delivery_address,fulfillment_choice,notes,items_total_kobo,discount_kobo,instant,instant_fee_kobo,pickup_fare_kobo,delivery_fare_kobo,pickup_fare_waived_kobo,delivery_fare_waived_kobo,demurrage_kobo,ready_at,delivered_at,pickup_agent_id,delivery_agent_id,quick_order,pay_later_at")
     .eq("id", id).maybeSingle();
   const { data: tl } = await supabase.rpc("order_timeline", { _order: id });
   if (!o || !tl) notFound();
@@ -32,6 +34,7 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
     desk ? supabase.from("payments").select("id,purpose,kind,mode,amount_kobo,status,paid_at,created_at").eq("order_id", id).order("created_at") : Promise.resolve({ data: [] as { id: string; purpose: string; kind: string; mode: string; amount_kobo: number; status: string; paid_at: string | null; created_at: string | null }[] }),
     supabase.from("profiles").select("id,full_name,phone,email").in("id", [o.customer_id, o.pickup_agent_id, o.delivery_agent_id].filter(Boolean) as string[]),
   ]);
+  const owed = desk && o.pay_later_at && o.status !== "cancelled" ? await payLaterFor(supabase, id) : null;
   const who = new Map((ppl ?? []).map((p) => [p.id, p]));
   const cust = who.get(o.customer_id);
   const pieces = (items ?? []).reduce((a, i) => a + i.qty, 0);
@@ -45,8 +48,9 @@ export default async function StaffOrder({ params }: { params: Promise<{ id: str
       <Link href={desk ? "/staff/orders" : "/staff/jobs"} className="text-sm font-medium text-ink-soft hover:text-ink">&larr; {desk ? "Orders" : "My jobs"}</Link>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Order #{o.order_no}</h1>
-        <p className="mt-1 text-sm text-ink-soft">{STATUS_LABEL[o.status] ?? o.status} · {SOURCE[o.source] ?? o.source}{o.instant ? " · Instant" : ""} · booked {longDate(o.created_at ?? "")}</p>
+        <p className="mt-1 text-sm text-ink-soft">{STATUS_LABEL[o.status] ?? o.status} · {o.quick_order ? "Quick order (agent in the field)" : SOURCE[o.source] ?? o.source}{o.instant ? " · Instant" : ""} · booked {longDate(o.created_at ?? "")}</p>
       </div>
+      {owed && <PayLaterPanel orderId={id} amountKobo={owed.row.amount_kobo} reason={owed.row.reason} claim={owed.row.claim} takenBy={owed.row.taken_by} since={owed.row.since} points={owed.points} defaultPoint={owed.defaultPoint} canConfirm />}
 
       <section className={`card p-5 ${shelfList.length ? "border-brand" : ""}`} aria-label="Shelf">
         <h2 className="text-lg font-semibold">Shelf</h2>

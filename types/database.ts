@@ -1494,6 +1494,13 @@ export type Database = {
           pickup_fare_kobo: number
           pickup_fare_waived_kobo: number
           delivery_fare_waived_kobo: number
+          quick_order: boolean
+          pay_later_at: string | null
+          pay_later_by: string | null
+          pay_later_reason: string | null
+          payment_claim: Json | null
+          paid_confirmed_at: string | null
+          paid_confirmed_by: string | null
           transport_waiver_id: string | null
           pickup_lat: number | null
           pickup_lng: number | null
@@ -1548,6 +1555,13 @@ export type Database = {
           pickup_fare_kobo?: number
           pickup_fare_waived_kobo?: number
           delivery_fare_waived_kobo?: number
+          quick_order?: boolean
+          pay_later_at?: string | null
+          pay_later_by?: string | null
+          pay_later_reason?: string | null
+          payment_claim?: Json | null
+          paid_confirmed_at?: string | null
+          paid_confirmed_by?: string | null
           transport_waiver_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
@@ -1602,6 +1616,13 @@ export type Database = {
           pickup_fare_kobo?: number
           pickup_fare_waived_kobo?: number
           delivery_fare_waived_kobo?: number
+          quick_order?: boolean
+          pay_later_at?: string | null
+          pay_later_by?: string | null
+          pay_later_reason?: string | null
+          payment_claim?: Json | null
+          paid_confirmed_at?: string | null
+          paid_confirmed_by?: string | null
           transport_waiver_id?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
@@ -3302,6 +3323,14 @@ export type Database = {
       desk_gate: { Args: never; Returns: boolean }
       desk_handover: { Args: { _order: string }; Returns: undefined }
       desk_issues: { Args: never; Returns: Json }
+      agent_quick_order_cancel: { Args: { _order: string; _reason: string }; Returns: undefined }
+      agent_quick_order_finish: { Args: { _choice: string; _note: string; _order: string }; Returns: Json }
+      agent_quick_order_start: { Args: { _accuracy: number; _address: string; _customer: string; _lat: number; _lng: number; _notes: string }; Returns: Json }
+      confirm_order_payment: { Args: { _mode: string; _money_point: string; _note: string; _order: string }; Returns: Json }
+      desk_pay_later: { Args: { _order: string; _reason: string }; Returns: undefined }
+      pay_later_bank: { Args: never; Returns: Json }
+      quick_order_gate: { Args: never; Returns: boolean }
+      unpaid_orders: { Args: never; Returns: Json }
       desk_pay_delivery: {
         Args: {
           _mode: string
