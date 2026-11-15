@@ -42,11 +42,13 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const { data: arrivalCodeIssued } = o.status === "agent_assigned" ? await (supabase as any).rpc("my_order_arrival_code_issued", { _order: id }) : { data: false };
   const agentAtDoor = o.status === "agent_arrived" || (o.status === "agent_assigned" && arrivalCodeIssued === true);
   const agentId = ["out_for_delivery", "failed_delivery"].includes(o.status) ? o.delivery_agent_id : o.pickup_agent_id;
+  // Pay later: the bill can be paid in the app at any stage until the clothes are released.
+  const payLaterOpen = Boolean(o.pay_later_at) && !o.paid_confirmed_at && !["delivered", "closed", "cancelled", "counted"].includes(o.status);
   const [{ data: lines }, { data: tl }, { data: agent }, { data: bal }, { data: rating }, { data: issues }, { data: dem }, { data: iq }] = await Promise.all([
     supabase.from("order_items").select("id,name,category_name,qty,unit_price_kobo,line_total_kobo").eq("order_id", id).is("removed_at", null).order("created_at"),
     supabase.rpc("order_timeline", { _order: id }),
     agentId ? supabase.from("profiles").select("full_name,phone").eq("id", agentId).maybeSingle() : Promise.resolve({ data: null }),
-    o.status === "count_confirmed" ? supabase.rpc("items_balance", { _order: id }) : Promise.resolve({ data: 0 }),
+    o.status === "count_confirmed" || payLaterOpen ? supabase.rpc("items_balance", { _order: id }) : Promise.resolve({ data: 0 }),
     supabase.from("order_ratings").select("stars").eq("order_id", id).maybeSingle(),
     supabase.from("order_issues").select("id,kind,status,resolution,compensation_kobo").eq("order_id", id).order("created_at"),
     o.status === "failed_delivery" ? supabase.rpc("demurrage_status", { _order: id }) : Promise.resolve({ data: null }),
@@ -55,6 +57,7 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
   const quote = iq as unknown as InstantQuote | null;
   const dm = dem as unknown as { has_case?: boolean; status?: string; grace_ends_at?: string; due_kobo?: number; fee_kobo?: number; basis?: string } | null;
   const topUp = Math.max(0, Number(bal ?? 0));
+  const fareOwed = payLaterOpen && o.quick_order && Number(o.delivery_fare_kobo ?? 0) > 0 && !deliveryPayment ? Number(o.delivery_fare_kobo) : 0;
   const { data: subscriptionPickup } = o.source === "subscription" && o.subscription_pickup_id
     ? await (supabase as any).from("subscription_pickups").select("pieces_counted,overage_pieces,overage_kobo,excluded_kobo").eq("id", o.subscription_pickup_id).maybeSingle()
     : { data: null };
@@ -122,6 +125,16 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
         </section>
       )}
 
+      {payLaterOpen && (topUp > 0 || fareOwed > 0) && (
+        <section className="space-y-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-5 text-amber-950" aria-label="Bill to pay">
+          <h2 className="text-lg font-bold">Your bill is not paid yet: {naira(topUp + fareOwed)}</h2>
+          <p className="text-sm">We are taking care of your clothes. We release or deliver them once this is paid. Pay securely here.</p>
+          {topUp > 0 && <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}${fareOwed > 0 ? " for washing" : ""}`} />}
+          {fareOwed > 0 && <PayButtons orderId={id} purpose="delivery_fare" label={`Pay ${naira(fareOwed)} delivery`} />}
+          {returning === "1" && <VerifyPayment orderId={id} auto />}
+        </section>
+      )}
+
       {o.status === "agent_arrived" && <section className="card p-5 text-sm text-ink-soft">{o.source === "subscription" ? "Your agent is counting garments by category. The monthly plan covers included pieces; only pieces above your remaining allowance will be billed online. Do not hand over cash." : "Your agent is counting your clothes by category. Your bill will appear here in a moment. Please do not hand over any cash."}</section>}
 
       {["counted", "count_confirmed", "received", "in_house", "ready", "out_for_delivery", "delivered", "closed", "failed_delivery"].includes(o.status) && (lines ?? []).length > 0 && (
@@ -156,8 +169,8 @@ export default async function OrderPage({ params, searchParams }: { params: Prom
           )}
           {o.count_auto && o.count_accepted_at && !o.count_disputed_at && ["counted", "count_confirmed", "received"].includes(o.status) && Date.now() - new Date(o.count_accepted_at).getTime() < 86_400_000 && <div className="mt-4"><ReportCount orderId={id} /></div>}
           {o.count_disputed_at && <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">You told us the count looks wrong. Our team has been told and will contact you.</p>}
-          {o.status === "count_confirmed" && topUp === 0 && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{o.source === "subscription" ? (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 ? "Your subscription pickup charges (extra eligible pieces and excluded-category full-price items) have been paid online. Your order is confirmed for processing. No transport payment is due." : "These garments are covered by your monthly allowance. Your clothes are moving to our hub for checking and processing. No transport payment is due.") : "Paid. Your agent is taking your clothes to our hub, where they are checked again."}</p>}
-          {o.source !== "subscription" && o.status === "count_confirmed" && topUp > 0 && (
+          {o.status === "count_confirmed" && topUp === 0 && !o.pay_later_at && <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{o.source === "subscription" ? (Number(subscriptionPickup?.overage_pieces ?? 0) > 0 ? "Your subscription pickup charges (extra eligible pieces and excluded-category full-price items) have been paid online. Your order is confirmed for processing. No transport payment is due." : "These garments are covered by your monthly allowance. Your clothes are moving to our hub for checking and processing. No transport payment is due.") : "Paid. Your agent is taking your clothes to our hub, where they are checked again."}</p>}
+          {o.source !== "subscription" && o.status === "count_confirmed" && topUp > 0 && !payLaterOpen && (
             <div className="mt-5 space-y-3 border-t border-line pt-5">
               <p role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">When we checked your clothes, one item was in a higher-priced category than first counted. The prices above are now corrected. Please pay the difference of <strong>{naira(topUp)}</strong>.</p>
               <PayButtons orderId={id} purpose="items" label={`Pay ${naira(topUp)}`} />
