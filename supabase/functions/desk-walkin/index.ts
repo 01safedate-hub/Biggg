@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     isAgent = !qg.error && qg.data === true;
   }
   if (!isDesk && !isAgent) return json(403, { error: "not_allowed" });
-  const me = isAgent ? (await caller.auth.getUser()).data.user?.id ?? null : null;
+  const me = isAgent ? (await caller.auth.getUser(auth.replace(/^Bearer\s+/i, ""))).data.user?.id ?? null : null;
   if (isAgent && !me) return json(401, { error: "not_signed_in" });
 
   let b: Record<string, unknown>;
